@@ -1,0 +1,46 @@
+@model List<ExpenseManagement.Models.ExpenseClaim>
+@using ExpenseManagement.Models
+@{ ViewData["Title"] = "My Claims"; }
+
+<h5 class="mb-3"><i class="fas fa-receipt me-2"></i>My Claims</h5>
+
+@if (!Model.Any())
+{ <div class="card text-center py-5 text-muted"><i class="fas fa-receipt fa-3x mb-3 d-block"></i>No claims found</div> }
+else
+{
+    <div class="table-responsive">
+        <table class="table table-hover">
+            <thead><tr><th>Date</th><th>Title</th><th class="d-mobile-none">Category</th><th>Amount</th><th>Bill</th><th>Status</th></tr></thead>
+            <tbody>
+                @foreach (var c in Model)
+                {
+                    <tr>
+                        <td>@c.ExpenseDate.ToString("dd MMM")</td>
+                        <td>
+                            <div class="fw-semibold">@c.Title</div>
+                            <small class="text-muted d-md-none">@c.Category</small>
+                        </td>
+                        <td class="d-mobile-none">@c.Category</td>
+                        <td>₹@c.Amount.ToString("N2")</td>
+                        <td>
+                            @if (!string.IsNullOrEmpty(c.ReceiptPath))
+                            {
+                                var ext = System.IO.Path.GetExtension(c.ReceiptPath).ToLower();
+                                if (ext == ".pdf")
+                                { <a href="@c.ReceiptPath" target="_blank" class="btn btn-sm btn-outline-danger py-0"><i class="fas fa-file-pdf"></i></a> }
+                                else
+                                { <a href="@c.ReceiptPath" target="_blank"><img src="@c.ReceiptPath" style="height:30px;width:30px;object-fit:cover;border-radius:4px" /></a> }
+                            }
+                            else { <span class="text-muted">–</span> }
+                        </td>
+                        <td>
+                            <span class="badge @(c.Status == ExpenseStatus.Approved ? "badge-approved" : c.Status == ExpenseStatus.Declined ? "badge-declined" : "badge-pending")">
+                                @c.Status
+                            </span>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+}

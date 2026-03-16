@@ -1,0 +1,257 @@
+@model List<ExpenseManagement.Models.User>
+@using ExpenseManagement.Models
+@{ ViewData["Title"] = "Employee Management"; }
+
+<style>
+.emp-card {
+    background: #fff;
+    border-radius: 16px;
+    border: 1px solid #e8ecf0;
+    transition: all .2s ease;
+    overflow: hidden;
+}
+.emp-card:hover { box-shadow: 0 8px 24px rgba(0,0,0,.1); transform: translateY(-2px); }
+.emp-avatar {
+    width: 52px; height: 52px; border-radius: 14px;
+    display: flex; align-items: center; justify-content: center;
+    font-weight: 800; font-size: 1.25rem; flex-shrink: 0;
+}
+.wallet-bar { height: 6px; border-radius: 99px; background: #e8ecf0; overflow: hidden; }
+.wallet-fill { height: 100%; border-radius: 99px; transition: width .4s; }
+.badge-dept { background: #f1f5f9; color: #475569; font-size: .72rem; border-radius: 6px; padding: 2px 8px; font-weight: 600; }
+.action-btn { border-radius: 8px; font-size: .8rem; font-weight: 600; padding: 5px 12px; }
+.stat-pill { background: #f8fafc; border-radius: 10px; padding: 8px 12px; text-align: center; }
+.stat-pill .num { font-size: 1.1rem; font-weight: 700; line-height: 1; }
+.stat-pill .lbl { font-size: .7rem; color: #94a3b8; margin-top: 2px; }
+.search-box { background: #f8fafc; border: 1.5px solid #e2e8f0; border-radius: 10px; padding: 8px 14px; }
+.search-box:focus { background: #fff; border-color: #2563eb; outline: none; box-shadow: 0 0 0 3px rgba(37,99,235,.1); }
+.header-strip { background: linear-gradient(135deg, #1e3a8a 0%, #2563eb 100%); border-radius: 16px; padding: 24px; color: #fff; margin-bottom: 24px; }
+</style>
+
+<div class="header-strip d-flex justify-content-between align-items-center flex-wrap gap-3">
+    <div>
+        <h4 class="mb-1 fw-bold"><i class="fas fa-users me-2"></i>Employee Management</h4>
+        <p class="mb-0" style="opacity:.75;font-size:.88rem">Manage employees, view wallet balances, allocate budgets</p>
+    </div>
+    <a href="/AccountTeam/CreateEmployee" class="btn btn-light fw-semibold" style="border-radius:10px">
+        <i class="fas fa-user-plus me-2 text-primary"></i>Add New Employee
+    </a>
+</div>
+
+@* ── SUMMARY CARDS ── *@
+<div class="row g-3 mb-4">
+    <div class="col-6 col-md-3">
+        <div class="stat-card text-center">
+            <div style="font-size:2rem;font-weight:800;color:#2563eb">@Model.Count</div>
+            <div style="font-size:.8rem;color:#64748b">Total Employees</div>
+        </div>
+    </div>
+    <div class="col-6 col-md-3">
+        <div class="stat-card text-center">
+            <div style="font-size:2rem;font-weight:800;color:#16a34a">
+                @Model.Count(e => e.Budgets.Any(b => b.IsActive && !b.IsLocked))
+            </div>
+            <div style="font-size:.8rem;color:#64748b">With Active Budget</div>
+        </div>
+    </div>
+    <div class="col-6 col-md-3">
+        <div class="stat-card text-center">
+            <div style="font-size:2rem;font-weight:800;color:#d97706">
+                @Model.Count(e => e.Budgets.Any(b => b.OverspentAmount > 0))
+            </div>
+            <div style="font-size:.8rem;color:#64748b">Overspent</div>
+        </div>
+    </div>
+    <div class="col-6 col-md-3">
+        <div class="stat-card text-center">
+            <div style="font-size:1.5rem;font-weight:800;color:#7c3aed">
+                ₹@Model.Sum(e => e.Budgets.Where(b => b.IsActive && !b.IsLocked).Sum(b => b.RemainingBalance)).ToString("N0")
+            </div>
+            <div style="font-size:.8rem;color:#64748b">Total Wallet Balance</div>
+        </div>
+    </div>
+</div>
+
+@* ── SEARCH ── *@
+<div class="mb-3 d-flex gap-2 align-items-center">
+    <input type="text" id="empSearch" class="search-box flex-fill" placeholder="🔍  Search by name, email or department..." oninput="filterEmployees()" />
+    <select id="empFilter" class="form-select" style="width:180px;border-radius:10px" onchange="filterEmployees()">
+        <option value="">All</option>
+        <option value="active">Has Budget</option>
+        <option value="nobdg">No Budget</option>
+        <option value="overspent">Overspent</option>
+    </select>
+</div>
+
+@if (!Model.Any())
+{
+    <div class="text-center py-5">
+        <div style="font-size:3.5rem;margin-bottom:12px">👤</div>
+        <h5 class="text-muted">No employees yet</h5>
+        <a href="/AccountTeam/CreateEmployee" class="btn btn-primary mt-2">Add First Employee</a>
+    </div>
+}
+
+<div class="row g-3" id="empList">
+@foreach (var emp in Model)
+{
+    var active = emp.Budgets.Where(b => b.IsActive && !b.IsLocked).ToList();
+    var walletBal = active.Sum(b => b.RemainingBalance);
+    var walletTotal = active.Sum(b => b.TotalAmount);
+    var walletSpent = active.Sum(b => b.SpentAmount);
+    var isOver = walletBal < 0;
+    var hasOwed = emp.Budgets.Any(b => b.OverspentAmount > 0);
+    var walletPct = walletTotal > 0 ? Math.Min(100, (double)(walletSpent / walletTotal * 100)) : 0;
+    var colors = new[]{"#2563eb","#7c3aed","#db2777","#16a34a","#d97706","#dc2626","#0891b2"};
+    var avatarColor = colors[Math.Abs(emp.FullName.GetHashCode()) % colors.Length];
+    var initials = string.Join("", emp.FullName.Split(' ', StringSplitOptions.RemoveEmptyEntries).Take(2).Select(w => w[0]));
+
+    <div class="col-md-6 col-lg-4 emp-item"
+         data-name="@emp.FullName.ToLower()" data-email="@emp.Email.ToLower()"
+         data-dept="@emp.Department?.ToLower()"
+         data-active="@(active.Any() ? "active" : "nobdg")"
+         data-over="@(hasOwed ? "overspent" : "")">
+        <div class="emp-card">
+            @if (isOver || hasOwed)
+            {
+                <div style="background:@(isOver?"#fef2f2":"#fffbeb");padding:6px 16px;font-size:.75rem;font-weight:600;border-bottom:1px solid @(isOver?"#fecaca":"#fde68a");color:@(isOver?"#dc2626":"#92400e")">
+                    <i class="fas fa-exclamation-triangle me-1"></i>
+                    @if (isOver) { <text>Over budget by ₹@Math.Abs(walletBal).ToString("N0")</text> }
+                    else { <text>Overspend debt pending deduction</text> }
+                </div>
+            }
+            <div class="p-4">
+                <div class="d-flex align-items-start justify-content-between gap-2 mb-3">
+                    <div class="d-flex align-items-center gap-3">
+                        <div class="emp-avatar" style="background:@avatarColor;color:#fff">@initials</div>
+                        <div>
+                            <div class="fw-bold" style="font-size:1rem">@emp.FullName</div>
+                            <div style="font-size:.8rem;color:#64748b">@emp.Email</div>
+                            @if (!string.IsNullOrEmpty(emp.Department))
+                            { <span class="badge-dept mt-1 d-inline-block">@emp.Department</span> }
+                        </div>
+                    </div>
+                    <div class="dropdown">
+                        <button class="btn btn-sm btn-outline-secondary" style="border-radius:8px;padding:4px 10px" data-bs-toggle="dropdown">
+                            <i class="fas fa-ellipsis-v"></i>
+                        </button>
+                        <ul class="dropdown-menu dropdown-menu-end">
+                            <li><a class="dropdown-item" href="/AccountTeam/EmployeeDetail/@emp.Id"><i class="fas fa-eye me-2 text-primary"></i>View Details</a></li>
+                            <li><a class="dropdown-item" href="/AccountTeam/EditEmployee/@emp.Id"><i class="fas fa-edit me-2 text-warning"></i>Edit Employee</a></li>
+                            <li><a class="dropdown-item" href="/AccountTeam/AllocateBudget"><i class="fas fa-wallet me-2 text-success"></i>Allocate Budget</a></li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li>
+                                <button class="dropdown-item text-danger" onclick="confirmDelete(@emp.Id, '@emp.FullName.Replace("'","\\'")')">
+                                    <i class="fas fa-trash me-2"></i>Delete Employee
+                                </button>
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+
+                @* Wallet balance pills *@
+                <div class="row g-2 mb-3">
+                    <div class="col-4">
+                        <div class="stat-pill">
+                            <div class="num">₹@walletTotal.ToString("N0")</div>
+                            <div class="lbl">Allocated</div>
+                        </div>
+                    </div>
+                    <div class="col-4">
+                        <div class="stat-pill">
+                            <div class="num text-warning">₹@walletSpent.ToString("N0")</div>
+                            <div class="lbl">Spent</div>
+                        </div>
+                    </div>
+                    <div class="col-4">
+                        <div class="stat-pill">
+                            <div class="num @(isOver?"text-danger":"text-success")">
+                                @(isOver?"-":"")₹@Math.Abs(walletBal).ToString("N0")
+                            </div>
+                            <div class="lbl">@(isOver?"Overdue":"Balance")</div>
+                        </div>
+                    </div>
+                </div>
+
+                @* Wallet progress bar *@
+                @if (walletTotal > 0)
+                {
+                    <div class="wallet-bar mb-2">
+                        <div class="wallet-fill" style="width:@walletPct%;background:@(isOver?"#dc2626":walletPct>80?"#f59e0b":"#16a34a")"></div>
+                    </div>
+                    <div class="d-flex justify-content-between" style="font-size:.72rem;color:#94a3b8">
+                        <span>@walletPct.ToString("F0")% used</span>
+                        <span>@active.Count budget(s)</span>
+                    </div>
+                }
+                else
+                {
+                    <div class="text-center py-2" style="background:#f8fafc;border-radius:10px;font-size:.8rem;color:#94a3b8">
+                        <i class="fas fa-wallet me-1"></i>No active budget
+                    </div>
+                }
+
+                @* Action buttons *@
+                <div class="d-flex gap-2 mt-3">
+                    <a href="/AccountTeam/AllocateBudget" class="btn btn-primary flex-fill action-btn">
+                        <i class="fas fa-plus me-1"></i>Top Up Wallet
+                    </a>
+                    <a href="/AccountTeam/EmployeeDetail/@emp.Id" class="btn btn-outline-secondary action-btn">
+                        <i class="fas fa-chart-bar"></i>
+                    </a>
+                    <a href="/AccountTeam/EditEmployee/@emp.Id" class="btn btn-outline-secondary action-btn">
+                        <i class="fas fa-edit"></i>
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+</div>
+
+@* Delete Confirmation Modal *@
+<div class="modal fade" id="deleteModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content" style="border-radius:16px;border:none">
+            <div class="modal-body p-4 text-center">
+                <div style="width:64px;height:64px;background:#fee2e2;border-radius:16px;display:flex;align-items:center;justify-content:center;margin:0 auto 16px;font-size:1.8rem">🗑️</div>
+                <h5 class="fw-bold">Delete Employee?</h5>
+                <p class="text-muted mb-1">You are about to delete <strong id="delName"></strong>.</p>
+                <p class="text-muted" style="font-size:.85rem">This will remove their account, budgets, and draft reports. Active/pending reports will block deletion.</p>
+                <form method="post" id="deleteForm" action="/AccountTeam/DeleteEmployee">
+                    @Html.AntiForgeryToken()
+                    <input type="hidden" name="id" id="delId" />
+                    <div class="d-flex gap-2 justify-content-center mt-3">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                        <button type="submit" class="btn btn-danger fw-semibold">Delete Employee</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+<script>
+function confirmDelete(id, name) {
+    document.getElementById('delId').value = id;
+    document.getElementById('delName').textContent = name;
+    new bootstrap.Modal(document.getElementById('deleteModal')).show();
+}
+
+function filterEmployees() {
+    const q = document.getElementById('empSearch').value.toLowerCase();
+    const f = document.getElementById('empFilter').value;
+    document.querySelectorAll('.emp-item').forEach(el => {
+        const name  = el.dataset.name || '';
+        const email = el.dataset.email || '';
+        const dept  = el.dataset.dept || '';
+        const active= el.dataset.active || '';
+        const over  = el.dataset.over || '';
+        const matchQ = !q || name.includes(q) || email.includes(q) || dept.includes(q);
+        const matchF = !f || active === f || (f === 'overspent' && over === 'overspent');
+        el.style.display = (matchQ && matchF) ? '' : 'none';
+    });
+}
+</script>
+}

@@ -1,0 +1,21 @@
+@model List<ExpenseManagement.Models.User>
+@{ ViewData["Title"] = "Employee Overview"; }
+<h5 class="mb-3"><i class="fas fa-users me-2"></i>Employee Overview</h5>
+<div class="table-responsive">
+    <table class="table table-hover">
+        <thead><tr><th>Employee</th><th>Department</th><th>Active Budgets</th><th>Total Allocated</th><th>Total Spent</th></tr></thead>
+        <tbody>
+            @foreach (var e in Model)
+            {
+                var active = e.Budgets.Where(b => b.IsActive);
+                <tr>
+                    <td><div class="fw-semibold">@e.FullName</div><small class="text-muted">@e.Email</small></td>
+                    <td>@e.Department</td>
+                    <td>@active.Count()</td>
+                    <td>₹@active.Sum(b => b.TotalAmount).ToString("N0")</td>
+                    <td>₹@active.Sum(b => b.SpentAmount).ToString("N0")</td>
+                </tr>
+            }
+        </tbody>
+    </table>
+</div>

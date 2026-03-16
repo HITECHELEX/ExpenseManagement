@@ -1,0 +1,27 @@
+@model List<ExpenseManagement.Models.Notification>
+@{ ViewData["Title"] = "Notifications"; }
+
+<h5 class="mb-3"><i class="fas fa-bell me-2"></i>Notifications</h5>
+
+@if (!Model.Any())
+{
+    <div class="card text-center py-5 text-muted"><i class="fas fa-bell-slash fa-3x mb-3 d-block"></i>No notifications</div>
+}
+@foreach (var n in Model)
+{
+    <div class="card mb-2 @(!n.IsRead ? "border-primary" : "")">
+        <div class="card-body d-flex align-items-start gap-3 py-3">
+            <div class="rounded-circle d-flex align-items-center justify-content-center flex-shrink-0"
+                 style="width:36px;height:36px;background:@(!n.IsRead ? "#eff6ff" : "#f1f5f9");color:@(!n.IsRead ? "#2563eb" : "#94a3b8")">
+                <i class="fas fa-@n.Icon"></i>
+            </div>
+            <div class="flex-grow-1">
+                <div class="@(!n.IsRead ? "fw-semibold" : "")">@n.Message</div>
+                <small class="text-muted">@n.CreatedAt.ToString("dd MMM yyyy HH:mm")</small>
+                @if (!string.IsNullOrEmpty(n.Link))
+                { <div class="mt-1"><a href="@n.Link" class="btn btn-xs btn-sm btn-outline-primary py-0 px-2" style="font-size:.78rem">View →</a></div> }
+            </div>
+            @if (!n.IsRead) { <span class="badge bg-primary rounded-pill" style="font-size:.65rem">New</span> }
+        </div>
+    </div>
+}

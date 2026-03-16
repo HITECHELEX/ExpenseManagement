@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <title>@ViewData["Title"] - ExpenseTrack</title>
+    <link rel="icon" type="image/png" href="/LOGO.png" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.2/css/bootstrap.min.css" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
+    <style>
+        :root {
+            --primary: #2563eb; --primary-dark: #1d4ed8;
+            --sidebar-width: 260px; --topbar-h: 60px;
+        }
+        * { box-sizing: border-box; }
+        body { font-family: 'Segoe UI', sans-serif; background: #f1f5f9; margin: 0; }
+
+        /* ── Sidebar ── */
+        .sidebar {
+            width: var(--sidebar-width); min-height: 100vh;
+            background: linear-gradient(180deg, #1e3a5f 0%, #0f172a 100%);
+            position: fixed; top: 0; left: 0;
+            display: flex; flex-direction: column; z-index: 1040;
+            transition: transform .3s ease;
+        }
+        .sidebar-brand { padding: 20px 20px; border-bottom: 1px solid rgba(255,255,255,.1); }
+        .sidebar-brand h5 { color: #fff; font-weight: 700; margin: 0; font-size: 1.05rem; }
+        .sidebar-brand small { color: #94a3b8; font-size: .72rem; }
+        .sidebar-nav { flex: 1; padding: 12px 0; overflow-y: auto; }
+        .sidebar-nav .nav-label {
+            color: #64748b; font-size: .68rem; font-weight: 600;
+            text-transform: uppercase; letter-spacing: 1px; padding: 10px 20px 4px;
+        }
+        .sidebar-nav a {
+            display: flex; align-items: center; gap: 12px;
+            padding: 10px 20px; color: #cbd5e1; text-decoration: none;
+            font-size: .875rem; transition: all .2s; border-left: 3px solid transparent;
+        }
+        .sidebar-nav a:hover, .sidebar-nav a.active {
+            background: rgba(255,255,255,.08); color: #fff; border-left-color: var(--primary);
+        }
+        .sidebar-nav a i { width: 18px; text-align: center; }
+        .sidebar-footer { padding: 14px 20px; border-top: 1px solid rgba(255,255,255,.1); }
+        .sidebar-footer a { color: #94a3b8; text-decoration: none; font-size: .85rem; }
+
+        /* ── Main ── */
+        .main-content { margin-left: var(--sidebar-width); min-height: 100vh; }
+        .topbar {
+            background: #fff; padding: 0 24px; height: var(--topbar-h);
+            border-bottom: 1px solid #e2e8f0;
+            display: flex; align-items: center; justify-content: space-between;
+            position: sticky; top: 0; z-index: 999;
+        }
+        .topbar-left { display: flex; align-items: center; gap: 12px; }
+        .sidebar-toggle { display: none; background: none; border: none; font-size: 1.2rem; color: #475569; cursor: pointer; }
+        .topbar-title { font-weight: 600; color: #1e293b; font-size: 1rem; }
+        .topbar-right { display: flex; align-items: center; gap: 16px; }
+        .notif-badge { position: relative; }
+        .notif-count {
+            position: absolute; top: -6px; right: -6px;
+            background: #ef4444; color: #fff; border-radius: 50%;
+            width: 18px; height: 18px; font-size: .65rem;
+            display: flex; align-items: center; justify-content: center; font-weight: 700;
+        }
+        .page-content { padding: 20px 24px; }
+
+        /* ── Cards ── */
+        .stat-card {
+            background: #fff; border-radius: 12px; padding: 18px;
+            border: 1px solid #e2e8f0; transition: box-shadow .2s;
+        }
+        .stat-card:hover { box-shadow: 0 4px 16px rgba(0,0,0,.08); }
+        .stat-card .stat-icon {
+            width: 44px; height: 44px; border-radius: 10px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 1.2rem; margin-bottom: 10px;
+        }
+        .stat-card .stat-value { font-size: 1.5rem; font-weight: 700; color: #1e293b; }
+        .stat-card .stat-label { color: #64748b; font-size: .78rem; margin-top: 2px; }
+        .card { border: 1px solid #e2e8f0; border-radius: 12px; box-shadow: none; }
+        .card-header { background: #fff; border-bottom: 1px solid #e2e8f0; font-weight: 600; padding: 14px 18px; }
+
+        /* ── Budget Progress ── */
+        .budget-bar { border-radius: 20px; height: 8px; }
+        .budget-remaining { color: #16a34a; font-weight: 600; }
+
+        /* ── Status badges ── */
+        .badge-draft { background: #e0f2fe; color: #0369a1; }
+        .badge-submitted { background: #fef3c7; color: #92400e; }
+        .badge-reviewed { background: #ede9fe; color: #6d28d9; }
+        .badge-forwarded { background: #dbeafe; color: #1d4ed8; }
+        .badge-approved { background: #d1fae5; color: #065f46; }
+        .badge-rejected { background: #fee2e2; color: #991b1b; }
+        .badge-pending { background: #fef9c3; color: #854d0e; }
+        .badge-declined { background: #fee2e2; color: #991b1b; }
+
+        /* ── Tables ── */
+        .table { font-size: .875rem; }
+        .table thead th { background: #f8fafc; font-weight: 600; color: #475569; border-bottom: 2px solid #e2e8f0; }
+
+        /* ── Forms ── */
+        .form-label { font-weight: 500; font-size: .875rem; color: #374151; }
+        .form-control, .form-select { border-radius: 8px; border: 1px solid #d1d5db; font-size: .9rem; }
+        .form-control:focus, .form-select:focus { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(37,99,235,.1); }
+
+        /* ── Bill Upload ── */
+        .bill-upload-zone {
+            border: 2px dashed #cbd5e1; border-radius: 12px;
+            padding: 28px; text-align: center; cursor: pointer;
+            transition: all .2s; background: #f8fafc;
+        }
+        .bill-upload-zone:hover, .bill-upload-zone.dragover {
+            border-color: var(--primary); background: #eff6ff;
+        }
+        .bill-upload-zone i { font-size: 2.5rem; color: #94a3b8; margin-bottom: 8px; }
+        .bill-preview { max-height: 200px; border-radius: 8px; margin-top: 12px; object-fit: contain; }
+
+        /* ── Sidebar overlay ── */
+        .sidebar-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.5); z-index: 1039; }
+
+        /* ─── MOBILE ────────────────────────────────────────── */
+        @@media (max-width: 768px) {
+            .sidebar { transform: translateX(-100%); }
+            .sidebar.open { transform: translateX(0); }
+            .sidebar-overlay.open { display: block; }
+            .main-content { margin-left: 0; }
+            .sidebar-toggle { display: block; }
+            .page-content { padding: 14px; }
+            .topbar { padding: 0 14px; }
+            .stat-card .stat-value { font-size: 1.2rem; }
+            .table-responsive { font-size: .8rem; }
+            .btn { font-size: .85rem; }
+            .stat-card { padding: 14px; }
+            .d-mobile-none { display: none !important; }
+        }
+
+        /* ── Alerts ── */
+        .alert { border-radius: 8px; border: none; }
+        .progress { border-radius: 20px; height: 8px; }
+
+        /* ── Timeline ── */
+        .timeline { position: relative; padding-left: 24px; }
+        .timeline::before { content: ''; position: absolute; left: 8px; top: 0; bottom: 0; width: 2px; background: #e2e8f0; }
+        .timeline-item { position: relative; margin-bottom: 20px; }
+        .timeline-dot {
+            position: absolute; left: -20px; top: 4px;
+            width: 14px; height: 14px; border-radius: 50%;
+            background: #fff; border: 2px solid #94a3b8;
+        }
+        .timeline-dot.active { border-color: var(--primary); background: var(--primary); }
+        .timeline-dot.done { border-color: #16a34a; background: #16a34a; }
+        .timeline-dot.rejected { border-color: #dc2626; background: #dc2626; }
+    </style>
+    @await RenderSectionAsync("Styles", required: false)
+</head>
+<body>
+<div class="sidebar-overlay" id="sidebarOverlay"></div>
+<div class="sidebar" id="sidebar">
+    <div class="sidebar-brand">
+        <h5><i class="fas fa-wallet me-2"></i>ExpenseTrack</h5>
+        <small>@User.Identity?.Name</small>
+    </div>
+    <nav class="sidebar-nav">
+        @await Html.PartialAsync("_SidebarNav")
+    </nav>
+    <div class="sidebar-footer">
+        <a href="/Account/Logout"><i class="fas fa-sign-out-alt me-2"></i>Logout</a>
+    </div>
+</div>
+
+<div class="main-content">
+    <div class="topbar">
+        <div class="topbar-left">
+            <button class="sidebar-toggle" id="sidebarToggle"><i class="fas fa-bars"></i></button>
+            <span class="topbar-title">@(ViewData["Title"] ?? "Dashboard")</span>
+        </div>
+        <div class="topbar-right">
+            @{
+                var notifLink = User.IsInRole("Employee") ? "/Employee/Notifications" :
+                                User.IsInRole("AccountTeam") ? "/AccountTeam/Notifications" : "/Management/Notifications";
+                var unreadCount = ViewBag.UnreadNotifications as int? ?? 0;
+                bool justLoggedIn = TempData.ContainsKey("JustLoggedIn");
+            }
+            <a href="@notifLink" class="text-secondary notif-badge">
+                <i class="fas fa-bell fs-5"></i>
+                @if(unreadCount > 0) {
+                    <span class="notif-count">@(unreadCount > 9 ? "9+" : unreadCount.ToString())</span>
+                }
+            </a>
+            <span class="text-muted d-none d-md-inline" style="font-size:.85rem">
+                <i class="fas fa-user-circle me-1"></i>@User.Identity?.Name
+            </span>
+        </div>
+    </div>
+
+    <div class="page-content">
+        @if (TempData["Success"] != null)
+        {
+            <div class="alert alert-success alert-dismissible fade show mb-3" role="alert">
+                <i class="fas fa-check-circle me-2"></i>@TempData["Success"]
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>
+        }
+        @if (TempData["Error"] != null)
+        {
+            <div class="alert alert-danger alert-dismissible fade show mb-3" role="alert">
+                <i class="fas fa-exclamation-circle me-2"></i>@TempData["Error"]
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>
+        }
+        @RenderBody()
+    </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.2/js/bootstrap.bundle.min.js"></script>
+<script>
+const toggle = document.getElementById('sidebarToggle');
+const sidebar = document.getElementById('sidebar');
+const overlay = document.getElementById('sidebarOverlay');
+toggle?.addEventListener('click', () => {
+    sidebar.classList.toggle('open');
+    overlay.classList.toggle('open');
+});
+overlay?.addEventListener('click', () => {
+    sidebar.classList.remove('open');
+    overlay.classList.remove('open');
+});
+</script>
+
+@if (justLoggedIn && unreadCount > 0)
+{
+    var notifText = unreadCount == 1 ? "1 unread notification" : $"{unreadCount} unread notifications";
+    <!-- Blurred backdrop overlay -->
+    <div id="loginNotifOverlay" style="position:fixed;inset:0;background:rgba(15,23,42,.5);backdrop-filter:blur(7px);-webkit-backdrop-filter:blur(7px);z-index:9998;animation:fadeInOverlay .3s ease"></div>
+
+    <!-- Toast card -->
+    <div id="loginNotifToast" style="position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);z-index:9999;width:340px;border-radius:22px;overflow:hidden;box-shadow:0 28px 64px rgba(0,0,0,.40);animation:slideInToast .45s cubic-bezier(.34,1.56,.64,1)">
+
+        <!-- Gradient header -->
+        <div style="background:linear-gradient(135deg,#dc2626 0%,#9f1239 100%);padding:28px 20px 22px;text-align:center;position:relative">
+            <!-- Decorative rings -->
+            <div style="position:absolute;top:0;left:0;right:0;bottom:0;overflow:hidden;border-radius:0">
+                <div style="position:absolute;top:50%;left:50%;width:110px;height:110px;border-radius:50%;border:1px solid rgba(255,255,255,.12);transform:translate(-50%,-50%)"></div>
+                <div style="position:absolute;top:50%;left:50%;width:160px;height:160px;border-radius:50%;border:1px solid rgba(255,255,255,.07);transform:translate(-50%,-50%)"></div>
+            </div>
+            <!-- Pulse ring -->
+            <div style="position:absolute;top:38px;left:50%;transform:translateX(-50%);width:72px;height:72px;border-radius:50%;background:rgba(255,255,255,.1);animation:pulseRing 2s ease-out infinite"></div>
+            <!-- Bell icon -->
+            <div style="width:58px;height:58px;background:rgba(255,255,255,.18);border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto 12px;border:2px solid rgba(255,255,255,.3);position:relative;z-index:1">
+                <i class="fas fa-bell fa-lg" style="color:#fff;animation:bellShake 1s ease .6s both"></i>
+            </div>
+            <div style="color:#fff;font-weight:700;font-size:1.05rem;letter-spacing:.3px;position:relative;z-index:1">New Notifications</div>
+            <div style="color:rgba(255,255,255,.78);font-size:.8rem;margin-top:5px;position:relative;z-index:1">You have <strong style="color:#fff">@notifText</strong></div>
+            <!-- Close button -->
+            <button onclick="dismissNotifToast()" style="position:absolute;top:12px;right:13px;background:rgba(255,255,255,.15);border:none;color:#fff;cursor:pointer;width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:.78rem;transition:background .2s;z-index:2"
+                    onmouseover="this.style.background='rgba(255,255,255,.3)'" onmouseout="this.style.background='rgba(255,255,255,.15)'">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+
+        <!-- White body -->
+        <div style="background:#fff;padding:18px 20px 16px">
+            <!-- Count pill -->
+            <div style="display:flex;align-items:center;gap:10px;padding:10px 13px;background:#fef2f2;border-radius:11px;margin-bottom:14px;border:1px solid #fecaca">
+                <span style="background:#ef4444;color:#fff;font-size:.72rem;font-weight:700;padding:3px 10px;border-radius:99px;flex-shrink:0">@unreadCount</span>
+                <span style="font-size:.81rem;color:#7f1d1d;line-height:1.35">unread item@(unreadCount == 1 ? "" : "s") waiting for your attention</span>
+            </div>
+            <!-- CTA button -->
+            <a href="@notifLink" class="btn btn-danger w-100" style="border-radius:11px;font-size:.88rem;padding:10px;font-weight:600;letter-spacing:.4px;box-shadow:0 6px 18px rgba(220,38,38,.38)">
+                <i class="fas fa-eye me-2"></i>View Notifications
+            </a>
+            <!-- Countdown bar -->
+            <div style="height:3px;background:#e2e8f0;border-radius:99px;margin-top:14px;overflow:hidden">
+                <div id="notifToastTimer" style="height:100%;width:100%;background:linear-gradient(90deg,#ef4444,#f97316);border-radius:99px;transition:width 15s linear"></div>
+            </div>
+        </div>
+    </div>
+
+    <style>
+        @@keyframes slideInToast {
+            from { opacity: 0; transform: translate(-50%, -50%) scale(.82); }
+            to   { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+        }
+        @@keyframes fadeInOverlay {
+            from { opacity: 0; }
+            to   { opacity: 1; }
+        }
+        @@keyframes pulseRing {
+            0%   { transform: translateX(-50%) scale(.75); opacity: .9; }
+            100% { transform: translateX(-50%) scale(1.7);  opacity: 0; }
+        }
+        @@keyframes bellShake {
+            0%,100% { transform: rotate(0); }
+            15%     { transform: rotate(-18deg); }
+            30%     { transform: rotate(18deg); }
+            45%     { transform: rotate(-12deg); }
+            60%     { transform: rotate(12deg); }
+            75%     { transform: rotate(-6deg); }
+            90%     { transform: rotate(6deg); }
+        }
+    </style>
+    <script>
+        function dismissNotifToast() {
+            const t = document.getElementById('loginNotifToast');
+            const o = document.getElementById('loginNotifOverlay');
+            if (t) { t.style.transition = 'opacity .3s,transform .3s'; t.style.opacity = '0'; t.style.transform = 'translate(-50%,-50%) scale(.88)'; setTimeout(() => t.remove(), 320); }
+            if (o) { o.style.transition = 'opacity .3s'; o.style.opacity = '0'; setTimeout(() => o.remove(), 320); }
+        }
+        // Start countdown bar then auto-dismiss after 15 s
+        // Double rAF ensures the bar is painted at 100% before transitioning to 0%
+        requestAnimationFrame(() => {
+            requestAnimationFrame(() => {
+                const bar = document.getElementById('notifToastTimer');
+                if (bar) { bar.style.width = '0%'; }
+            });
+            setTimeout(dismissNotifToast, 15000);
+        });
+    </script>
+}
+@await RenderSectionAsync("Scripts", required: false)
+</body>
+</html>

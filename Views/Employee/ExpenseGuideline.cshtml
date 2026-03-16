@@ -1,0 +1,245 @@
+@{ ViewData["Title"] = "Expense Guideline"; }
+
+<div class="d-flex align-items-center gap-2 mb-4">
+    <i class="fas fa-book-open fa-lg text-primary"></i>
+    <h5 class="mb-0 fw-bold">Expense Guideline</h5>
+    <span class="badge bg-primary ms-2" style="font-size:.72rem;font-weight:500">Official Policy</span>
+</div>
+
+<div class="row g-3">
+
+    <!-- How It Works -->
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header fw-semibold">
+                <i class="fas fa-info-circle me-2 text-primary"></i>How It Works
+            </div>
+            <div class="card-body">
+                <ol class="mb-0" style="line-height:2">
+                    <li>The <strong>Accounts Team</strong> tops up your wallet with a budget allocation for a specific purpose.</li>
+                    <li>You add individual expense claims against that budget using <strong>Add Expense</strong>.</li>
+                    <li>Once done, group your claims into an <strong>Expense Report</strong> and forward it for review.</li>
+                    <li>Your manager reviews and approves or declines the report.</li>
+                    <li>Approved reports are then reviewed by the <strong>Accounts Team</strong> before final settlement.</li>
+                </ol>
+            </div>
+        </div>
+    </div>
+
+    <!-- Vehicle Travel & Per KM Charges -->
+    <div class="col-12">
+        <div class="card border-warning">
+            <div class="card-header fw-semibold" style="background:#fffbeb">
+                <i class="fas fa-car me-2 text-warning"></i>Vehicle Travel &amp; Per KM Charges
+            </div>
+            <div class="card-body p-0">
+                <div class="row g-0">
+                    <div class="col-md-6 border-end">
+                        <div class="p-3 text-center">
+                            <div class="mb-2"><i class="fas fa-car fa-2x" style="color:#f59e0b"></i></div>
+                            <div class="fw-bold fs-5 text-warning">₹5 / km</div>
+                            <div class="fw-semibold">Four Wheeler</div>
+                            <small class="text-muted">Requires prior permission from supervisor</small>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="p-3 text-center">
+                            <div class="mb-2"><i class="fas fa-motorcycle fa-2x" style="color:#0ea5e9"></i></div>
+                            <div class="fw-bold fs-5 text-info">₹4 / km</div>
+                            <div class="fw-semibold">Two Wheeler</div>
+                            <small class="text-muted">No prior permission required</small>
+                        </div>
+                    </div>
+                </div>
+                <div class="border-top px-3 py-2" style="background:#fffbeb">
+                    <ul class="mb-0 ps-3" style="line-height:2;font-size:.88rem">
+                        <li>Submit your <strong>distance claim</strong> along with <strong>fuel bills</strong> as supporting proof.</li>
+                        <li><strong class="text-danger">Home ↔ Office</strong> commute is <strong>not claimable</strong> under any expense report.</li>
+                        <li>For local client visits, prefer <strong>AC bus / train</strong> over car if no heavy material is being carried.</li>
+                        <li>Booking a <strong>four wheeler</strong> for any visit requires <strong>prior permission</strong> from your respective supervisor.</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Daily Allowance Limits -->
+    <div class="col-12">
+        <div class="card border-success">
+            <div class="card-header fw-semibold" style="background:#f0fdf4">
+                <i class="fas fa-utensils me-2 text-success"></i>Daily Allowance Limits — Site Visit
+            </div>
+            <div class="card-body p-0">
+                <div class="row g-0 text-center">
+                    <div class="col-6 col-md-3 border-end py-3 px-2">
+                        <div class="mb-1"><i class="fas fa-coffee fa-lg text-warning"></i></div>
+                        <div class="fw-bold text-success fs-5">₹100</div>
+                        <div class="fw-semibold" style="font-size:.85rem">Breakfast</div>
+                        <small class="text-muted">Per day limit if done Before 9AM</small>
+                    </div>
+                    <div class="col-6 col-md-3 border-end py-3 px-2">
+                        <div class="mb-1"><i class="fas fa-utensils fa-lg text-success"></i></div>
+                        <div class="fw-bold text-success fs-5">₹250</div>
+                        <div class="fw-semibold" style="font-size:.85rem">Lunch / Dinner</div>
+                        <small class="text-muted">Per day limit</small>
+                    </div>
+                    <div class="col-6 col-md-3 border-end py-3 px-2">
+                        <div class="mb-1"><i class="fas fa-city fa-lg text-primary"></i></div>
+                        <div class="fw-bold text-primary fs-5">₹1,200</div>
+                        <div class="fw-semibold" style="font-size:.85rem">Hotel — Metro Cities</div>
+                        <small class="text-muted">Per night limit</small>
+                    </div>
+                    <div class="col-6 col-md-3 py-3 px-2">
+                        <div class="mb-1"><i class="fas fa-building fa-lg text-secondary"></i></div>
+                        <div class="fw-bold text-secondary fs-5">₹1,000</div>
+                        <div class="fw-semibold" style="font-size:.85rem">Hotel — Other Cities</div>
+                        <small class="text-muted">Per night limit</small>
+                    </div>
+                </div>
+                <div class="border-top px-3 py-2" style="background:#f0fdf4;font-size:.83rem">
+                    <i class="fas fa-exclamation-triangle me-1 text-warning"></i>
+                    Allowances apply to <strong>outdoor / site visits only</strong>. Misc. charges such as <strong>water and snacks</strong> during local visits are <strong>not claimable</strong>.
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Hotel & Ticket Booking -->
+    <div class="col-md-6">
+        <div class="card h-100">
+            <div class="card-header fw-semibold">
+                <i class="fas fa-hotel me-2 text-primary"></i>Hotel &amp; Train Ticket Booking
+            </div>
+            <div class="card-body p-0">
+                <ul class="list-group list-group-flush mb-0">
+                    <li class="list-group-item d-flex gap-2">
+                        <i class="fas fa-check-circle text-success mt-1 flex-shrink-0"></i>
+                        <span>Hotel and train ticket bookings are handled by the <strong>Admin</strong> or by the individual employee.</span>
+                    </li>
+                    <li class="list-group-item d-flex gap-2">
+                        <i class="fas fa-check-circle text-success mt-1 flex-shrink-0"></i>
+                        <span>Inform and plan your travel <strong>well in advance</strong> to ensure smooth booking.</span>
+                    </li>
+                    <li class="list-group-item d-flex gap-2">
+                        <i class="fas fa-check-circle text-success mt-1 flex-shrink-0"></i>
+                        <span>Attach <strong>booking confirmations</strong> as proof in your expense report.</span>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <!-- Claim Rules -->
+    <div class="col-md-6">
+        <div class="card h-100">
+            <div class="card-header fw-semibold">
+                <i class="fas fa-receipt me-2 text-warning"></i>General Claim Rules
+            </div>
+            <div class="card-body p-0">
+                <ul class="list-group list-group-flush mb-0">
+                    <li class="list-group-item d-flex gap-2">
+                        <i class="fas fa-check-circle text-success mt-1 flex-shrink-0"></i>
+                        <span>Each claim must have a clear <strong>title</strong>, <strong>category</strong>, <strong>amount</strong>, and <strong>expense date</strong>.</span>
+                    </li>
+                    <li class="list-group-item d-flex gap-2">
+                        <i class="fas fa-check-circle text-success mt-1 flex-shrink-0"></i>
+                        <span>Attach a <strong>valid bill / receipt</strong> for every claim — claims with <strong>misplaced or missing bills</strong> will <strong>not be cleared</strong>.</span>
+                    </li>
+                    <li class="list-group-item d-flex gap-2">
+                        <i class="fas fa-check-circle text-success mt-1 flex-shrink-0"></i>
+                        <span>Claims must be added <strong>before</strong> the report is forwarded for review.</span>
+                    </li>
+                    <li class="list-group-item d-flex gap-2">
+                        <i class="fas fa-times-circle text-danger mt-1 flex-shrink-0"></i>
+                        <span>Personal expenses are <strong>not</strong> reimbursable under any budget.</span>
+                    </li>
+                    <li class="list-group-item d-flex gap-2">
+                        <i class="fas fa-times-circle text-danger mt-1 flex-shrink-0"></i>
+                        <span>Maintain all expense amounts strictly <strong>within the limits</strong> set in these guidelines.</span>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <!-- Report Submission -->
+    <div class="col-md-6">
+        <div class="card h-100">
+            <div class="card-header fw-semibold">
+                <i class="fas fa-paper-plane me-2 text-success"></i>Report Submission
+            </div>
+            <div class="card-body p-0">
+                <ul class="list-group list-group-flush mb-0">
+                    <li class="list-group-item d-flex gap-2">
+                        <i class="fas fa-check-circle text-success mt-1 flex-shrink-0"></i>
+                        <span>Submit your report <strong>within 7 days</strong> of the last expense date.</span>
+                    </li>
+                    <li class="list-group-item d-flex gap-2">
+                        <i class="fas fa-check-circle text-success mt-1 flex-shrink-0"></i>
+                        <span>Include a brief <strong>summary</strong> explaining the purpose of the expenses.</span>
+                    </li>
+                    <li class="list-group-item d-flex gap-2">
+                        <i class="fas fa-check-circle text-success mt-1 flex-shrink-0"></i>
+                        <span>Once forwarded, the report <strong>cannot be edited</strong>. Double-check before submitting.</span>
+                    </li>
+                    <li class="list-group-item d-flex gap-2">
+                        <i class="fas fa-times-circle text-danger mt-1 flex-shrink-0"></i>
+                        <span>Claims with <strong>misplaced bills</strong> will not be considered for clearance.</span>
+                    </li>
+                    <li class="list-group-item d-flex gap-2">
+                        <i class="fas fa-times-circle text-danger mt-1 flex-shrink-0"></i>
+                        <span>Do <strong>not</strong> create multiple reports for the same budget period without reason.</span>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <!-- Payment Methods -->
+    <div class="col-md-6">
+        <div class="card h-100">
+            <div class="card-header fw-semibold">
+                <i class="fas fa-credit-card me-2" style="color:#7c3aed"></i>Payment Methods
+            </div>
+            <div class="card-body p-0">
+                <ul class="list-group list-group-flush mb-0">
+                    <li class="list-group-item d-flex align-items-center gap-2">
+                        <i class="fas fa-money-bill-wave text-success"></i>
+                        <span><strong>Cash</strong> — Keep the physical receipt.</span>
+                    </li>
+                    <li class="list-group-item d-flex align-items-center gap-2">
+                        <i class="fas fa-credit-card text-primary"></i>
+                        <span><strong>Company Card</strong> — Attach the card slip or bank statement.</span>
+                    </li>
+                    <li class="list-group-item d-flex align-items-center gap-2">
+                        <i class="fas fa-university text-warning"></i>
+                        <span><strong>Personal Card / UPI</strong> — Attach screenshot or bank statement.</span>
+                    </li>
+                    <li class="list-group-item d-flex align-items-center gap-2">
+                        <i class="fas fa-exchange-alt text-info"></i>
+                        <span><strong>Bank Transfer</strong> — Attach the transfer confirmation.</span>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <!-- Need Help -->
+    <div class="col-12">
+        <div class="card border-0" style="background:#f0fdf4">
+            <div class="card-body d-flex align-items-center gap-3 flex-wrap">
+                <i class="fas fa-headset fa-2x text-success"></i>
+                <div>
+                    <div class="fw-semibold">In case of doubt, please contact the undersigned.</div>
+                    <div class="text-muted" style="font-size:.85rem">
+                        Reach out to the Accounts Team directly or raise a concern through the Notifications section.
+                    </div>
+                </div>
+                <a href="/Employee/Notifications" class="btn btn-sm btn-outline-success ms-auto">
+                    <i class="fas fa-bell me-1"></i>Notifications
+                </a>
+            </div>
+        </div>
+    </div>
+
+</div>

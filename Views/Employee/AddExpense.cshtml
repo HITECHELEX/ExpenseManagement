@@ -1,0 +1,264 @@
+@model ExpenseManagement.ViewModels.ExpenseClaimVM
+@{ 
+    ViewData["Title"] = "Add Expense";
+    var report = ViewBag.Report as ExpenseManagement.Models.ExpenseReport;
+    decimal remaining = (ViewBag.WalletBalance as decimal?) ?? report?.Budget?.RemainingBalance ?? 0;
+    var isOverspent = remaining < 0;
+}
+
+<div class="d-flex align-items-center gap-2 mb-3">
+    <a href="/Employee/ReportDetail/@report?.Id" class="btn btn-outline-secondary btn-sm"><i class="fas fa-arrow-left me-1"></i>Back</a>
+    <h5 class="mb-0">Add Expense to "@report?.ReportTitle"</h5>
+</div>
+
+@if (report != null)
+{
+    var cardColor = isOverspent ? "linear-gradient(135deg,#dc2626,#b91c1c)" : "linear-gradient(135deg,#2563eb,#1d4ed8)";
+    <div class="card mb-3 border-0" style="background:@cardColor;color:#fff;border-radius:14px">
+        <div class="card-body p-3">
+            <div class="d-flex justify-content-between align-items-center mb-1">
+                <span style="opacity:.85;font-size:.82rem">
+                    <i class="fas fa-wallet me-1"></i>@(isOverspent ? "⚠️ Wallet Over Budget" : "Wallet Balance")
+                </span>
+                <span style="opacity:.7;font-size:.78rem">@report.ReportTitle</span>
+            </div>
+            <div style="font-size:2rem;font-weight:700">
+                @(isOverspent ? "-" : "")₹@Math.Abs(remaining).ToString("N2")
+            </div>
+            @if (isOverspent)
+            {
+                <div style="margin-top:6px;font-size:.78rem;background:rgba(0,0,0,.2);border-radius:8px;padding:5px 10px">
+                    <i class="fas fa-info-circle me-1"></i>
+                    You can still add expenses. The overspend will be auto-deducted from your next budget allocation.
+                </div>
+            }
+        </div>
+    </div>
+}
+
+<div class="card">
+    <div class="card-header"><i class="fas fa-receipt me-2"></i>Expense Details</div>
+    <div class="card-body">
+        <form method="post" action="/Employee/AddExpense" enctype="multipart/form-data" id="expenseForm">
+            @Html.AntiForgeryToken()
+            <input type="hidden" name="BudgetId" value="@report?.BudgetId" />
+            <input type="hidden" name="ReportId" value="@report?.Id" />
+
+            <div asp-validation-summary="ModelOnly" class="alert alert-danger" style="display:none"></div>
+
+            <div class="row g-3">
+                <div class="col-md-6">
+                    <label class="form-label">Expense Date <span class="text-danger">*</span></label>
+                    <input type="date" name="ExpenseDate" class="form-control" value="@DateTime.Today.ToString("yyyy-MM-dd")" required />
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label">Amount (₹) <span class="text-danger">*</span></label>
+                    <div class="input-group">
+                        <span class="input-group-text">₹</span>
+                        <input type="number" name="Amount" class="form-control" placeholder="0.00"
+                               step="0.01" min="0.01" required id="amtInput" />
+                    </div>
+                    @if (!isOverspent)
+                    {
+                        <small class="text-muted">Balance: ₹@remaining.ToString("N2") — you can exceed this limit</small>
+                    }
+                    else
+                    {
+                        <small class="text-warning"><i class="fas fa-exclamation-triangle me-1"></i>Already ₹@Math.Abs(remaining).ToString("N2") over budget</small>
+                    }
+                    <div id="overspendWarn" class="mt-1 p-2 rounded d-none" style="background:#fef9c3;border:1px solid #fbbf24;font-size:.8rem">
+                        <i class="fas fa-exclamation-triangle text-warning me-1"></i>
+                        <span id="overspendMsg"></span>
+                    </div>
+                </div>
+
+                <div class="col-12">
+                    <label class="form-label">Expense Title <span class="text-danger">*</span></label>
+                    <input type="text" name="Title" class="form-control" placeholder="e.g. Hotel stay, Cab fare, Lunch with client" required />
+                </div>
+
+                <div class="col-md-6">
+                    <label class="form-label">Category <span class="text-danger">*</span></label>
+                    <select name="Category" class="form-select" required>
+                        <option value="">Select category</option>
+                        <option>Travel</option>
+                        <option>Accommodation</option>
+                        <option>Food & Meals</option>
+                        <option>Communication</option>
+                        <option>Office Supplies</option>
+                        <option>Client Entertainment</option>
+                        <option>Training</option>
+                        <option>Medical</option>
+                        <option>Miscellaneous</option>
+                    </select>
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label">Description</label>
+                    <input type="text" name="Description" class="form-control" placeholder="Brief description (optional)" />
+                </div>
+
+                <!-- Payment Method -->
+                <div class="col-12">
+                    <label class="form-label fw-semibold">Payment Method <span class="text-danger">*</span></label>
+                    <div class="d-flex gap-3 mt-1">
+                        <label class="d-flex align-items-center gap-2 px-4 py-3 rounded-3 border cursor-pointer"
+                               id="lbl-cash"
+                               style="cursor:pointer;border-color:#2563eb!important;background:#eff6ff;flex:1;transition:.2s">
+                            <input type="radio" name="PaymentMethod" value="Cash" id="pmCash" checked
+                                   onchange="onPaymentChange()" style="accent-color:#2563eb;width:18px;height:18px" />
+                            <span>
+                                <i class="fas fa-money-bill-wave me-1 text-success"></i>
+                                <span class="fw-semibold">Cash</span>
+                                <div style="font-size:.72rem;color:#64748b">Receipt photo optional</div>
+                            </span>
+                        </label>
+                        <label class="d-flex align-items-center gap-2 px-4 py-3 rounded-3 border cursor-pointer"
+                               id="lbl-upi"
+                               style="cursor:pointer;flex:1;transition:.2s">
+                            <input type="radio" name="PaymentMethod" value="UPI" id="pmUpi"
+                                   onchange="onPaymentChange()" style="accent-color:#2563eb;width:18px;height:18px" />
+                            <span>
+                                <i class="fas fa-mobile-alt me-1 text-primary"></i>
+                                <span class="fw-semibold">UPI / Online</span>
+                                <div style="font-size:.72rem;color:#64748b">Receipt photo required</div>
+                            </span>
+                        </label>
+                    </div>
+                </div>
+
+                <!-- Bill Photo Upload -->
+                <div class="col-12">
+                    <label class="form-label" id="receiptLabel">
+                        Bill / Receipt Photo
+                        <span id="receiptRequired" class="d-none text-danger">*</span>
+                        <span id="receiptOptional" class="text-muted fw-normal" style="font-size:.8rem">(optional for cash)</span>
+                    </label>
+                    <div class="bill-upload-zone" id="uploadZone" onclick="document.getElementById('billFile').click()">
+                        <i class="fas fa-camera d-block"></i>
+                        <p class="mb-1 fw-semibold">Upload Bill Photo or PDF</p>
+                        <p class="text-muted mb-0" style="font-size:.82rem">Click or drag & drop · JPG, PNG, PDF · Max 10MB</p>
+                        <p class="text-muted mt-1" style="font-size:.78rem"><i class="fas fa-mobile-alt me-1"></i>Mobile: tap to open camera or gallery</p>
+                    </div>
+                    <input type="file" name="Receipt" id="billFile" class="d-none" accept="image/*,.pdf" capture="environment" />
+                    <div id="previewContainer" class="text-center mt-2" style="display:none!important">
+                        <img id="billPreview" class="bill-preview d-none" />
+                        <div id="pdfPreview" class="d-none">
+                            <i class="fas fa-file-pdf fa-3x text-danger"></i>
+                            <p id="pdfName" class="mt-2 mb-0"></p>
+                        </div>
+                        <button type="button" class="btn btn-sm btn-outline-danger mt-2" onclick="clearFile()">
+                            <i class="fas fa-times me-1"></i>Remove
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="d-flex gap-2 mt-4">
+                <button type="submit" class="btn btn-primary flex-fill" id="submitBtn">
+                    <i class="fas fa-plus me-2"></i>Add Expense
+                </button>
+                <a href="/Employee/ReportDetail/@report?.Id" class="btn btn-outline-secondary">Cancel</a>
+            </div>
+        </form>
+    </div>
+</div>
+
+@section Scripts {
+<script>
+const currentBalance = @remaining;
+const amtInput = document.getElementById('amtInput');
+const overspendWarn = document.getElementById('overspendWarn');
+const overspendMsg = document.getElementById('overspendMsg');
+
+amtInput.addEventListener('input', function() {
+    const val = parseFloat(this.value) || 0;
+    const newBalance = currentBalance - val;
+    if (newBalance < 0) {
+        const over = Math.abs(newBalance).toFixed(2);
+        overspendMsg.textContent = `This expense will exceed budget by ₹${over}. It will be recovered from your next allocation.`;
+        overspendWarn.classList.remove('d-none');
+    } else {
+        overspendWarn.classList.add('d-none');
+    }
+});
+
+// ── Payment Method toggle ──
+function onPaymentChange() {
+    const isCash = document.getElementById('pmCash').checked;
+    const billFile = document.getElementById('billFile');
+    const lblCash  = document.getElementById('lbl-cash');
+    const lblUpi   = document.getElementById('lbl-upi');
+    const reqSpan  = document.getElementById('receiptRequired');
+    const optSpan  = document.getElementById('receiptOptional');
+    const zone     = document.getElementById('uploadZone');
+
+    if (isCash) {
+        billFile.removeAttribute('required');
+        lblCash.style.borderColor = '#2563eb';
+        lblCash.style.background  = '#eff6ff';
+        lblUpi.style.borderColor  = '';
+        lblUpi.style.background   = '';
+        reqSpan.classList.add('d-none');
+        optSpan.classList.remove('d-none');
+        zone.style.borderColor = '';
+        zone.style.borderStyle = 'dashed';
+        zone.querySelector('p').textContent = 'Upload Bill Photo or PDF (optional)';
+    } else {
+        billFile.setAttribute('required', 'required');
+        lblUpi.style.borderColor = '#2563eb';
+        lblUpi.style.background  = '#eff6ff';
+        lblCash.style.borderColor = '';
+        lblCash.style.background  = '';
+        reqSpan.classList.remove('d-none');
+        optSpan.classList.add('d-none');
+        zone.style.borderColor = '#f59e0b';
+        zone.style.borderStyle = 'dashed';
+        zone.querySelector('p').textContent = 'Upload Bill Photo or PDF (required for UPI)';
+    }
+}
+// Init on load
+onPaymentChange();
+
+const billFile = document.getElementById('billFile');
+const uploadZone = document.getElementById('uploadZone');
+const previewContainer = document.getElementById('previewContainer');
+const billPreview = document.getElementById('billPreview');
+const pdfPreview = document.getElementById('pdfPreview');
+const pdfName = document.getElementById('pdfName');
+
+billFile.addEventListener('change', function() {
+    const file = this.files[0];
+    if (!file) return;
+    previewContainer.style.display = 'block';
+    if (file.type === 'application/pdf') {
+        billPreview.classList.add('d-none');
+        pdfPreview.classList.remove('d-none');
+        pdfName.textContent = file.name;
+    } else {
+        pdfPreview.classList.add('d-none');
+        billPreview.classList.remove('d-none');
+        const reader = new FileReader();
+        reader.onload = e => billPreview.src = e.target.result;
+        reader.readAsDataURL(file);
+    }
+    uploadZone.style.borderColor = '#2563eb';
+});
+
+uploadZone.addEventListener('dragover', e => { e.preventDefault(); uploadZone.classList.add('dragover'); });
+uploadZone.addEventListener('dragleave', () => uploadZone.classList.remove('dragover'));
+uploadZone.addEventListener('drop', e => {
+    e.preventDefault(); uploadZone.classList.remove('dragover');
+    const dt = new DataTransfer();
+    dt.items.add(e.dataTransfer.files[0]);
+    billFile.files = dt.files;
+    billFile.dispatchEvent(new Event('change'));
+});
+
+function clearFile() {
+    billFile.value = '';
+    previewContainer.style.display = 'none';
+    billPreview.src = '';
+    uploadZone.style.borderColor = document.getElementById('pmUpi').checked ? '#f59e0b' : '';
+}
+</script>
+}

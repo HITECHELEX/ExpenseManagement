@@ -1,0 +1,21 @@
+@model List<ExpenseManagement.Models.Budget>
+@{ ViewData["Title"] = "Budget Overview"; }
+<h5 class="mb-3"><i class="fas fa-wallet me-2"></i>Budget Overview</h5>
+<div class="table-responsive">
+    <table class="table table-hover">
+        <thead><tr><th>Employee</th><th>Purpose</th><th>Total</th><th>Spent</th><th>Balance</th><th>Allocated On</th></tr></thead>
+        <tbody>
+            @foreach (var b in Model)
+            {
+                <tr>
+                    <td><div class="fw-semibold">@b.Employee?.FullName</div></td>
+                    <td>@b.Purpose</td>
+                    <td>₹@b.TotalAmount.ToString("N0")</td>
+                    <td>₹@b.SpentAmount.ToString("N0")</td>
+                    <td class="@(b.RemainingBalance > 0 ? "text-success" : "text-danger") fw-bold">₹@b.RemainingBalance.ToString("N0")</td>
+                    <td>@b.AllocatedOn.ToString("dd MMM yyyy")</td>
+                </tr>
+            }
+        </tbody>
+    </table>
+</div>

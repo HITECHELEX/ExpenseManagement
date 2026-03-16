@@ -1,0 +1,106 @@
+@model List<ExpenseManagement.Models.Budget>
+@using ExpenseManagement.Models
+@{ ViewData["Title"] = "All Budgets"; }
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h5 class="mb-0"><i class="fas fa-wallet me-2"></i>All Budgets</h5>
+    <a href="/AccountTeam/AllocateBudget" class="btn btn-primary btn-sm"><i class="fas fa-plus me-1"></i>Allocate New</a>
+</div>
+
+@{
+    var locked   = Model.Where(b => b.IsLocked).ToList();
+    var active   = Model.Where(b => b.IsActive && !b.IsLocked).ToList();
+    var inactive = Model.Where(b => !b.IsActive && !b.IsLocked).ToList();
+}
+
+<!-- Summary row -->
+<div class="row g-3 mb-4">
+    <div class="col-6 col-md-3">
+        <div class="stat-card">
+            <div class="stat-label">Active Budgets</div>
+            <div class="fw-bold fs-4 text-success">@active.Count</div>
+        </div>
+    </div>
+    <div class="col-6 col-md-3">
+        <div class="stat-card">
+            <div class="stat-label">Total Allocated</div>
+            <div class="fw-bold fs-5">₹@Model.Sum(b => b.TotalAmount).ToString("N0")</div>
+        </div>
+    </div>
+    <div class="col-6 col-md-3">
+        <div class="stat-card">
+            <div class="stat-label">Total Spent</div>
+            <div class="fw-bold fs-5 text-warning">₹@active.Sum(b => b.SpentAmount).ToString("N0")</div>
+        </div>
+    </div>
+    <div class="col-6 col-md-3">
+        <div class="stat-card">
+            <div class="stat-label">Employees Overdue</div>
+            <div class="fw-bold fs-4 text-danger">@Model.Where(b => b.IsActive && b.OverspentAmount > 0).Select(b => b.EmployeeId).Distinct().Count()</div>
+        </div>
+    </div>
+</div>
+
+<div class="table-responsive">
+    <table class="table table-hover align-middle">
+        <thead>
+            <tr>
+                <th>Employee</th>
+                <th>Purpose</th>
+                <th>Allocated</th>
+                <th>Spent</th>
+                <th>Balance</th>
+                <th>Overspend Debt</th>
+                <th>Status</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var b in Model)
+            {
+                var isNeg = b.RemainingBalance < 0;
+                var pct = b.TotalAmount > 0 ? Math.Min(100, (double)(b.SpentAmount / b.TotalAmount * 100)) : 0;
+                var rowCls = b.IsLocked ? "table-secondary" : isNeg ? "table-danger" : b.OverspentAmount > 0 ? "table-warning" : "";
+                <tr class="@rowCls">
+                    <td>
+                        <div class="fw-semibold">@b.Employee?.FullName</div>
+                        <small class="text-muted">@b.Employee?.Department</small>
+                    </td>
+                    <td>
+                        @b.Purpose
+                        @if (b.IsLocked)
+                        {
+                            <div><small class="text-muted"><i class="fas fa-lock me-1"></i>@b.LockedReason</small></div>
+                        }
+                    </td>
+                    <td>₹@b.TotalAmount.ToString("N0")</td>
+                    <td>
+                        ₹@b.SpentAmount.ToString("N0")
+                        @if (!b.IsLocked)
+                        {
+                            <div class="progress mt-1" style="height:4px;width:80px">
+                                <div class="progress-bar @(pct>80?"bg-danger":pct>60?"bg-warning":"bg-success")" style="width:@pct%"></div>
+                            </div>
+                        }
+                    </td>
+                    <td class="fw-bold @(b.IsLocked ? "text-muted" : isNeg ? "text-danger" : "text-success")">
+                        @(isNeg ? "-" : "")₹@Math.Abs(b.RemainingBalance).ToString("N0")
+                    </td>
+                    <td>
+                        @if (b.OverspentAmount > 0)
+                        { <span class="badge bg-danger">₹@b.OverspentAmount.ToString("N0") owed</span> }
+                        else
+                        { <span class="text-muted">–</span> }
+                    </td>
+                    <td>
+                        @if (b.IsLocked)
+                        { <span class="badge bg-secondary"><i class="fas fa-lock me-1"></i>Locked</span> }
+                        else if (b.IsActive)
+                        { <span class="badge badge-approved">Active</span> }
+                        else
+                        { <span class="badge bg-secondary">Inactive</span> }
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+</div>

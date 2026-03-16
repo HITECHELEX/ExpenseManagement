@@ -1,0 +1,227 @@
+@model ExpenseManagement.ViewModels.AllocateBudgetVM
+@{ ViewData["Title"] = "Top Up Wallet"; }
+
+<div class="d-flex align-items-center gap-2 mb-3">
+    <a href="/AccountTeam/Dashboard" class="btn btn-outline-secondary btn-sm"><i class="fas fa-arrow-left me-1"></i>Back</a>
+    <h5 class="mb-0"><i class="fas fa-wallet me-2"></i>Top Up Employee Wallet</h5>
+</div>
+
+@{
+    var walletMap = ViewBag.WalletMap as Dictionary<int, decimal> ?? new Dictionary<int, decimal>();
+}
+
+@if (TempData["Success"] != null)
+{
+    <div class="alert alert-success alert-dismissible fade show mb-3">
+        <i class="fas fa-check-circle me-2"></i>@TempData["Success"]
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+}
+
+<div class="card">
+    <div class="card-header"><i class="fas fa-plus-circle me-2"></i>Add Funds to Wallet</div>
+    <div class="card-body">
+        <form method="post" action="/AccountTeam/AllocateBudget">
+            @Html.AntiForgeryToken()
+            <div asp-validation-summary="All" class="alert alert-danger mb-3"></div>
+
+            <!-- Employee selector -->
+            <div class="mb-3">
+                <label class="form-label">Employee <span class="text-danger">*</span></label>
+                <select name="EmployeeId" class="form-select" required id="empSelect" onchange="onEmpChange(this.value)">
+                    <option value="">-- Select Employee --</option>
+                    @foreach (var e in ViewBag.Employees as List<ExpenseManagement.Models.User> ?? new())
+                    {
+                        decimal wallet = walletMap.ContainsKey(e.Id) ? walletMap[e.Id] : 0;
+                        <option value="@e.Id" data-wallet="@wallet">
+                            @e.FullName (@e.Department)
+                        </option>
+                    }
+                </select>
+            </div>
+
+            <!-- Current wallet balance (shown after selecting employee) -->
+            <div id="walletInfo" class="mb-3 d-none">
+                <div class="p-3 rounded-3 d-flex justify-content-between align-items-center flex-wrap gap-2"
+                     style="background:#eff6ff;border:1.5px solid #bfdbfe">
+                    <div>
+                        <div style="font-size:.72rem;color:#3b82f6;text-transform:uppercase;letter-spacing:.4px">Current Wallet Balance</div>
+                        <div id="walletBal" class="fw-bold fs-5"></div>
+                    </div>
+                    <div id="afterTopUp" class="d-none text-end">
+                        <div style="font-size:.72rem;color:#16a34a;text-transform:uppercase;letter-spacing:.4px">After Top-up</div>
+                        <div id="afterBal" class="fw-bold fs-5 text-success"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Top-up history for selected employee -->
+            <div id="historySection" class="mb-3 d-none">
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <h6 class="fw-semibold mb-0"><i class="fas fa-history me-1 text-primary"></i>Top-up History</h6>
+                    <span id="historyCount" class="badge bg-secondary"></span>
+                </div>
+                <div class="card">
+                    <div class="card-body p-0">
+                        <div id="historyLoading" class="text-center py-3 text-muted" style="font-size:.85rem">
+                            <i class="fas fa-spinner fa-spin me-1"></i> Loading...
+                        </div>
+                        <div id="historyEmpty" class="text-center py-3 text-muted d-none" style="font-size:.85rem">
+                            <i class="fas fa-inbox me-1"></i> No top-ups yet for this employee.
+                        </div>
+                        <div id="historyRows"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Amount -->
+            <div class="mb-3">
+                <label class="form-label">Top-up Amount (₹) <span class="text-danger">*</span></label>
+                <div class="input-group">
+                    <span class="input-group-text"><i class="fas fa-rupee-sign"></i></span>
+                    <input type="number" name="TotalAmount" class="form-control form-control-lg"
+                           placeholder="e.g. 10000" min="1" step="0.01" required
+                           id="amtInput" oninput="updatePreview()" />
+                </div>
+            </div>
+
+            <!-- Label -->
+            <div class="mb-3">
+                <label class="form-label">Label / Purpose <span class="text-danger">*</span></label>
+                <input type="text" name="Purpose" class="form-control"
+                       placeholder="e.g. Monthly Allowance, Sales Trip Q2" required />
+                <small class="text-muted">A short label for this top-up.</small>
+            </div>
+
+
+            <button type="submit" class="btn btn-primary btn-lg w-100">
+                <i class="fas fa-plus-circle me-2"></i>Top Up Wallet
+            </button>
+        </form>
+    </div>
+</div>
+
+@section Scripts {
+<script>
+let currentWallet = 0;
+
+function onEmpChange(empId) {
+    const sel = document.getElementById('empSelect');
+    const opt = sel.options[sel.selectedIndex];
+    currentWallet = parseFloat(opt.dataset.wallet) || 0;
+
+    const info = document.getElementById('walletInfo');
+    info.classList.remove('d-none');
+
+    const balEl = document.getElementById('walletBal');
+    balEl.textContent = formatRupee(currentWallet);
+    balEl.className   = 'fw-bold fs-5 ' + (currentWallet < 0 ? 'text-danger' : 'text-primary');
+    updatePreview();
+
+    if (empId) loadHistory(empId);
+}
+
+function updatePreview() {
+    const amt    = parseFloat(document.getElementById('amtInput').value) || 0;
+    const after  = document.getElementById('afterTopUp');
+    const afterEl= document.getElementById('afterBal');
+    if (amt > 0) {
+        const newBal = currentWallet + amt;
+        afterEl.textContent = formatRupee(newBal);
+        afterEl.className   = 'fw-bold fs-5 ' + (newBal < 0 ? 'text-danger' : 'text-success');
+        after.classList.remove('d-none');
+    } else {
+        after.classList.add('d-none');
+    }
+}
+
+function formatRupee(v) {
+    return (v < 0 ? '-₹' : '₹') + Math.abs(v).toLocaleString('en-IN', {minimumFractionDigits: 2});
+}
+
+function loadHistory(empId) {
+    const section  = document.getElementById('historySection');
+    const loading  = document.getElementById('historyLoading');
+    const empty    = document.getElementById('historyEmpty');
+    const rows     = document.getElementById('historyRows');
+    const countEl  = document.getElementById('historyCount');
+
+    section.classList.remove('d-none');
+    loading.classList.remove('d-none');
+    empty.classList.add('d-none');
+    rows.innerHTML = '';
+
+    fetch(`/AccountTeam/GetTopUpHistory?employeeId=${empId}`)
+        .then(r => r.json())
+        .then(data => {
+            loading.classList.add('d-none');
+            countEl.textContent = data.length + ' record(s)';
+            if (data.length === 0) {
+                empty.classList.remove('d-none');
+                return;
+            }
+            renderHistoryRows(data, false);
+        })
+        .catch(() => {
+            loading.classList.add('d-none');
+            rows.innerHTML = '<div class="text-center py-3 text-danger" style="font-size:.85rem">Failed to load history.</div>';
+        });
+}
+
+const HISTORY_PREVIEW = 3;
+let _historyData = [];
+
+function renderHistoryRows(data, showAll) {
+    _historyData = data;
+    const rows   = document.getElementById('historyRows');
+    const toShow = showAll ? data : data.slice(0, HISTORY_PREVIEW);
+    let html = '';
+    toShow.forEach((h, i) => {
+        const bal = h.balanceAfter;
+        const balColor = bal < 0 ? 'text-danger' : 'text-success';
+        html += `
+                <div class="d-flex align-items-center justify-content-between px-4 py-3 border-bottom flex-wrap gap-2">
+                    <div class="d-flex align-items-center gap-3">
+                        <div style="width:34px;height:34px;background:#eff6ff;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:.85rem;font-weight:700;color:#2563eb;flex-shrink:0">
+                            #${data.length - i}
+                        </div>
+                        <div>
+                            <div class="fw-semibold" style="font-size:.9rem">${h.purpose}</div>
+                            <small class="text-muted"><i class="fas fa-user me-1"></i>${h.topUpBy} &nbsp;·&nbsp; <i class="fas fa-clock me-1"></i>${h.topUpOn}</small>
+                        </div>
+                    </div>
+                    <div class="d-flex gap-3 text-end">
+                        <div>
+                            <div style="font-size:.68rem;color:#94a3b8">Amount Added</div>
+                            <div class="fw-bold text-primary">+${formatRupee(h.amount)}</div>
+                        </div>
+                        <div>
+                            <div style="font-size:.68rem;color:#94a3b8">Balance After</div>
+                            <div class="fw-bold ${balColor}">${formatRupee(bal)}</div>
+                        </div>
+                    </div>
+                </div>`;
+    });
+    if (!showAll && data.length > HISTORY_PREVIEW) {
+        const remaining = data.length - HISTORY_PREVIEW;
+        html += `
+                <div class="text-center py-2 border-top" style="background:#f8fafc">
+                    <button type="button" class="btn btn-sm btn-outline-primary px-4" onclick="renderHistoryRows(_historyData, true)">
+                        <i class="fas fa-list me-1"></i>View All ${data.length} Records
+                        <span class="badge bg-primary ms-1" style="font-size:.68rem">${remaining} more</span>
+                    </button>
+                </div>`;
+    } else if (showAll && data.length > HISTORY_PREVIEW) {
+        html += `
+                <div class="text-center py-2 border-top" style="background:#f8fafc">
+                    <button type="button" class="btn btn-sm btn-outline-secondary px-4" onclick="renderHistoryRows(_historyData, false)">
+                        <i class="fas fa-chevron-up me-1"></i>Show Recent Only
+                    </button>
+                </div>`;
+    }
+    rows.innerHTML = html;
+}
+</script>
+}
+
+

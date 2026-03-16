@@ -1,0 +1,231 @@
+@model ExpenseManagement.Models.ExpenseReport
+@using ExpenseManagement.Models
+@{ ViewData["Title"] = "Report: " + Model.ReportTitle; }
+
+<div class="d-flex align-items-center gap-2 mb-3 flex-wrap">
+    <a href="/AccountTeam/Reports" class="btn btn-outline-secondary btn-sm"><i class="fas fa-arrow-left me-1"></i>Back</a>
+    <h5 class="mb-0 me-auto">@Model.ReportTitle</h5>
+    @{
+        var (cls, txt) = Model.Status switch {
+            ReportStatus.SubmittedToAccountTeam => ("badge-submitted","Awaiting Review"),
+            ReportStatus.ReviewedByAccountTeam  => ("badge-reviewed","Approved by Accounts"),
+            ReportStatus.ForwardedToManagement  => ("badge-forwarded","Forwarded to Management"),
+            ReportStatus.ApprovedByManagement   => ("badge-approved","Approved"),
+            ReportStatus.RejectedByManagement   => ("badge-rejected","Rejected"),
+            _ => ("badge-secondary", Model.Status.ToString())
+        };
+    }
+    <span class="badge @cls px-3 py-2 fs-6">@txt</span>
+    @if (Model.Status == ReportStatus.ApprovedByManagement)
+    {
+        <a href="/AccountTeam/DownloadReport/@Model.Id" class="btn btn-success btn-sm">
+            <i class="fas fa-download me-1"></i>Download
+        </a>
+    }
+</div>
+
+<div class="row g-3 mb-3">
+    <div class="col-6 col-md-3">
+        <div class="stat-card">
+            <div class="stat-label">Employee</div>
+            <div class="fw-semibold">@Model.Employee?.FullName</div>
+            <small class="text-muted">@Model.Employee?.Department</small>
+        </div>
+    </div>
+    <div class="col-6 col-md-3">
+        <div class="stat-card">
+            <div class="stat-label">Budget</div>
+            <div class="fw-semibold">₹@Model.Budget?.TotalAmount.ToString("N2")</div>
+            <small class="text-muted">@Model.Budget?.Purpose</small>
+        </div>
+    </div>
+    <div class="col-6 col-md-3">
+        <div class="stat-card">
+            <div class="stat-label">Total Claimed</div>
+            <div class="fw-semibold text-warning">₹@Model.TotalClaimed.ToString("N2")</div>
+        </div>
+    </div>
+    <div class="col-6 col-md-3">
+        <div class="stat-card">
+            @if (Model.RemainingBalanceAtSubmission >= 0)
+            {
+                <div class="stat-label">Balance Returned</div>
+                <div class="fw-semibold text-success">₹@Model.RemainingBalanceAtSubmission.ToString("N2")</div>
+            }
+            else
+            {
+                <div class="stat-label">Overspent By</div>
+                <div class="fw-semibold text-danger">₹@Math.Abs(Model.RemainingBalanceAtSubmission).ToString("N2")</div>
+                <small class="text-danger" style="font-size:.75rem">Deducted from next allocation</small>
+            }
+        </div>
+    </div>
+</div>
+
+@if (Model.RemainingBalanceAtSubmission < 0)
+{
+    <div class="alert alert-warning mb-3">
+        <i class="fas fa-exclamation-triangle me-2"></i>
+        <strong>Overspend Alert:</strong> This employee exceeded their budget by
+        <strong>₹@Math.Abs(Model.RemainingBalanceAtSubmission).ToString("N2")</strong>.
+        This will be automatically deducted from their next budget allocation.
+    </div>
+}
+
+@if (!string.IsNullOrEmpty(Model.Summary))
+{
+    <div class="card mb-3"><div class="card-body"><strong>Summary:</strong> @Model.Summary</div></div>
+}
+
+<div class="card mb-3">
+    <div class="card-header"><i class="fas fa-list me-2"></i>Expenses (@Model.ExpenseClaims.Count)</div>
+    <div class="table-responsive">
+        <table class="table table-hover mb-0">
+            <thead>
+                <tr><th>Date</th><th>Title</th><th class="d-mobile-none">Category</th><th>Amount</th><th>Bill</th><th class="d-mobile-none">Note</th></tr>
+            </thead>
+            <tbody>
+                @foreach (var c in Model.ExpenseClaims.OrderBy(x => x.ExpenseDate))
+                {
+                    <tr>
+                        <td>@c.ExpenseDate.ToString("dd MMM yy")</td>
+                        <td><div class="fw-semibold">@c.Title</div></td>
+                        <td class="d-mobile-none"><span class="badge bg-light text-dark">@c.Category</span></td>
+                        <td class="fw-semibold">₹@c.Amount.ToString("N2")</td>
+                        <td>
+                            @if (!string.IsNullOrEmpty(c.ReceiptPath))
+                            {
+                                var ext = System.IO.Path.GetExtension(c.ReceiptPath).ToLower();
+                                if (ext == ".pdf")
+                                { <a href="@c.ReceiptPath" target="_blank" class="btn btn-sm btn-outline-danger"><i class="fas fa-file-pdf"></i></a> }
+                                else
+                                { <a href="@c.ReceiptPath" target="_blank"><img src="@c.ReceiptPath" style="height:36px;width:36px;object-fit:cover;border-radius:6px;border:1px solid #e2e8f0" /></a> }
+                            }
+                            else { <span class="text-muted">–</span> }
+                        </td>
+                        <td class="d-mobile-none text-muted">@c.Description</td>
+                    </tr>
+                }
+            </tbody>
+            <tfoot>
+                <tr class="table-light fw-bold">
+                    <td colspan="3">Total</td>
+                    <td>₹@Model.ExpenseClaims.Sum(c => c.Amount).ToString("N2")</td>
+                    <td colspan="2"></td>
+                </tr>
+            </tfoot>
+        </table>
+    </div>
+</div>
+
+@if (Model.Status == ReportStatus.SubmittedToAccountTeam)
+{
+    <div class="card border-0 shadow-sm">
+        <div class="card-header fw-semibold" style="background:linear-gradient(135deg,#f8fafc,#e2e8f0)">
+            <i class="fas fa-clipboard-check me-2"></i>Account Team Review
+        </div>
+        <div class="card-body">
+            <div class="row g-3">
+                @* ── APPROVE ── *@
+                <div class="col-md-6">
+                    <form method="post" action="/AccountTeam/ApproveReport">
+                        @Html.AntiForgeryToken()
+                        <input type="hidden" name="reportId" value="@Model.Id" />
+                        <label class="form-label fw-semibold text-success">
+                            <i class="fas fa-check-circle me-1"></i>Approve Report
+                        </label>
+                        <textarea name="notes" class="form-control mb-3" rows="3"
+                                  placeholder="Optional notes for employee / management..."></textarea>
+                        <button type="submit" class="btn btn-success w-100">
+                            <i class="fas fa-check me-2"></i>Approve &amp; Enable Forward
+                        </button>
+                    </form>
+                </div>
+                @* ── REJECT ── *@
+                <div class="col-md-6">
+                    <form method="post" action="/AccountTeam/RejectReport">
+                        @Html.AntiForgeryToken()
+                        <input type="hidden" name="reportId" value="@Model.Id" />
+                        <label class="form-label fw-semibold text-danger">
+                            <i class="fas fa-times-circle me-1"></i>Return to Employee
+                        </label>
+                        <textarea name="feedback" class="form-control border-danger mb-3" rows="3"
+                                  required placeholder="Reason for rejection (required)..."></textarea>
+                        <button type="submit" class="btn btn-danger w-100">
+                            <i class="fas fa-undo me-2"></i>Reject &amp; Return
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@if (Model.Status == ReportStatus.ReviewedByAccountTeam)
+{
+    <div class="card border-success">
+        <div class="card-header bg-success text-white">
+            <i class="fas fa-check-circle me-2"></i>Approved by Account Team — Forward to Management
+        </div>
+        <div class="card-body">
+            @if (!string.IsNullOrEmpty(Model.AccountTeamNotes))
+            {
+                <div class="alert alert-light border mb-3">
+                    <strong>Account Team Notes:</strong> @Model.AccountTeamNotes
+                </div>
+            }
+            <form method="post" action="/AccountTeam/ForwardToManagement">
+                @Html.AntiForgeryToken()
+                <input type="hidden" name="reportId" value="@Model.Id" />
+                <input type="hidden" name="notes" value="@Model.AccountTeamNotes" />
+                <button type="submit" class="btn btn-primary w-100">
+                    <i class="fas fa-forward me-2"></i>Forward to Management
+                </button>
+            </form>
+        </div>
+    </div>
+}
+
+@if (Model.Status == ReportStatus.ApprovedByManagement)
+{
+    <div class="card border-success mt-3">
+        <div class="card-header bg-success text-white">
+            <i class="fas fa-check-circle me-2"></i>Balance Settlement
+        </div>
+        <div class="card-body">
+            @if (Model.RemainingBalanceAtSubmission > 0)
+            {
+                <div class="fw-semibold">₹@Model.RemainingBalanceAtSubmission.ToString("N2") automatically returned to employee's wallet on @Model.BalanceTransferredOn?.ToString("dd MMM yyyy")</div>
+            }
+            else if (Model.RemainingBalanceAtSubmission < 0)
+            {
+                <div class="fw-semibold text-danger">₹@Math.Abs(Model.RemainingBalanceAtSubmission).ToString("N2") overspend — auto-deducted from next allocation</div>
+            }
+            else
+            {
+                <div class="fw-semibold">No remaining balance on this report.</div>
+            }
+            <small class="text-muted">Budget: @Model.Budget?.Purpose</small>
+        </div>
+    </div>
+}
+                    <div>
+                        <div class="text-success fw-semibold">
+                            <i class="fas fa-check-circle me-1"></i>Settled on @Model.BalanceTransferredOn?.ToString("dd MMM yyyy HH:mm")
+                        </div>
+                        @if (Model.TransferredToBudget != null)
+                        {
+                            <small class="text-muted">To: @Model.TransferredToBudget.Purpose</small>
+                        }
+                    </div>
+                }
+                else
+                {
+                    <a href="/AccountTeam/TransferBalance/@Model.Id" class="btn btn-warning">
+                        <i class="fas fa-exchange-alt me-2"></i>@(Model.RemainingBalanceAtSubmission > 0 ? "Transfer Balance" : "Record Overspend")
+                    </a>
+                }
+            </div>
+        </div>
+    </div>
+}

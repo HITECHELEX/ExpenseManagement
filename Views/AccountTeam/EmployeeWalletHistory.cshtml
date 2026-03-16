@@ -1,0 +1,263 @@
+@model ExpenseManagement.ViewModels.EmployeeWalletHistoryVM
+@using ExpenseManagement.Models
+@{ ViewData["Title"] = "Wallet History — " + Model.Employee.FullName; }
+
+@{
+    bool isOver = Model.WalletBalance < 0;
+}
+
+<!-- Back + Header -->
+<div class="d-flex align-items-center gap-2 mb-4">
+    <a href="/AccountTeam/Budgets" class="btn btn-outline-secondary btn-sm">
+        <i class="fas fa-arrow-left me-1"></i>Back
+    </a>
+    <div>
+        <h5 class="mb-0 fw-bold">
+            <i class="fas fa-user-circle me-2 text-primary"></i>@Model.Employee.FullName
+            <small class="text-muted fw-normal ms-2" style="font-size:.75rem">@Model.Employee.Department</small>
+        </h5>
+    </div>
+    <div class="ms-auto">
+        <a href="/AccountTeam/AllocateBudget" class="btn btn-primary btn-sm">
+            <i class="fas fa-plus-circle me-1"></i>Top Up Wallet
+        </a>
+    </div>
+</div>
+
+<!-- ── WALLET SUMMARY CARD ── -->
+<div class="mb-4">
+    <div style="background:linear-gradient(135deg,@(isOver?"#dc2626,#991b1b":"#1e3a8a,#2563eb"));border-radius:18px;padding:24px 28px;color:#fff">
+        <div class="row align-items-center g-3">
+            <div class="col-md-4">
+                <div style="opacity:.75;font-size:.72rem;text-transform:uppercase;letter-spacing:.8px;margin-bottom:6px">
+                    <i class="fas fa-wallet me-1"></i>Current Wallet Balance
+                </div>
+                <div style="font-size:2.6rem;font-weight:800;letter-spacing:-1.5px;line-height:1.1">
+                    @(isOver ? "-" : "")₹@Math.Abs(Model.WalletBalance).ToString("N2")
+                </div>
+                @if (isOver)
+                {
+                    <div style="background:rgba(0,0,0,.25);border-radius:8px;padding:6px 10px;margin-top:10px;font-size:.78rem">
+                        <i class="fas fa-exclamation-triangle me-1 text-warning"></i>
+                        Overdrawn by ₹@Math.Abs(Model.WalletBalance).ToString("N2")
+                    </div>
+                }
+            </div>
+            <div class="col-md-8">
+                <div class="row g-2 text-center">
+                    <div class="col-6 col-md-3">
+                        <div style="background:rgba(255,255,255,.13);border-radius:10px;padding:12px 6px">
+                            <div style="font-size:1.05rem;font-weight:700">₹@Model.TotalAllocated.ToString("N0")</div>
+                            <div style="font-size:.66rem;opacity:.8;margin-top:2px">Total Allocated</div>
+                        </div>
+                    </div>
+                    <div class="col-6 col-md-3">
+                        <div style="background:rgba(255,255,255,.13);border-radius:10px;padding:12px 6px">
+                            <div style="font-size:1.05rem;font-weight:700">₹@Model.TotalSpent.ToString("N0")</div>
+                            <div style="font-size:.66rem;opacity:.8;margin-top:2px">Total Spent</div>
+                        </div>
+                    </div>
+                    <div class="col-6 col-md-3">
+                        <div style="background:rgba(255,255,255,.13);border-radius:10px;padding:12px 6px">
+                            <div style="font-size:1.05rem;font-weight:700">@Model.TotalTopUps</div>
+                            <div style="font-size:.66rem;opacity:.8;margin-top:2px">Top-ups</div>
+                        </div>
+                    </div>
+                    <div class="col-6 col-md-3">
+                        <div style="background:rgba(255,255,255,.13);border-radius:10px;padding:12px 6px">
+                            <div style="font-size:1.05rem;font-weight:700">₹@Model.TotalTopUpAmount.ToString("N0")</div>
+                            <div style="font-size:.66rem;opacity:.8;margin-top:2px">Total Added</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ── TOP-UP HISTORY ── -->
+<div class="card mb-4">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <span><i class="fas fa-history me-2"></i>Top-up History</span>
+        <span class="badge bg-primary rounded-pill">@Model.TotalTopUps record(s)</span>
+    </div>
+
+    @if (!Model.TopUps.Any())
+    {
+        <div class="card-body text-center py-5 text-muted">
+            <i class="fas fa-inbox fa-2x mb-2 d-block"></i>
+            No top-ups yet for this employee.
+            <div class="mt-3">
+                <a href="/AccountTeam/AllocateBudget" class="btn btn-primary btn-sm">
+                    <i class="fas fa-plus-circle me-1"></i>Top Up Now
+                </a>
+            </div>
+        </div>
+    }
+    else
+    {
+        @* ── MOBILE CARD LIST ── *@
+        <div class="d-md-none">
+            @foreach (var (t, idx) in Model.TopUps.Select((t, i) => (t, Model.TopUps.Count - i)))
+            {
+                bool neg = t.BalanceAfter < 0;
+                decimal prevBal = t.BalanceAfter - t.Amount;
+                <div class="px-3 py-3 border-bottom">
+                    <div class="d-flex justify-content-between align-items-start mb-2">
+                        <div class="d-flex align-items-center gap-2 flex-wrap">
+                            <span class="badge bg-light text-secondary border fw-semibold" style="font-size:.75rem">#@idx</span>
+                            <span class="badge rounded-pill px-2 py-1"
+                                  style="background:#eff6ff;color:#2563eb;font-weight:600;font-size:.76rem;max-width:160px;white-space:normal;text-align:left">
+                                @t.Purpose
+                            </span>
+                        </div>
+                        <div class="text-end flex-shrink-0 ms-2">
+                            <div class="fw-bold text-primary" style="font-size:.9rem">+₹@t.Amount.ToString("N2")</div>
+                            <div class="fw-bold @(neg ? "text-danger" : "text-success")" style="font-size:.9rem">
+                                @(neg ? "-" : "")₹@Math.Abs(t.BalanceAfter).ToString("N2")
+                            </div>
+                            @if (neg)
+                            {
+                                <div style="font-size:.66rem;color:#dc2626">Overdrawn</div>
+                            }
+                            else if (prevBal < 0)
+                            {
+                                <div style="font-size:.66rem;color:#f59e0b">
+                                    <i class="fas fa-exclamation-triangle me-1"></i>₹@Math.Abs(prevBal).ToString("N2") debt recovered
+                                </div>
+                            }
+                            else if (prevBal > 0)
+                            {
+                                <div style="font-size:.66rem;color:#64748b">
+                                    <i class="fas fa-layer-group me-1"></i>₹@prevBal.ToString("N2") carry-fwd
+                                </div>
+                            }
+                        </div>
+                    </div>
+                    <div class="d-flex justify-content-between" style="font-size:.76rem;color:#64748b">
+                        <span><i class="fas fa-user me-1"></i>@(t.TopUpBy?.FullName ?? "Account Team")</span>
+                        <span><i class="fas fa-clock me-1"></i>@t.TopUpOn.ToString("dd MMM yy, hh:mm tt")</span>
+                    </div>
+                </div>
+            }
+        </div>
+
+        @* ── DESKTOP TABLE ── *@
+        <div class="d-none d-md-block">
+            <table class="table table-hover mb-0" style="font-size:.875rem">
+                <thead style="background:#f8fafc">
+                    <tr>
+                        <th class="px-4 py-3">#</th>
+                        <th class="py-3">Label / Purpose</th>
+                        <th class="py-3">Topped Up By</th>
+                        <th class="py-3">Date &amp; Time</th>
+                        <th class="py-3 text-end">Amount Added</th>
+                        <th class="py-3 text-end pe-4">Balance After</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var (t, idx) in Model.TopUps.Select((t, i) => (t, Model.TopUps.Count - i)))
+                    {
+                        bool neg = t.BalanceAfter < 0;
+                        decimal prevBal = t.BalanceAfter - t.Amount;
+                        <tr>
+                            <td class="px-4 py-3">
+                                <span class="badge bg-light text-secondary border fw-semibold">#@idx</span>
+                            </td>
+                            <td class="py-3">
+                                <span class="badge rounded-pill px-3 py-1"
+                                      style="background:#eff6ff;color:#2563eb;font-weight:600;font-size:.78rem">
+                                    @t.Purpose
+                                </span>
+                            </td>
+                            <td class="py-3">
+                                <div class="d-flex align-items-center gap-2">
+                                    <div style="width:30px;height:30px;background:#e0e7ff;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:.72rem;font-weight:700;color:#4338ca;flex-shrink:0">
+                                        @(t.TopUpBy?.FullName?.Substring(0, 1).ToUpper() ?? "A")
+                                    </div>
+                                    <span>@(t.TopUpBy?.FullName ?? "Account Team")</span>
+                                </div>
+                            </td>
+                            <td class="py-3 text-muted" style="white-space:nowrap">
+                                <div><i class="fas fa-calendar me-1" style="font-size:.72rem"></i>@t.TopUpOn.ToString("dd MMM yyyy")</div>
+                                <div style="font-size:.75rem"><i class="fas fa-clock me-1"></i>@t.TopUpOn.ToString("hh:mm tt")</div>
+                            </td>
+                            <td class="py-3 text-end">
+                                <span class="fw-bold text-primary fs-6">+₹@t.Amount.ToString("N2")</span>
+                            </td>
+                            <td class="py-3 text-end pe-4">
+                                <span class="fw-bold @(neg ? "text-danger" : "text-success")">
+                                    @(neg ? "-" : "")₹@Math.Abs(t.BalanceAfter).ToString("N2")
+                                </span>
+                                @if (neg)
+                                {
+                                    <div style="font-size:.68rem;color:#dc2626">Overdrawn</div>
+                                }
+                                else if (prevBal < 0)
+                                {
+                                    <div style="font-size:.68rem;color:#f59e0b;margin-top:2px">
+                                        <i class="fas fa-exclamation-triangle me-1"></i>₹@Math.Abs(prevBal).ToString("N2") debt recovered
+                                    </div>
+                                }
+                                else if (prevBal > 0)
+                                {
+                                    <div style="font-size:.68rem;color:#64748b;margin-top:2px">
+                                        <i class="fas fa-layer-group me-1"></i>Incl. ₹@prevBal.ToString("N2") carry-forward
+                                    </div>
+                                }
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+</div>
+
+<!-- ── BUDGET RECORDS (for audit) ── -->
+@if (Model.Budgets.Any())
+{
+    <div class="card">
+        <div class="card-header">
+            <i class="fas fa-wallet me-2"></i>Budget Record
+            <small class="text-muted fw-normal ms-2">(underlying wallet data)</small>
+        </div>
+        <div class="table-responsive">
+            <table class="table table-sm mb-0" style="font-size:.83rem">
+                <thead style="background:#f8fafc">
+                    <tr>
+                        <th class="px-4 py-2">Purpose</th>
+                        <th class="py-2">Allocated</th>
+                        <th class="py-2 d-none d-md-table-cell">Spent</th>
+                        <th class="py-2">Balance</th>
+                        <th class="py-2">Status</th>
+                        <th class="py-2 d-none d-md-table-cell">Date</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var b in Model.Budgets)
+                    {
+                        bool neg = b.RemainingBalance < 0;
+                        <tr class="@(b.IsLocked ? "opacity-50" : "")">
+                            <td class="px-4 py-2">@b.Purpose</td>
+                            <td class="py-2">₹@b.TotalAmount.ToString("N0")</td>
+                            <td class="py-2 d-none d-md-table-cell">₹@b.SpentAmount.ToString("N0")</td>
+                            <td class="py-2 fw-semibold @(neg ? "text-danger" : "text-success")">
+                                @(neg ? "-" : "")₹@Math.Abs(b.RemainingBalance).ToString("N0")
+                            </td>
+                            <td class="py-2">
+                                @if (b.IsLocked)
+                                { <span class="badge bg-secondary" style="font-size:.65rem"><i class="fas fa-lock me-1"></i>Closed</span> }
+                                else if (b.IsActive)
+                                { <span class="badge badge-approved" style="font-size:.65rem">Active</span> }
+                                else
+                                { <span class="badge bg-secondary" style="font-size:.65rem">Inactive</span> }
+                            </td>
+                            <td class="py-2 text-muted d-none d-md-table-cell">@b.AllocatedOn.ToString("dd MMM yyyy")</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+}

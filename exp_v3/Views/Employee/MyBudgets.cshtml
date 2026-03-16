@@ -1,0 +1,137 @@
+@model List<ExpenseManagement.Models.Budget>
+@using ExpenseManagement.Models
+@{ ViewData["Title"] = "My Budgets"; }
+
+<h5 class="mb-3"><i class="fas fa-wallet me-2"></i>My Budgets</h5>
+
+@{
+    var activeBudgets = Model.Where(b => b.IsActive && !b.IsLocked).ToList();
+    decimal totalOwed = Model.Where(b => b.OverspentAmount > 0).Sum(b => b.OverspentAmount);
+}
+
+@* ── OVERSPEND SUMMARY BANNER ── *@
+@if (totalOwed > 0)
+{
+    <div class="alert alert-warning d-flex align-items-start gap-3 mb-3">
+        <i class="fas fa-exclamation-triangle text-warning fa-lg flex-shrink-0 mt-1"></i>
+        <div>
+            <strong>Pending Overspend Recovery: ₹@totalOwed.ToString("N2")</strong>
+            <div style="font-size:.88rem">
+                This amount will be automatically deducted from your <strong>next budget allocation</strong>.
+                For example: if ₹@totalOwed.ToString("N0") is owed and you get a ₹10,000 allocation,
+                your actual available balance will be ₹@((10000 - totalOwed).ToString("N0")).
+            </div>
+        </div>
+    </div>
+}
+
+@if (!Model.Any())
+{
+    <div class="card text-center py-5 text-muted">
+        <i class="fas fa-wallet fa-3x mb-3 d-block"></i>No budgets allocated yet
+    </div>
+}
+
+@foreach (var b in Model.OrderByDescending(x => x.AllocatedOn))
+{
+    var isOverspent = b.RemainingBalance < 0;
+    var pct = b.TotalAmount > 0 ? Math.Min(100, (double)(b.SpentAmount / b.TotalAmount * 100)) : 0;
+    var barColor = isOverspent ? "bg-danger" : pct > 80 ? "bg-danger" : pct > 60 ? "bg-warning" : "bg-success";
+
+    <div class="card mb-3 @(b.IsLocked ? "border-secondary opacity-75" : isOverspent ? "border-danger" : "")">
+        @* ── Locked header ── *@
+        @if (b.IsLocked)
+        {
+            <div class="card-header d-flex align-items-center gap-2"
+                 style="background:#f1f5f9;border-bottom-color:#cbd5e1">
+                <i class="fas fa-lock text-secondary"></i>
+                <span class="text-secondary fw-semibold">Budget Locked</span>
+                @if (!string.IsNullOrEmpty(b.LockedReason))
+                {
+                    <small class="text-muted ms-2">— @b.LockedReason</small>
+                }
+            </div>
+        }
+        else if (isOverspent)
+        {
+            <div class="card-header d-flex align-items-center gap-2"
+                 style="background:#fef2f2;border-bottom-color:#fca5a5">
+                <i class="fas fa-exclamation-circle text-danger"></i>
+                <strong class="text-danger">Over Budget by ₹@Math.Abs(b.RemainingBalance).ToString("N2")</strong>
+                <small class="text-muted ms-2">— will be deducted from next allocation</small>
+            </div>
+        }
+        else if (b.OverspentAmount > 0)
+        {
+            <div class="card-header d-flex align-items-center gap-2"
+                 style="background:#fffbeb;border-bottom-color:#fde68a">
+                <i class="fas fa-exclamation-triangle text-warning"></i>
+                <span class="text-warning fw-semibold">₹@b.OverspentAmount.ToString("N2") overspend pending deduction from next allocation</span>
+            </div>
+        }
+
+        <div class="card-body">
+            <div class="d-flex justify-content-between align-items-start flex-wrap gap-2 mb-3">
+                <div>
+                    <h6 class="mb-1">
+                        @b.Purpose
+                        @if (b.IsLocked) { <span class="badge bg-secondary ms-1" style="font-size:.65rem"><i class="fas fa-lock me-1"></i>Locked</span> }
+                        else if (b.IsActive) { <span class="badge badge-approved ms-1" style="font-size:.65rem">Active</span> }
+                    </h6>
+                    <small class="text-muted">
+                        Allocated by @b.AllocatedBy?.FullName on @b.AllocatedOn.ToString("dd MMM yyyy")
+                    </small>
+                    @if (b.ValidUntil.HasValue)
+                    { <small class="text-muted ms-2">· Valid until @b.ValidUntil.Value.ToString("dd MMM yyyy")</small> }
+                </div>
+            </div>
+
+            @* ── BUDGET BALANCE BREAKDOWN ── *@
+            <div class="row g-3 mb-3">
+                <div class="col-4 text-center">
+                    <div class="fw-bold">₹@b.TotalAmount.ToString("N0")</div>
+                    <small class="text-muted">Allocated</small>
+                </div>
+                <div class="col-4 text-center">
+                    <div class="fw-bold text-warning">₹@b.SpentAmount.ToString("N0")</div>
+                    <small class="text-muted">Spent</small>
+                </div>
+                <div class="col-4 text-center">
+                    @if (isOverspent)
+                    {
+                        <div class="fw-bold text-danger">-₹@Math.Abs(b.RemainingBalance).ToString("N0")</div>
+                        <small class="text-danger">Over Budget</small>
+                    }
+                    else
+                    {
+                        <div class="fw-bold text-success">₹@b.RemainingBalance.ToString("N0")</div>
+                        <small class="text-muted">Balance</small>
+                    }
+                </div>
+            </div>
+
+            @* ── EXAMPLE: How overspend deduction works ── *@
+            @if (b.OverspentAmount > 0 && !b.IsLocked)
+            {
+                <div class="p-2 rounded mb-3" style="background:#fff7ed;border:1px solid #fed7aa;font-size:.82rem">
+                    <i class="fas fa-calculator text-orange me-2" style="color:#ea580c"></i>
+                    <strong>Example:</strong> If next allocation = ₹10,000 →
+                    deduct ₹@b.OverspentAmount.ToString("N0") →
+                    <strong>actual available = ₹@((10000 - b.OverspentAmount).ToString("N0"))</strong>
+                </div>
+            }
+
+            <div class="progress" style="height:10px">
+                <div class="progress-bar @barColor" style="width:@pct%"></div>
+            </div>
+            <small class="text-muted d-block mt-1">@pct.ToString("F0")% used</small>
+
+            @if (!b.IsLocked && b.IsActive)
+            {
+                <a href="/Employee/CreateDraftReport" class="btn btn-outline-primary btn-sm mt-3">
+                    <i class="fas fa-file-plus me-1"></i>Create Report
+                </a>
+            }
+        </div>
+    </div>
+}

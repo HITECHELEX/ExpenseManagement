@@ -1,0 +1,249 @@
+@model ExpenseManagement.ViewModels.AllocationBreakdownVM
+@using ExpenseManagement.Models
+@{ ViewData["Title"] = "Allocation Breakdown"; }
+
+@{
+    decimal maxEmp   = Model.ByEmployee.Any() ? Model.ByEmployee.Max(e => e.TotalAllocated) : 1;
+    decimal maxMonth = Model.ByMonth.Any()    ? Model.ByMonth.Max(m => m.TotalAdded)        : 1;
+}
+
+<!-- Header -->
+<div class="d-flex align-items-center gap-2 mb-4 flex-wrap">
+    <a href="/AccountTeam/Dashboard" class="btn btn-outline-secondary btn-sm">
+        <i class="fas fa-arrow-left me-1"></i>Back
+    </a>
+    <div>
+        <h5 class="mb-0 fw-bold"><i class="fas fa-chart-pie me-2 text-primary"></i>Total Allocation Breakdown</h5>
+        <small class="text-muted">How ₹@Model.TotalAllocated.ToString("N2") was distributed across employees and months</small>
+    </div>
+</div>
+
+<!-- ── SUMMARY BANNER ── -->
+<div class="row g-3 mb-4">
+    <div class="col-6 col-md-4">
+        <div style="background:linear-gradient(135deg,#1e3a8a,#2563eb);border-radius:14px;padding:20px;color:#fff">
+            <div style="opacity:.75;font-size:.7rem;text-transform:uppercase;letter-spacing:.6px;margin-bottom:4px">
+                <i class="fas fa-wallet me-1"></i>Total Allocated
+            </div>
+            <div style="font-size:1.7rem;font-weight:800;letter-spacing:-1px">₹@Model.TotalAllocated.ToString("N0")</div>
+            <div style="font-size:.72rem;opacity:.7;margin-top:4px">Across @Model.ByEmployee.Count employee(s)</div>
+        </div>
+    </div>
+    <div class="col-6 col-md-4">
+        <div style="background:linear-gradient(135deg,#dc2626,#b91c1c);border-radius:14px;padding:20px;color:#fff">
+            <div style="opacity:.75;font-size:.7rem;text-transform:uppercase;letter-spacing:.6px;margin-bottom:4px">
+                <i class="fas fa-receipt me-1"></i>Total Spent
+            </div>
+            <div style="font-size:1.7rem;font-weight:800;letter-spacing:-1px">₹@Model.TotalSpent.ToString("N0")</div>
+            <div style="font-size:.72rem;opacity:.7;margin-top:4px">
+                @(Model.TotalAllocated > 0 ? ((Model.TotalSpent / Model.TotalAllocated) * 100).ToString("N1") : "0")% utilised
+            </div>
+        </div>
+    </div>
+    <div class="col-12 col-md-4">
+        <div style="background:linear-gradient(135deg,#15803d,#16a34a);border-radius:14px;padding:20px;color:#fff">
+            <div style="opacity:.75;font-size:.7rem;text-transform:uppercase;letter-spacing:.6px;margin-bottom:4px">
+                <i class="fas fa-piggy-bank me-1"></i>Total Remaining
+            </div>
+            <div style="font-size:1.7rem;font-weight:800;letter-spacing:-1px">
+                @(Model.TotalRemaining < 0 ? "-" : "")₹@Math.Abs(Model.TotalRemaining).ToString("N0")
+            </div>
+            <div style="font-size:.72rem;opacity:.7;margin-top:4px">
+                @(Model.TotalRemaining < 0 ? "⚠️ Net overdrawn" : "Available across all wallets")
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row g-4">
+    <!-- ── LEFT: BY EMPLOYEE ── -->
+    <div class="col-12 col-lg-7">
+        <div class="card h-100">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <span><i class="fas fa-users me-2"></i>By Employee</span>
+                <span class="badge bg-primary rounded-pill">@Model.ByEmployee.Count</span>
+            </div>
+            <div class="card-body p-0">
+                @foreach (var e in Model.ByEmployee)
+                {
+                    decimal pct     = maxEmp > 0 ? (e.TotalAllocated / maxEmp) * 100 : 0;
+                    decimal spentPct = e.TotalAllocated > 0 ? (e.TotalSpent / e.TotalAllocated) * 100 : 0;
+                    bool over       = e.Remaining < 0;
+                    <div class="px-4 py-3 border-bottom">
+                        <div class="d-flex justify-content-between align-items-start mb-2 flex-wrap gap-1">
+                            <div>
+                                <a href="/AccountTeam/EmployeeWalletHistory/@e.EmployeeId"
+                                   class="fw-semibold text-decoration-none text-primary">
+                                    @e.EmployeeName
+                                </a>
+                                <small class="text-muted ms-2">@e.Department</small>
+                                <div style="font-size:.72rem;color:#94a3b8;margin-top:2px">
+                                    @e.BudgetCount budget(s) &nbsp;·&nbsp; @e.ReportCount report(s)
+                                </div>
+                            </div>
+                            <div class="text-end">
+                                <div class="fw-bold text-primary" style="font-size:.95rem">₹@e.TotalAllocated.ToString("N0")</div>
+                                <div style="font-size:.72rem;color:#64748b">
+                                    Spent: <span class="text-danger fw-semibold">₹@e.TotalSpent.ToString("N0")</span>
+                                    &nbsp;·&nbsp;
+                                    Left: <span class="@(over?"text-danger":"text-success") fw-semibold">
+                                        @(over?"-":"")₹@Math.Abs(e.Remaining).ToString("N0")
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+                        <!-- Allocation bar -->
+                        <div style="background:#f1f5f9;border-radius:6px;height:6px;overflow:hidden">
+                            <div style="width:@pct.ToString("N1")%;height:100%;background:#2563eb;border-radius:6px"></div>
+                        </div>
+                        <!-- Spent-within-allocation bar -->
+                        <div style="background:#fee2e2;border-radius:4px;height:4px;overflow:hidden;margin-top:3px">
+                            <div style="width:@(Math.Min(spentPct,100).ToString("N1"))%;height:100%;background:#dc2626;border-radius:4px"></div>
+                        </div>
+                        <div class="d-flex justify-content-between mt-1" style="font-size:.65rem;color:#94a3b8">
+                            <span>0</span>
+                            <span class="text-primary">@spentPct.ToString("N0")% spent</span>
+                            <span>₹@e.TotalAllocated.ToString("N0")</span>
+                        </div>
+                    </div>
+                }
+            </div>
+        </div>
+    </div>
+
+    <!-- ── RIGHT: BY MONTH ── -->
+    <div class="col-12 col-lg-5">
+        <div class="card h-100">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <span><i class="fas fa-calendar-alt me-2"></i>By Month</span>
+                <span class="badge bg-primary rounded-pill">@Model.ByMonth.Count month(s)</span>
+            </div>
+            <div class="card-body p-0">
+                @if (!Model.ByMonth.Any())
+                {
+                    <div class="text-center py-5 text-muted">
+                        <i class="fas fa-inbox fa-2x mb-2 d-block"></i>No monthly data yet.
+                    </div>
+                }
+                @foreach (var m in Model.ByMonth)
+                {
+                    decimal mPct = maxMonth > 0 ? (m.TotalAdded / maxMonth) * 100 : 0;
+                    <div class="px-4 py-3 border-bottom">
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <div>
+                                <div class="fw-semibold" style="font-size:.9rem">@m.MonthLabel</div>
+                                <small class="text-muted">@m.TopUpCount top-up(s)</small>
+                            </div>
+                            <div class="fw-bold text-primary">₹@m.TotalAdded.ToString("N0")</div>
+                        </div>
+                        <div style="background:#f1f5f9;border-radius:6px;height:8px;overflow:hidden">
+                            <div style="width:@mPct.ToString("N1")%;height:100%;background:linear-gradient(90deg,#2563eb,#60a5fa);border-radius:6px"></div>
+                        </div>
+                    </div>
+                }
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ── ALL BUDGET RECORDS ── -->
+<div class="card mt-4">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <span><i class="fas fa-list me-2"></i>All Budget Records</span>
+        <span class="badge bg-secondary rounded-pill">@Model.AllBudgets.Count</span>
+    </div>
+
+    <!-- Mobile card list -->
+    <div class="d-md-none">
+        @foreach (var b in Model.AllBudgets)
+        {
+            bool neg = b.RemainingBalance < 0;
+            <div class="px-3 py-3 border-bottom">
+                <div class="d-flex justify-content-between align-items-start mb-1">
+                    <div>
+                        <div class="fw-semibold" style="font-size:.88rem">@b.Purpose</div>
+                        <small class="text-muted">
+                            <i class="fas fa-user me-1"></i>@b.Employee?.FullName
+                            &nbsp;·&nbsp; @b.AllocatedOn.ToString("dd MMM yyyy")
+                        </small>
+                    </div>
+                    <div class="text-end ms-2">
+                        <div class="fw-bold text-primary" style="font-size:.88rem">₹@b.TotalAmount.ToString("N0")</div>
+                        <div style="font-size:.72rem" class="@(neg?"text-danger":"text-success")">
+                            Bal: @(neg?"-":"")₹@Math.Abs(b.RemainingBalance).ToString("N0")
+                        </div>
+                    </div>
+                </div>
+                <div class="d-flex gap-2">
+                    @if (b.IsLocked)
+                    { <span class="badge bg-secondary" style="font-size:.62rem"><i class="fas fa-lock me-1"></i>Closed</span> }
+                    else if (b.IsActive)
+                    { <span class="badge badge-approved" style="font-size:.62rem">Active</span> }
+                </div>
+            </div>
+        }
+    </div>
+
+    <!-- Desktop table -->
+    <div class="d-none d-md-block table-responsive">
+        <table class="table table-hover mb-0" style="font-size:.87rem">
+            <thead style="background:#f8fafc">
+                <tr>
+                    <th class="px-4 py-3">Employee</th>
+                    <th class="py-3">Purpose / Label</th>
+                    <th class="py-3">Allocated On</th>
+                    <th class="py-3 text-end">Allocated</th>
+                    <th class="py-3 text-end">Spent</th>
+                    <th class="py-3 text-end pe-4">Remaining</th>
+                    <th class="py-3">Status</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var b in Model.AllBudgets)
+                {
+                    bool neg = b.RemainingBalance < 0;
+                    <tr class="@(b.IsLocked ? "opacity-50" : "")">
+                        <td class="px-4 py-3">
+                            <a href="/AccountTeam/EmployeeWalletHistory/@b.EmployeeId"
+                               class="fw-semibold text-decoration-none text-primary">
+                                @b.Employee?.FullName
+                            </a>
+                            <div style="font-size:.72rem;color:#94a3b8">@b.Employee?.Department</div>
+                        </td>
+                        <td class="py-3">
+                            <span class="badge rounded-pill px-3 py-1"
+                                  style="background:#eff6ff;color:#2563eb;font-weight:600;font-size:.76rem">
+                                @b.Purpose
+                            </span>
+                        </td>
+                        <td class="py-3 text-muted">@b.AllocatedOn.ToString("dd MMM yyyy")</td>
+                        <td class="py-3 text-end fw-semibold text-primary">₹@b.TotalAmount.ToString("N2")</td>
+                        <td class="py-3 text-end text-danger">₹@b.SpentAmount.ToString("N2")</td>
+                        <td class="py-3 text-end pe-4 fw-bold @(neg?"text-danger":"text-success")">
+                            @(neg?"-":"")₹@Math.Abs(b.RemainingBalance).ToString("N2")
+                        </td>
+                        <td class="py-3">
+                            @if (b.IsLocked)
+                            { <span class="badge bg-secondary" style="font-size:.65rem"><i class="fas fa-lock me-1"></i>Closed</span> }
+                            else if (b.IsActive)
+                            { <span class="badge badge-approved" style="font-size:.65rem">Active</span> }
+                            else
+                            { <span class="badge bg-secondary" style="font-size:.65rem">Inactive</span> }
+                        </td>
+                    </tr>
+                }
+            </tbody>
+            <tfoot style="background:#f8fafc;font-weight:700">
+                <tr>
+                    <td class="px-4 py-2" colspan="3">Total</td>
+                    <td class="py-2 text-end text-primary">₹@Model.TotalAllocated.ToString("N2")</td>
+                    <td class="py-2 text-end text-danger">₹@Model.TotalSpent.ToString("N2")</td>
+                    <td class="py-2 text-end pe-4 @(Model.TotalRemaining<0?"text-danger":"text-success")">
+                        @(Model.TotalRemaining<0?"-":"")₹@Math.Abs(Model.TotalRemaining).ToString("N2")
+                    </td>
+                    <td></td>
+                </tr>
+            </tfoot>
+        </table>
+    </div>
+</div>

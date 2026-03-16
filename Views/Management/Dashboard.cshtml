@@ -1,0 +1,158 @@
+@model ExpenseManagement.ViewModels.ManagementDashboardVM
+@using ExpenseManagement.Models
+@{
+    ViewData["Title"] = "Dashboard";
+    ViewBag.UnreadNotifications = Model.UnreadNotifications;
+    decimal remaining = Model.TotalBudgetAllocated - Model.TotalSpent;
+    double spentPct = Model.TotalBudgetAllocated > 0
+        ? Math.Min(100, (double)(Model.TotalSpent / Model.TotalBudgetAllocated * 100)) : 0;
+    int totalReportActions = Model.ApprovedReports + Model.RejectedReports + Model.ReportsForReview;
+}
+
+@* ── TOP HERO CARD ── *@
+<div class="mb-4">
+    <div style="background:linear-gradient(135deg,#1e3a8a 0%,#2563eb 100%);border-radius:18px;padding:24px;color:#fff">
+
+        <div style="opacity:.8;font-size:.8rem;letter-spacing:.5px;text-transform:uppercase;margin-bottom:6px">
+            <i class="fas fa-building-columns me-2"></i>Organisation Budget Overview
+        </div>
+
+        <div style="font-size:2.6rem;font-weight:800;letter-spacing:-1.5px;line-height:1.1;margin-bottom:4px">
+            ₹@Model.TotalBudgetAllocated.ToString("N2")
+        </div>
+        <div style="font-size:.76rem;opacity:.7;margin-bottom:10px">Total budget allocated across all employees</div>
+
+        <div class="row g-2 mt-2">
+            <div class="col-4">
+                <div style="background:rgba(255,255,255,.13);border-radius:12px;padding:10px 6px;text-align:center">
+                    <div style="font-size:1.1rem;font-weight:700">₹@Model.TotalSpent.ToString("N0")</div>
+                    <div style="font-size:.68rem;opacity:.75;margin-top:2px">Total Spent</div>
+                </div>
+            </div>
+            <div class="col-4">
+                <div style="background:rgba(255,255,255,.13);border-radius:12px;padding:10px 6px;text-align:center">
+                    <div style="font-size:1.1rem;font-weight:700">₹@remaining.ToString("N0")</div>
+                    <div style="font-size:.68rem;opacity:.75;margin-top:2px">Remaining</div>
+                </div>
+            </div>
+            <div class="col-4">
+                <div style="background:rgba(255,255,255,.13);border-radius:12px;padding:10px 6px;text-align:center">
+                    <div style="font-size:1.1rem;font-weight:700">@Model.TotalEmployees</div>
+                    <div style="font-size:.68rem;opacity:.75;margin-top:2px">Employees</div>
+                </div>
+            </div>
+        </div>
+
+        @if (Model.TotalBudgetAllocated > 0)
+        {
+            <div class="mt-3">
+                <div class="d-flex justify-content-between mb-1" style="font-size:.75rem;opacity:.8">
+                    <span>Budget Utilised</span><span>@spentPct.ToString("F0")%</span>
+                </div>
+                <div style="height:6px;background:rgba(255,255,255,.25);border-radius:99px;overflow:hidden">
+                    <div style="height:100%;width:@spentPct%;background:@(spentPct>90?"#f87171":spentPct>70?"#fbbf24":"#4ade80");border-radius:99px;transition:width .4s"></div>
+                </div>
+            </div>
+        }
+    </div>
+</div>
+
+@* ── REPORT STATUS STRIP ── *@
+<div class="card mb-4" style="border:none;box-shadow:0 1px 6px rgba(0,0,0,.06);border-radius:14px;overflow:hidden">
+    @{
+        int rPct = totalReportActions > 0 ? (int)Math.Round(100.0 * Model.ReportsForReview / totalReportActions) : 0;
+        int aPct = totalReportActions > 0 ? (int)Math.Round(100.0 * Model.ApprovedReports / totalReportActions) : 0;
+        int dPct = totalReportActions > 0 ? 100 - rPct - aPct : 0;
+    }
+    <div class="px-3 pt-3 pb-1">
+        <div class="d-flex" style="height:6px;border-radius:6px;overflow:hidden;background:#f1f5f9">
+            <div style="width:@(rPct)%;background:#f59e0b;transition:width .4s"></div>
+            <div style="width:@(aPct)%;background:#16a34a;transition:width .4s"></div>
+            <div style="width:@(dPct)%;background:#ef4444;transition:width .4s"></div>
+        </div>
+    </div>
+    <div class="d-flex">
+        <div class="flex-fill text-center py-3" style="border-right:1px solid #f1f5f9">
+            <div style="font-size:1.3rem;font-weight:800;color:#f59e0b">@Model.ReportsForReview</div>
+            <div style="font-size:.72rem;color:#64748b;font-weight:500;margin-top:2px">Pending Review</div>
+        </div>
+        <div class="flex-fill text-center py-3" style="border-right:1px solid #f1f5f9">
+            <div style="font-size:1.3rem;font-weight:800;color:#16a34a">@Model.ApprovedReports</div>
+            <div style="font-size:.72rem;color:#64748b;font-weight:500;margin-top:2px">Approved</div>
+        </div>
+        <div class="flex-fill text-center py-3">
+            <div style="font-size:1.3rem;font-weight:800;color:#ef4444">@Model.RejectedReports</div>
+            <div style="font-size:.72rem;color:#64748b;font-weight:500;margin-top:2px">Rejected</div>
+        </div>
+    </div>
+</div>
+
+@* ── REPORTS AWAITING REVIEW ── *@
+@if (Model.RecentReports.Any())
+{
+    <div class="card mb-4" style="border:none;box-shadow:0 1px 6px rgba(0,0,0,.06);border-radius:14px;overflow:hidden">
+        <div class="card-header d-flex justify-content-between align-items-center" style="background:#eff6ff;border-bottom:1.5px solid #bfdbfe">
+            <span class="fw-semibold"><i class="fas fa-file-invoice me-2 text-primary"></i>Reports Awaiting Review</span>
+            <a href="/Management/Reports" class="btn btn-sm btn-primary" style="border-radius:8px">View All</a>
+        </div>
+        <div class="card-body p-0">
+            @{ var colors = new[] { "#dbeafe|#1d4ed8", "#dcfce7|#16a34a", "#fef3c7|#d97706", "#f3e8ff|#7c3aed", "#fce7f3|#be185d" }; }
+            @foreach (var (r, i) in Model.RecentReports.Select((r, i) => (r, i)))
+            {
+                var cPair = colors[i % colors.Length].Split('|');
+                var initials = string.Join("", (r.Employee?.FullName ?? "?").Split(' ', StringSplitOptions.RemoveEmptyEntries).Take(2).Select(w => w[0])).ToUpper();
+                <div class="d-flex align-items-start justify-content-between p-3 border-bottom flex-wrap gap-2">
+                    <div class="d-flex align-items-center gap-3" style="min-width:0;flex:1 1 0">
+                        <div style="width:40px;height:40px;border-radius:10px;background:@cPair[0];color:@cPair[1];display:flex;align-items:center;justify-content:center;font-weight:700;font-size:.82rem;flex-shrink:0">
+                            @initials
+                        </div>
+                        <div style="min-width:0">
+                            <div class="fw-bold text-truncate">@r.ReportTitle</div>
+                            <div class="d-flex gap-2 mt-1 flex-wrap" style="font-size:.8rem">
+                                <span class="text-muted"><i class="fas fa-user me-1"></i>@r.Employee?.FullName</span>
+                                <span class="text-muted"><i class="fas fa-receipt me-1"></i>@r.ExpenseClaims.Count expense(s)</span>
+                            </div>
+                            <div class="mt-1 fw-semibold" style="font-size:.82rem;color:#2563eb">
+                                ₹@r.TotalClaimed.ToString("N2") claimed
+                            </div>
+                        </div>
+                    </div>
+                    <a href="/Management/ReportDetail/@r.Id" class="btn btn-sm btn-primary flex-shrink-0 align-self-center" style="border-radius:7px">
+                        <i class="fas fa-eye me-1"></i>Review
+                    </a>
+                </div>
+            }
+        </div>
+    </div>
+}
+else
+{
+    <div class="card mb-4" style="border:none;box-shadow:0 1px 6px rgba(0,0,0,.06);border-radius:14px">
+        <div class="card-header d-flex justify-content-between align-items-center" style="background:#eff6ff;border-bottom:1.5px solid #bfdbfe">
+            <span class="fw-semibold"><i class="fas fa-file-invoice me-2 text-primary"></i>Reports Awaiting Review</span>
+            <a href="/Management/Reports" class="btn btn-sm btn-primary" style="border-radius:8px">View All</a>
+        </div>
+        <div class="text-center py-5">
+            <div style="width:56px;height:56px;border-radius:50%;background:#f1f5f9;display:inline-flex;align-items:center;justify-content:center;margin-bottom:12px">
+                <i class="fas fa-inbox" style="font-size:1.4rem;color:#94a3b8"></i>
+            </div>
+            <div class="text-muted" style="font-size:.85rem">No reports pending review</div>
+        </div>
+    </div>
+}
+
+@* ── QUICK ACTIONS ── *@
+<div class="card" style="border:none;box-shadow:0 1px 6px rgba(0,0,0,.06);border-radius:14px">
+    <div class="card-header fw-semibold" style="border-bottom:1px solid #e2e8f0"><i class="fas fa-bolt me-2"></i>Quick Actions</div>
+    <div class="card-body d-flex flex-column gap-2 p-3">
+        <a href="/Management/Reports" class="btn btn-primary w-100" style="border-radius:10px;padding:10px">
+            <i class="fas fa-file-invoice me-2"></i>All Expense Reports
+        </a>
+        <a href="/Management/Reports?status=ApprovedByManagement" class="btn btn-outline-primary w-100" style="border-radius:10px;padding:10px">
+            <i class="fas fa-check-circle me-2"></i>Approved Reports
+        </a>
+        <a href="/Management/Reports?status=RejectedByManagement" class="btn btn-outline-secondary w-100" style="border-radius:10px;padding:10px">
+            <i class="fas fa-times-circle me-2"></i>Rejected Reports
+        </a>
+    </div>
+</div>

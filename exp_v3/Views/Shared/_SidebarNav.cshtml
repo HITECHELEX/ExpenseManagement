@@ -1,0 +1,44 @@
+@using ExpenseManagement.Models
+@if (User.IsInRole("Employee"))
+{
+    <div class="nav-label">Main</div>
+    <a href="/Employee/Dashboard" class="@(Context.Request.Path.StartsWithSegments("/Employee/Dashboard") ? "active" : "")">
+        <i class="fas fa-home"></i> Dashboard
+    </a>
+    <div class="nav-label">Budget & Expenses</div>
+    <a href="/Employee/MyBudgets"><i class="fas fa-wallet"></i> My Budgets</a>
+    <a href="/Employee/MyClaims"><i class="fas fa-receipt"></i> My Claims</a>
+    <div class="nav-label">Reports</div>
+    <a href="/Employee/CreateDraftReport"><i class="fas fa-plus-circle"></i> New Report</a>
+    <a href="/Employee/MyReports"><i class="fas fa-file-invoice"></i> My Reports</a>
+    <div class="nav-label">Account</div>
+    <a href="/Employee/Notifications"><i class="fas fa-bell"></i> Notifications</a>
+}
+else if (User.IsInRole("AccountTeam"))
+{
+    <div class="nav-label">Main</div>
+    <a href="/AccountTeam/Dashboard"><i class="fas fa-home"></i> Dashboard</a>
+    <div class="nav-label">Employees</div>
+    <a href="/AccountTeam/Employees"><i class="fas fa-users"></i> Employees</a>
+    <a href="/AccountTeam/CreateEmployee"><i class="fas fa-user-plus"></i> Add Employee</a>
+    <div class="nav-label">Budget</div>
+    <a href="/AccountTeam/AllocateBudget"><i class="fas fa-plus-circle"></i> Allocate Budget</a>
+    <a href="/AccountTeam/Budgets"><i class="fas fa-wallet"></i> All Budgets</a>
+    <div class="nav-label">Reports</div>
+    <a href="/AccountTeam/Reports"><i class="fas fa-file-invoice"></i> Expense Reports</a>
+    <div class="nav-label">Account</div>
+    <a href="/AccountTeam/Notifications"><i class="fas fa-bell"></i> Notifications</a>
+}
+else if (User.IsInRole("Management"))
+{
+    <div class="nav-label">Main</div>
+    <a href="/Management/Dashboard"><i class="fas fa-home"></i> Dashboard</a>
+    <div class="nav-label">Reports</div>
+    <a href="/Management/Reports"><i class="fas fa-file-invoice"></i> Expense Reports</a>
+    <div class="nav-label">Overview</div>
+    <a href="/Management/Overview"><i class="fas fa-users"></i> Employees</a>
+    <a href="/Management/BudgetOverview"><i class="fas fa-wallet"></i> Budgets</a>
+    <a href="/Management/AllClaims"><i class="fas fa-receipt"></i> All Claims</a>
+    <div class="nav-label">Account</div>
+    <a href="/Management/Notifications"><i class="fas fa-bell"></i> Notifications</a>
+}

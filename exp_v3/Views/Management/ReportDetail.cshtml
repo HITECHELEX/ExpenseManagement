@@ -1,0 +1,155 @@
+@model ExpenseManagement.Models.ExpenseReport
+@using ExpenseManagement.Models
+@{ ViewData["Title"] = "Review: " + Model.ReportTitle; }
+
+<div class="d-flex align-items-center gap-2 mb-3 flex-wrap">
+    <a href="/Management/Reports" class="btn btn-outline-secondary btn-sm"><i class="fas fa-arrow-left me-1"></i>Back</a>
+    <h5 class="mb-0 me-auto">@Model.ReportTitle</h5>
+    @{
+        var (cls, txt) = Model.Status switch {
+            ReportStatus.ForwardedToManagement => ("badge-forwarded","Pending Review"),
+            ReportStatus.ApprovedByManagement  => ("badge-approved","Approved ✓"),
+            ReportStatus.RejectedByManagement  => ("badge-rejected","Rejected"),
+            _ => ("badge-secondary", Model.Status.ToString())
+        };
+    }
+    <span class="badge @cls px-3 py-2 fs-6">@txt</span>
+</div>
+
+<div class="row g-3 mb-3">
+    <div class="col-6 col-md-3">
+        <div class="stat-card">
+            <div class="stat-label">Employee</div>
+            <div class="fw-semibold">@Model.Employee?.FullName</div>
+            <small class="text-muted">@Model.Employee?.Department</small>
+        </div>
+    </div>
+    <div class="col-6 col-md-3">
+        <div class="stat-card">
+            <div class="stat-label">Budget Allocated</div>
+            <div class="fw-semibold">₹@Model.Budget?.TotalAmount.ToString("N2")</div>
+        </div>
+    </div>
+    <div class="col-6 col-md-3">
+        <div class="stat-card">
+            <div class="stat-label">Total Claimed</div>
+            <div class="fw-semibold text-warning">₹@Model.TotalClaimed.ToString("N2")</div>
+        </div>
+    </div>
+    <div class="col-6 col-md-3">
+        <div class="stat-card">
+            @if (Model.RemainingBalanceAtSubmission >= 0)
+            {
+                <div class="stat-label">Balance to Return</div>
+                <div class="fw-semibold text-success">₹@Model.RemainingBalanceAtSubmission.ToString("N2")</div>
+                <small class="text-muted">Unused budget</small>
+            }
+            else
+            {
+                <div class="stat-label">Overspent By</div>
+                <div class="fw-semibold text-danger">₹@Math.Abs(Model.RemainingBalanceAtSubmission).ToString("N2")</div>
+                <small class="text-danger">Next alloc deduction</small>
+            }
+        </div>
+    </div>
+</div>
+
+@if (Model.RemainingBalanceAtSubmission < 0)
+{
+    <div class="alert alert-warning mb-3">
+        <i class="fas fa-exclamation-triangle me-2"></i>
+        <strong>Note:</strong> This employee exceeded their budget by
+        <strong>₹@Math.Abs(Model.RemainingBalanceAtSubmission).ToString("N2")</strong>.
+        If approved, this overspend will be deducted from their next budget allocation.
+    </div>
+}
+
+@if (!string.IsNullOrEmpty(Model.AccountTeamNotes))
+{
+    <div class="alert alert-info mb-3">
+        <strong><i class="fas fa-comment me-2"></i>Account Team Notes:</strong> @Model.AccountTeamNotes
+        <small class="d-block text-muted mt-1">@Model.AccountTeamVerifiedBy?.FullName · @Model.AccountTeamVerifiedOn?.ToString("dd MMM yyyy")</small>
+    </div>
+}
+
+<div class="card mb-3">
+    <div class="card-header"><i class="fas fa-list me-2"></i>Expenses (@Model.ExpenseClaims.Count)</div>
+    <div class="table-responsive">
+        <table class="table table-hover mb-0">
+            <thead><tr><th>Date</th><th>Title</th><th class="d-mobile-none">Category</th><th>Amount</th><th>Bill</th></tr></thead>
+            <tbody>
+                @foreach (var c in Model.ExpenseClaims.OrderBy(x => x.ExpenseDate))
+                {
+                    <tr>
+                        <td>@c.ExpenseDate.ToString("dd MMM yy")</td>
+                        <td>
+                            <div class="fw-semibold">@c.Title</div>
+                            <small class="text-muted d-md-none">@c.Category</small>
+                            @if (!string.IsNullOrEmpty(c.Description)) { <small class="text-muted d-block">@c.Description</small> }
+                        </td>
+                        <td class="d-mobile-none"><span class="badge bg-light text-dark">@c.Category</span></td>
+                        <td class="fw-semibold">₹@c.Amount.ToString("N2")</td>
+                        <td>
+                            @if (!string.IsNullOrEmpty(c.ReceiptPath))
+                            {
+                                var ext = System.IO.Path.GetExtension(c.ReceiptPath).ToLower();
+                                if (ext == ".pdf") { <a href="@c.ReceiptPath" target="_blank" class="btn btn-sm btn-outline-danger py-1"><i class="fas fa-file-pdf"></i></a> }
+                                else { <a href="@c.ReceiptPath" target="_blank"><img src="@c.ReceiptPath" style="height:36px;width:36px;object-fit:cover;border-radius:6px;border:1px solid #e2e8f0" /></a> }
+                            }
+                            else { <span class="text-muted">–</span> }
+                        </td>
+                    </tr>
+                }
+            </tbody>
+            <tfoot>
+                <tr class="table-light fw-bold">
+                    <td colspan="3">Total</td>
+                    <td>₹@Model.ExpenseClaims.Sum(c => c.Amount).ToString("N2")</td>
+                    <td></td>
+                </tr>
+            </tfoot>
+        </table>
+    </div>
+</div>
+
+@if (Model.Status == ReportStatus.ForwardedToManagement)
+{
+    <div class="card">
+        <div class="card-header"><i class="fas fa-gavel me-2"></i>Management Decision</div>
+        <div class="card-body">
+            <form method="post" action="/Management/ReviewReport">
+                @Html.AntiForgeryToken()
+                <input type="hidden" name="ReportId" value="@Model.Id" />
+                <div class="mb-3">
+                    <label class="form-label">Internal Notes <small class="text-muted">(not visible to employee)</small></label>
+                    <textarea name="Notes" class="form-control" rows="2" placeholder="Internal notes..."></textarea>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Feedback for Employee</label>
+                    <textarea name="Feedback" class="form-control" rows="3" placeholder="This feedback will be sent to the employee..."></textarea>
+                </div>
+                <div class="row g-2">
+                    <div class="col-6">
+                        <button type="submit" name="IsApproved" value="true" class="btn btn-success w-100">
+                            <i class="fas fa-check me-2"></i>Approve
+                        </button>
+                    </div>
+                    <div class="col-6">
+                        <button type="submit" name="IsApproved" value="false" class="btn btn-danger w-100">
+                            <i class="fas fa-times me-2"></i>Reject
+                        </button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+}
+else
+{
+    <div class="alert @(Model.Status == ReportStatus.ApprovedByManagement ? "alert-success" : "alert-danger")">
+        <strong>@(Model.Status == ReportStatus.ApprovedByManagement ? "✓ Approved" : "✗ Rejected")</strong>
+        on @Model.ManagementReviewedOn?.ToString("dd MMM yyyy") by @Model.ManagementReviewedBy?.FullName
+        @if (!string.IsNullOrEmpty(Model.ManagementFeedback))
+        { <div class="mt-1"><strong>Feedback:</strong> @Model.ManagementFeedback</div> }
+    </div>
+}

@@ -1,0 +1,55 @@
+@model ExpenseManagement.ViewModels.CreateReportVM
+@{ ViewData["Title"] = "Generate Expense Report"; }
+@using ExpenseManagement.Models
+
+<div class="row justify-content-center">
+<div class="col-lg-7">
+<div class="card">
+    <div class="card-header">
+        <i class="fas fa-file-alt me-2" style="color:#2563eb;"></i>Generate Final Expense Report
+    </div>
+    <div class="card-body p-4">
+        <form asp-action="GenerateReport" method="post">
+            <div asp-validation-summary="All" class="alert alert-danger py-2" style="font-size:.85rem; display:@(ViewData.ModelState.IsValid?"none":"block")"></div>
+
+            <div class="mb-3">
+                <label asp-for="BudgetId" class="form-label fw-semibold text-secondary" style="font-size:.83rem;">Select Budget</label>
+                <select asp-for="BudgetId" class="form-select">
+                    <option value="">-- Select Budget --</option>
+                    @foreach (var b in (List<Budget>)ViewBag.Budgets)
+                    {
+                        <option value="@b.Id">@b.Purpose — Total: ₹@b.TotalAmount.ToString("N2") | Balance: ₹@((b.TotalAmount-b.SpentAmount).ToString("N2"))</option>
+                    }
+                </select>
+                <span asp-validation-for="BudgetId" class="text-danger small"></span>
+            </div>
+
+            <div class="mb-3">
+                <label asp-for="ReportTitle" class="form-label fw-semibold text-secondary" style="font-size:.83rem;">Report Title</label>
+                <input asp-for="ReportTitle" class="form-control" placeholder="e.g. Q1 2024 Travel Expenses" />
+                <span asp-validation-for="ReportTitle" class="text-danger small"></span>
+            </div>
+
+            <div class="mb-4">
+                <label asp-for="Summary" class="form-label fw-semibold text-secondary" style="font-size:.83rem;">Summary / Notes</label>
+                <textarea asp-for="Summary" class="form-control" rows="4" placeholder="Provide a summary of your expenses for this period..."></textarea>
+            </div>
+
+            <div class="d-flex gap-2">
+                <button type="submit" class="btn btn-primary">
+                    <i class="fas fa-file-export me-2"></i>Generate & Submit Report
+                </button>
+                <a asp-controller="Employee" asp-action="Dashboard" class="btn btn-outline-secondary">Cancel</a>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div class="card mt-3" style="border-color:#bfdbfe; background:#eff6ff;">
+    <div class="card-body py-3" style="font-size:.83rem; color:#1e40af;">
+        <i class="fas fa-info-circle me-2"></i>
+        <strong>How it works:</strong> This report bundles all your <strong>approved</strong> claims for the selected budget and submits them to the Account Team for final verification. Once verified by the Account Team, it is forwarded to Management for closure.
+    </div>
+</div>
+</div>
+</div>

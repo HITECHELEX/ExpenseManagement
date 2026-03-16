@@ -1,0 +1,163 @@
+@model List<ExpenseManagement.Models.ExpenseReport>
+@using ExpenseManagement.Models
+@{ ViewData["Title"] = "My Reports"; }
+
+@{
+    // Check for any approved report with pending balance transfer
+    var pendingTransfer = Model.FirstOrDefault(r =>
+        r.Status == ReportStatus.ApprovedByManagement &&
+        !r.BalanceTransferred &&
+        r.RemainingBalanceAtSubmission > 0);
+    bool canCreate = pendingTransfer == null;
+}
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h5 class="mb-0"><i class="fas fa-file-invoice me-2"></i>My Reports</h5>
+    @if (canCreate)
+    {
+        <a href="/Employee/CreateDraftReport" class="btn btn-primary btn-sm">
+            <i class="fas fa-plus me-1"></i>New Report
+        </a>
+    }
+    else
+    {
+        <button class="btn btn-secondary btn-sm" disabled title="Balance transfer pending — wait for Account Team.">
+            <i class="fas fa-lock me-1"></i>New Report
+        </button>
+    }
+</div>
+
+@if (pendingTransfer != null)
+{
+    <div class="alert alert-warning d-flex align-items-start gap-2 mb-3">
+        <i class="fas fa-clock text-warning flex-shrink-0 mt-1"></i>
+        <div>
+            Report <strong>"@pendingTransfer.ReportTitle"</strong> approved —
+            ₹@pendingTransfer.RemainingBalanceAtSubmission.ToString("N2") balance is pending transfer.
+            <strong>New reports are locked</strong> until the Account Team completes this transfer.
+            <div class="mt-1">
+                <a href="/Employee/ReportDetail/@pendingTransfer.Id" class="btn btn-sm btn-outline-warning py-0">View Report →</a>
+            </div>
+        </div>
+    </div>
+}
+
+@if (!Model.Any())
+{
+    <div class="card text-center py-5">
+        <div class="text-muted">
+            <i class="fas fa-file-alt fa-3x mb-3 d-block"></i>
+            No reports yet. <a href="/Employee/CreateDraftReport">Create your first report</a>
+        </div>
+    </div>
+}
+else
+{
+    @foreach (var r in Model)
+    {
+        var (cls, txt) = r.Status switch {
+            ReportStatus.Draft => ("badge-draft","Draft"),
+            ReportStatus.SubmittedToAccountTeam => ("badge-submitted","Submitted to Accounts"),
+            ReportStatus.ForwardedToManagement => ("badge-forwarded","At Management"),
+            ReportStatus.ApprovedByManagement => ("badge-approved","Approved ✓"),
+            ReportStatus.RejectedByManagement => ("badge-rejected","Rejected"),
+            _ => ("badge-secondary",r.Status.ToString())
+        };
+
+        var isDraft = r.Status == ReportStatus.Draft;
+        var isPendingThisTransfer = (r.Status == ReportStatus.ApprovedByManagement && !r.BalanceTransferred && r.RemainingBalanceAtSubmission > 0);
+
+        <div class="card mb-3 @(isPendingThisTransfer ? "border-warning" : isDraft ? "border-info" : "")">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-start flex-wrap gap-2">
+                    <div>
+                        <h6 class="mb-1">@r.ReportTitle</h6>
+                        <small class="text-muted">
+                            <i class="fas fa-calendar me-1"></i>@r.CreatedOn.ToString("dd MMM yyyy")
+                        </small>
+                        @if (r.Budget != null)
+                        { <small class="text-muted ms-2"><i class="fas fa-tag me-1"></i>@r.Budget.Purpose</small> }
+                    </div>
+                    <span class="badge @cls px-3 py-2">@txt</span>
+                </div>
+
+                <div class="row mt-3 g-2">
+                    <div class="col-4 text-center">
+                        <div class="fw-bold">@r.ExpenseClaims.Count</div>
+                        <small class="text-muted">Expenses</small>
+                    </div>
+                    <div class="col-4 text-center">
+                        <div class="fw-bold text-warning">₹@r.TotalClaimed.ToString("N0")</div>
+                        <small class="text-muted">Claimed</small>
+                    </div>
+                    <div class="col-4 text-center">
+                        @if (r.Status == ReportStatus.Draft && r.Budget != null)
+                        {
+                            var livebal = r.Budget.RemainingBalance;
+                            @if (livebal >= 0)
+                            {
+                                <div class="fw-bold text-success">₹@livebal.ToString("N0")</div>
+                                <small class="text-muted">Balance</small>
+                            }
+                            else
+                            {
+                                <div class="fw-bold text-danger">-₹@Math.Abs(livebal).ToString("N0")</div>
+                                <small class="text-danger">Over Budget</small>
+                            }
+                        }
+                        else if (r.RemainingBalanceAtSubmission >= 0)
+                        {
+                            <div class="fw-bold text-success">₹@r.RemainingBalanceAtSubmission.ToString("N0")</div>
+                            <small class="text-muted">Returned</small>
+                        }
+                        else
+                        {
+                            <div class="fw-bold text-danger">₹@Math.Abs(r.RemainingBalanceAtSubmission).ToString("N0")</div>
+                            <small class="text-danger">Overspent</small>
+                        }
+                    </div>
+                </div>
+
+                @if (isPendingThisTransfer)
+                {
+                    <div class="mt-2 p-2 rounded d-flex align-items-center gap-2"
+                         style="background:#fffbeb;border:1px solid #fcd34d;font-size:.83rem">
+                        <i class="fas fa-clock text-warning"></i>
+                        <span>Balance of <strong>₹@r.RemainingBalanceAtSubmission.ToString("N2")</strong> pending transfer by Account Team.</span>
+                    </div>
+                }
+
+                @if (!string.IsNullOrEmpty(r.ManagementFeedback))
+                {
+                    <div class="alert @(r.Status == ReportStatus.ApprovedByManagement ? "alert-success" : "alert-warning") mt-2 mb-0 py-2 px-3"
+                         style="font-size:.85rem">
+                        <i class="fas fa-comment me-1"></i><strong>Feedback:</strong> @r.ManagementFeedback
+                    </div>
+                }
+
+                <div class="mt-3 d-flex gap-2 flex-wrap">
+                    <a href="/Employee/ReportDetail/@r.Id" class="btn btn-sm btn-outline-primary">
+                        <i class="fas fa-eye me-1"></i>View
+                    </a>
+                    @if (isDraft)
+                    {
+                        <a href="/Employee/AddExpense?reportId=@r.Id" class="btn btn-sm btn-primary">
+                            <i class="fas fa-plus me-1"></i>Add Expense
+                        </a>
+                        <a href="/Employee/EditReport/@r.Id" class="btn btn-sm btn-outline-secondary">
+                            <i class="fas fa-edit me-1"></i>Edit
+                        </a>
+                        <form method="post" action="/Employee/DeleteReport"
+                              onsubmit="return confirm('Delete this draft? Budget will be restored.')">
+                            @Html.AntiForgeryToken()
+                            <input type="hidden" name="reportId" value="@r.Id" />
+                            <button class="btn btn-sm btn-outline-danger">
+                                <i class="fas fa-trash me-1"></i>Delete
+                            </button>
+                        </form>
+                    }
+                </div>
+            </div>
+        </div>
+    }
+}

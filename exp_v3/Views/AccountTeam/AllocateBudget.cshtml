@@ -1,0 +1,199 @@
+@model ExpenseManagement.ViewModels.AllocateBudgetVM
+@using ExpenseManagement.Models
+@{ ViewData["Title"] = "Top Up Employee Wallet"; }
+
+<style>
+.wallet-badge { background:#ecfdf5; border:1px solid #86efac; color:#166534; padding:4px 10px; border-radius:8px; font-size:.78rem; font-weight:600; }
+.debt-badge  { background:#fef2f2; border:1px solid #fca5a5; color:#991b1b; padding:4px 10px; border-radius:8px; font-size:.78rem; font-weight:600; }
+.emp-option-card { display:none; background:#f8fafc; border:1.5px solid #e2e8f0; border-radius:14px; padding:16px; margin-top:10px; }
+.calc-row { display:flex; justify-content:space-between; align-items:center; padding:6px 0; font-size:.9rem; }
+.calc-row + .calc-row { border-top:1px solid #e2e8f0; }
+.total-row { font-weight:700; font-size:1rem; }
+</style>
+
+<div class="d-flex align-items-center gap-2 mb-4">
+    <a href="/AccountTeam/Dashboard" class="btn btn-outline-secondary btn-sm" style="border-radius:8px">
+        <i class="fas fa-arrow-left me-1"></i>Back
+    </a>
+    <h5 class="mb-0">Top Up Employee Wallet</h5>
+</div>
+
+@{
+    var walletMap = ViewBag.WalletMap as Dictionary<int, (decimal Balance, decimal Owed, bool HasActive)>
+                   ?? new Dictionary<int, (decimal Balance, decimal Owed, bool HasActive)>();
+}
+
+<div class="row justify-content-center">
+    <div class="col-lg-7">
+        <div class="card">
+            <div class="card-header d-flex align-items-center gap-2" style="background:linear-gradient(135deg,#f0fdf4,#dcfce7);border-bottom:1.5px solid #86efac">
+                <i class="fas fa-wallet text-success"></i>
+                <strong>Budget / Wallet Allocation</strong>
+                <span class="ms-auto" style="font-size:.78rem;color:#64748b">Amount will be added to employee's existing wallet balance</span>
+            </div>
+            <div class="card-body">
+                <form method="post" action="/AccountTeam/AllocateBudget">
+                    @Html.AntiForgeryToken()
+
+                    @if (!ViewData.ModelState.IsValid)
+                    {
+                        <div class="alert alert-danger" style="border-radius:10px;margin-bottom:20px">
+                            @foreach (var e in ViewData.ModelState.Values.SelectMany(v => v.Errors))
+                            { <div><i class="fas fa-circle-exclamation me-1"></i>@e.ErrorMessage</div> }
+                        </div>
+                    }
+
+                    @* ── EMPLOYEE SELECT ── *@
+                    <div class="mb-4">
+                        <label class="form-label fw-semibold">Employee <span class="text-danger">*</span></label>
+                        <select name="EmployeeId" class="form-select" required id="empSel" onchange="onEmpChange(this.value)">
+                            <option value="">— Select Employee —</option>
+                            @foreach (var e in ViewBag.Employees as List<User> ?? new())
+                            {
+                                var info = walletMap.ContainsKey(e.Id) ? walletMap[e.Id] : (Balance: 0m, Owed: 0m, HasActive: false);
+                                <option value="@e.Id"
+                                        data-bal="@info.Balance"
+                                        data-owed="@info.Owed"
+                                        data-active="@(info.HasActive ? "1" : "0")"
+                                        data-name="@e.FullName">
+                                    @e.FullName — @(e.Department ?? "No dept")
+                                    @if (info.Owed > 0) { <text> ⚠️ Owes ₹@info.Owed.ToString("N0")</text> }
+                                </option>
+                            }
+                        </select>
+
+                        @* Dynamic employee wallet card *@
+                        <div class="emp-option-card" id="empCard">
+                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                <span class="fw-semibold" id="empCardName"></span>
+                                <div class="d-flex gap-2" id="empBadges"></div>
+                            </div>
+                            <div class="row g-2 text-center mb-2" id="empStats">
+                                <div class="col-6">
+                                    <div style="font-size:1.2rem;font-weight:700" id="statBal">–</div>
+                                    <div style="font-size:.72rem;color:#64748b">Current Balance</div>
+                                </div>
+                                <div class="col-6">
+                                    <div style="font-size:1.2rem;font-weight:700;color:#dc2626" id="statOwed">–</div>
+                                    <div style="font-size:.72rem;color:#64748b">Overspend Debt</div>
+                                </div>
+                            </div>
+                            <div class="p-2 rounded text-center" id="empNote" style="font-size:.8rem;background:#eff6ff;color:#1d4ed8;border-radius:8px">
+                                Allocation will be added to this employee's wallet balance.
+                            </div>
+                        </div>
+                    </div>
+
+                    @* ── AMOUNT ── *@
+                    <div class="mb-4">
+                        <label class="form-label fw-semibold">Amount to Allocate (₹) <span class="text-danger">*</span></label>
+                        <div class="input-group">
+                            <span class="input-group-text fw-bold">₹</span>
+                            <input type="number" name="TotalAmount" id="amtInput" class="form-control"
+                                   placeholder="e.g. 5000" min="1" step="0.01" required oninput="updateCalc()" />
+                        </div>
+                        <small class="text-muted">Overspend debts will be auto-deducted. Net amount is added to the wallet.</small>
+                    </div>
+
+                    @* ── PURPOSE ── *@
+                    <div class="mb-4">
+                        <label class="form-label fw-semibold">Purpose / Note <span class="text-danger">*</span></label>
+                        <input type="text" name="Purpose" class="form-control" required
+                               placeholder="e.g. Monthly expenses, Sales trip Q2, Field work allowance" />
+                    </div>
+
+                    <div class="mb-4">
+                        <label class="form-label fw-semibold">Valid Until <small class="text-muted fw-normal">(optional)</small></label>
+                        <input type="date" name="ValidUntil" class="form-control" />
+                    </div>
+
+                    @* ── NET CALCULATOR ── *@
+                    <div id="calcBox" style="display:none;background:#f8fafc;border:1.5px solid #e2e8f0;border-radius:14px;padding:16px;margin-bottom:24px">
+                        <div class="fw-semibold mb-2" style="font-size:.85rem;color:#374151">
+                            <i class="fas fa-calculator me-2 text-primary"></i>Wallet Update Preview
+                        </div>
+                        <div class="calc-row"><span>Allocating</span><span id="cAlloc" class="fw-semibold">–</span></div>
+                        <div class="calc-row text-danger" id="cDeductRow" style="display:none">
+                            <span>Overspend deduction</span><span id="cDeduct" class="fw-semibold">–</span>
+                        </div>
+                        <div class="calc-row"><span>Net added to wallet</span><span id="cNet" class="fw-semibold text-success">–</span></div>
+                        <div class="calc-row total-row" style="border-top:2px solid #e2e8f0;margin-top:4px;padding-top:8px">
+                            <span>New wallet balance</span><span id="cFinal" class="text-primary">–</span>
+                        </div>
+                    </div>
+
+                    <button type="submit" class="btn btn-success w-100 py-3 fw-bold" style="border-radius:12px;font-size:1rem">
+                        <i class="fas fa-wallet me-2"></i>Add to Wallet
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+<script>
+let curBal = 0, curOwed = 0;
+
+function onEmpChange(empId) {
+    const sel = document.getElementById('empSel');
+    const opt = sel.options[sel.selectedIndex];
+    const card = document.getElementById('empCard');
+
+    if (!empId) { card.style.display='none'; document.getElementById('calcBox').style.display='none'; return; }
+
+    curBal  = parseFloat(opt.dataset.bal)  || 0;
+    curOwed = parseFloat(opt.dataset.owed) || 0;
+    const name   = opt.dataset.name;
+    const active = opt.dataset.active === '1';
+
+    document.getElementById('empCardName').textContent = name;
+    document.getElementById('empCard').style.display = 'block';
+
+    const badges = document.getElementById('empBadges');
+    badges.innerHTML = '';
+    if (active) badges.innerHTML += '<span class="wallet-badge"><i class="fas fa-check-circle me-1"></i>Has Active Wallet</span>';
+    if (curOwed > 0) badges.innerHTML += '<span class="debt-badge ms-1"><i class="fas fa-exclamation-triangle me-1"></i>Debt ₹' + curOwed.toFixed(0) + '</span>';
+
+    const balEl = document.getElementById('statBal');
+    balEl.textContent = (curBal < 0 ? '-₹' : '₹') + Math.abs(curBal).toLocaleString('en-IN',{minimumFractionDigits:2});
+    balEl.style.color = curBal < 0 ? '#dc2626' : '#16a34a';
+    document.getElementById('statOwed').textContent = curOwed > 0 ? '₹' + curOwed.toFixed(2) : '–';
+
+    const note = document.getElementById('empNote');
+    if (!active) {
+        note.style.background = '#fffbeb'; note.style.color = '#92400e';
+        note.textContent = '⚠️ No active budget — a new wallet budget will be created.';
+    } else {
+        note.style.background = '#eff6ff'; note.style.color = '#1d4ed8';
+        note.textContent = '✓ Amount will be added to existing wallet balance.';
+    }
+
+    updateCalc();
+}
+
+function updateCalc() {
+    const amt = parseFloat(document.getElementById('amtInput').value) || 0;
+    const box = document.getElementById('calcBox');
+    if (!amt || !document.getElementById('empSel').value) { box.style.display='none'; return; }
+    box.style.display = 'block';
+
+    const deducted = Math.min(curOwed, amt);
+    const net = amt - deducted;
+    const finalBal = curBal + net;
+
+    document.getElementById('cAlloc').textContent  = '₹' + amt.toFixed(2);
+    document.getElementById('cNet').textContent    = '₹' + net.toFixed(2);
+    document.getElementById('cFinal').textContent  = (finalBal<0?'-₹':'₹') + Math.abs(finalBal).toFixed(2);
+    document.getElementById('cFinal').style.color  = finalBal < 0 ? '#dc2626' : '#2563eb';
+
+    const deductRow = document.getElementById('cDeductRow');
+    if (deducted > 0) {
+        document.getElementById('cDeduct').textContent = '-₹' + deducted.toFixed(2);
+        deductRow.style.display = 'flex';
+    } else {
+        deductRow.style.display = 'none';
+    }
+}
+</script>
+}

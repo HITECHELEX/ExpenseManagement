@@ -1,0 +1,94 @@
+@model ExpenseManagement.ViewModels.ExpenseClaimVM
+@{ ViewData["Title"] = "Submit Expense"; }
+@using ExpenseManagement.Models
+
+<div class="row justify-content-center">
+<div class="col-lg-7">
+<div class="card">
+    <div class="card-header">
+        <i class="fas fa-plus-circle me-2" style="color:#2563eb;"></i>Submit New Expense
+    </div>
+    <div class="card-body p-4">
+        <form asp-action="SubmitExpense" method="post" enctype="multipart/form-data">
+            <div asp-validation-summary="All" class="alert alert-danger py-2" style="font-size:.85rem;display:@(ViewData.ModelState.IsValid?"none":"block")"></div>
+
+            <div class="mb-3">
+                <label asp-for="BudgetId" class="form-label fw-semibold text-secondary" style="font-size:.83rem;">Select Budget</label>
+                <select asp-for="BudgetId" class="form-select">
+                    <option value="">-- Select Budget --</option>
+                    @foreach (var b in (List<Budget>)ViewBag.Budgets)
+                    {
+                        <option value="@b.Id">@b.Purpose — Balance: ₹@((b.TotalAmount - b.SpentAmount).ToString("N2"))</option>
+                    }
+                </select>
+                <span asp-validation-for="BudgetId" class="text-danger small"></span>
+            </div>
+
+            <div class="mb-3">
+                <label asp-for="Title" class="form-label fw-semibold text-secondary" style="font-size:.83rem;">Expense Title</label>
+                <input asp-for="Title" class="form-control" placeholder="e.g. Client Lunch, Office Supplies" />
+                <span asp-validation-for="Title" class="text-danger small"></span>
+            </div>
+
+            <div class="row g-3 mb-3">
+                <div class="col-md-6">
+                    <label asp-for="Category" class="form-label fw-semibold text-secondary" style="font-size:.83rem;">Category</label>
+                    <select asp-for="Category" class="form-select">
+                        <option value="">-- Select Category --</option>
+                        <option>Travel</option>
+                        <option>Accommodation</option>
+                        <option>Food & Dining</option>
+                        <option>Office Supplies</option>
+                        <option>Software/Tools</option>
+                        <option>Training & Development</option>
+                        <option>Marketing</option>
+                        <option>Miscellaneous</option>
+                    </select>
+                    <span asp-validation-for="Category" class="text-danger small"></span>
+                </div>
+                <div class="col-md-6">
+                    <label asp-for="Amount" class="form-label fw-semibold text-secondary" style="font-size:.83rem;">Amount (₹)</label>
+                    <div class="input-group">
+                        <span class="input-group-text">₹</span>
+                        <input asp-for="Amount" class="form-control" type="number" step="0.01" placeholder="0.00" />
+                    </div>
+                    <span asp-validation-for="Amount" class="text-danger small"></span>
+                </div>
+            </div>
+
+            <div class="mb-3">
+                <label asp-for="Description" class="form-label fw-semibold text-secondary" style="font-size:.83rem;">Description</label>
+                <textarea asp-for="Description" class="form-control" rows="3" placeholder="Provide details about this expense..."></textarea>
+            </div>
+
+            <div class="mb-4">
+                <label asp-for="Receipt" class="form-label fw-semibold text-secondary" style="font-size:.83rem;">Upload Receipt <small class="text-muted">(optional)</small></label>
+                <input asp-for="Receipt" type="file" class="form-control" accept=".jpg,.jpeg,.png,.pdf" />
+                <div class="form-text">Accepted: JPG, PNG, PDF. Max 5MB.</div>
+            </div>
+
+            <div class="d-flex gap-2">
+                <button type="submit" class="btn btn-primary">
+                    <i class="fas fa-paper-plane me-2"></i>Submit Expense
+                </button>
+                <a asp-controller="Employee" asp-action="Dashboard" class="btn btn-outline-secondary">
+                    Cancel
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Info box -->
+<div class="card mt-3" style="border-color:#bfdbfe; background:#eff6ff;">
+    <div class="card-body py-3">
+        <p class="mb-0" style="font-size:.83rem; color:#1e40af;">
+            <i class="fas fa-info-circle me-2"></i>
+            <strong>Note:</strong> The amount will be deducted from your budget immediately. 
+            The Account Team will review and approve or decline your claim.
+            If declined, the amount will be restored to your balance.
+        </p>
+    </div>
+</div>
+</div>
+</div>

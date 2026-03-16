@@ -1,0 +1,339 @@
+@model ExpenseManagement.Models.ExpenseReport
+@using ExpenseManagement.Models
+@{
+    ViewData["Title"] = "Report: " + Model.ReportTitle;
+    bool isReviewing = Model.Status == ReportStatus.SubmittedToAccountTeam;
+    bool allApproved = isReviewing && Model.ExpenseClaims.Any() && Model.ExpenseClaims.All(c => c.Status == ExpenseStatus.Approved);
+    bool anyDeclined = isReviewing && Model.ExpenseClaims.Any(c => c.Status == ExpenseStatus.Declined);
+    var declinedClaims = isReviewing ? Model.ExpenseClaims.Where(c => c.Status == ExpenseStatus.Declined).ToList() : new List<ExpenseClaim>();
+    string autoRejectNote = string.Join("; ", declinedClaims.Select(c => $"{c.Title}: {c.AccountTeamRemarks ?? "Rejected"}"));
+}
+
+<div class="d-flex align-items-center gap-2 mb-3 flex-wrap">
+    <a href="/AccountTeam/Reports" class="btn btn-outline-secondary btn-sm"><i class="fas fa-arrow-left me-1"></i>Back</a>
+    <h5 class="mb-0 me-auto">@Model.ReportTitle</h5>
+    @{
+        var (cls, txt) = Model.Status switch {
+            ReportStatus.SubmittedToAccountTeam => ("badge-submitted","Awaiting Review"),
+            ReportStatus.ForwardedToManagement => ("badge-forwarded","Forwarded to Management"),
+            ReportStatus.ApprovedByManagement => ("badge-approved","Approved"),
+            ReportStatus.RejectedByManagement => ("badge-rejected","Rejected by Management"),
+            ReportStatus.RejectedByAccountTeam => ("badge-rejected","Rejected – Returned to Employee"),
+            _ => ("badge-secondary", Model.Status.ToString())
+        };
+    }
+    <span class="badge @cls px-3 py-2 fs-6">@txt</span>
+    @if (Model.Status == ReportStatus.ApprovedByManagement)
+    {
+        <a href="/AccountTeam/DownloadReport/@Model.Id" class="btn btn-success btn-sm">
+            <i class="fas fa-download me-1"></i>Download CSV + Bills
+        </a>
+    }
+</div>
+
+<div class="row g-3 mb-3">
+    <div class="col-6 col-md-3">
+        <div class="stat-card">
+            <div class="stat-label">Employee</div>
+            <div class="fw-semibold">@Model.Employee?.FullName</div>
+            <small class="text-muted">@Model.Employee?.Department</small>
+        </div>
+    </div>
+    <div class="col-6 col-md-3">
+        <div class="stat-card">
+            <div class="stat-label">Budget</div>
+            <div class="fw-semibold">₹@Model.Budget?.TotalAmount.ToString("N2")</div>
+            <small class="text-muted">@Model.Budget?.Purpose</small>
+        </div>
+    </div>
+    <div class="col-6 col-md-3">
+        <div class="stat-card">
+            <div class="stat-label">Total Claimed</div>
+            <div class="fw-semibold text-warning">₹@Model.TotalClaimed.ToString("N2")</div>
+        </div>
+    </div>
+    <div class="col-6 col-md-3">
+        <div class="stat-card">
+            @if (Model.RemainingBalanceAtSubmission >= 0)
+            {
+                <div class="stat-label">Balance Returned</div>
+                <div class="fw-semibold text-success">₹@Model.RemainingBalanceAtSubmission.ToString("N2")</div>
+            }
+            else
+            {
+                <div class="stat-label">Overspent By</div>
+                <div class="fw-semibold text-danger">₹@Math.Abs(Model.RemainingBalanceAtSubmission).ToString("N2")</div>
+                <small class="text-danger" style="font-size:.75rem">Auto-deducted from next allocation</small>
+            }
+        </div>
+    </div>
+</div>
+
+@if (Model.RemainingBalanceAtSubmission < 0)
+{
+    <div class="alert alert-warning mb-3">
+        <i class="fas fa-exclamation-triangle me-2"></i>
+        <strong>Overspend Alert:</strong> This employee exceeded their budget by
+        <strong>₹@Math.Abs(Model.RemainingBalanceAtSubmission).ToString("N2")</strong>.
+        This amount will be automatically deducted from their next budget allocation.
+    </div>
+}
+
+@if (!string.IsNullOrEmpty(Model.Summary))
+{
+    <div class="card mb-3">
+        <div class="card-body"><strong>Summary:</strong> @Model.Summary</div>
+    </div>
+}
+
+<!-- Expense Table -->
+<div class="card mb-3">
+    <div class="card-header"><i class="fas fa-list me-2"></i>Expenses (@Model.ExpenseClaims.Count)</div>
+    <div class="table-responsive">
+        <table class="table table-hover mb-0">
+            <thead>
+                <tr>
+                    <th>Date</th>
+                    <th>Title</th>
+                    <th class="d-mobile-none">Category</th>
+                    <th>Payment Mode</th>
+                    <th>Amount</th>
+                    <th>Bill</th>
+                    <th class="d-mobile-none">Description</th>
+                    @if (isReviewing) { <th style="min-width:130px">Review</th> }
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var c in Model.ExpenseClaims.OrderBy(x => x.ExpenseDate))
+                {
+                    <tr>
+                        <td>@c.ExpenseDate.ToString("dd MMM yy")</td>
+                        <td><div class="fw-semibold">@c.Title</div></td>
+                        <td class="d-mobile-none"><span class="badge bg-light text-dark">@c.Category</span></td>
+                        <td style="white-space:nowrap">
+                            @if (c.PaymentMethod == PaymentMethod.UPI)
+                            {
+                                <span class="badge rounded-pill px-2 py-1"
+                                      style="background:#eff6ff;color:#2563eb;font-size:.75rem;font-weight:600">
+                                    <i class="fas fa-mobile-alt me-1"></i>UPI / Online
+                                </span>
+                            }
+                            else
+                            {
+                                <span class="badge rounded-pill px-2 py-1"
+                                      style="background:#f0fdf4;color:#16a34a;font-size:.75rem;font-weight:600">
+                                    <i class="fas fa-money-bill-wave me-1"></i>Cash
+                                </span>
+                            }
+                        </td>
+                        <td class="fw-semibold">₹@c.Amount.ToString("N2")</td>
+                        <td>
+                            @if (!string.IsNullOrEmpty(c.ReceiptPath))
+                            {
+                                var ext = System.IO.Path.GetExtension(c.ReceiptPath).ToLower();
+                                if (ext == ".pdf")
+                                { <a href="@c.ReceiptPath" target="_blank" class="btn btn-sm btn-outline-danger"><i class="fas fa-file-pdf"></i></a> }
+                                else
+                                { <a href="@c.ReceiptPath" target="_blank"><img src="@c.ReceiptPath" style="height:36px;width:36px;object-fit:cover;border-radius:6px;border:1px solid #e2e8f0" /></a> }
+                            }
+                            else { <span class="text-muted">–</span> }
+                        </td>
+                        <td class="d-mobile-none text-muted">@c.Description</td>
+                        @if (isReviewing)
+                        {
+                            <td>
+                                @if (c.Status == ExpenseStatus.Approved)
+                                {
+                                    <div class="d-flex align-items-center gap-1 flex-wrap">
+                                        <span class="badge bg-success px-2 py-1" style="font-size:.8rem">
+                                            <i class="fas fa-check me-1"></i>Approved
+                                        </span>
+                                        <form method="post" action="/AccountTeam/ReviewExpense" class="mb-0">
+                                            @Html.AntiForgeryToken()
+                                            <input type="hidden" name="reportId" value="@Model.Id" />
+                                            <input type="hidden" name="claimId" value="@c.Id" />
+                                            <input type="hidden" name="reviewAction" value="reset" />
+                                            <button type="submit" class="btn btn-link btn-sm p-0 text-muted" style="font-size:.72rem">Undo</button>
+                                        </form>
+                                    </div>
+                                }
+                                else if (c.Status == ExpenseStatus.Declined)
+                                {
+                                    <div>
+                                        <div class="d-flex align-items-center gap-1 flex-wrap mb-1">
+                                            <span class="badge bg-danger px-2 py-1" style="font-size:.8rem">
+                                                <i class="fas fa-times me-1"></i>Rejected
+                                            </span>
+                                            <form method="post" action="/AccountTeam/ReviewExpense" class="mb-0">
+                                                @Html.AntiForgeryToken()
+                                                <input type="hidden" name="reportId" value="@Model.Id" />
+                                                <input type="hidden" name="claimId" value="@c.Id" />
+                                                <input type="hidden" name="reviewAction" value="reset" />
+                                                <button type="submit" class="btn btn-link btn-sm p-0 text-muted" style="font-size:.72rem">Undo</button>
+                                            </form>
+                                        </div>
+                                        @if (!string.IsNullOrEmpty(c.AccountTeamRemarks))
+                                        {
+                                            <small class="text-danger" style="font-size:.75rem">@c.AccountTeamRemarks</small>
+                                        }
+                                    </div>
+                                }
+                                else
+                                {
+                                    <div class="d-flex gap-1">
+                                        <form method="post" action="/AccountTeam/ReviewExpense" class="mb-0">
+                                            @Html.AntiForgeryToken()
+                                            <input type="hidden" name="reportId" value="@Model.Id" />
+                                            <input type="hidden" name="claimId" value="@c.Id" />
+                                            <input type="hidden" name="reviewAction" value="approve" />
+                                            <button type="submit" class="btn btn-sm btn-outline-success py-1 px-2" title="Approve this expense">
+                                                <i class="fas fa-check"></i>
+                                            </button>
+                                        </form>
+                                        <button type="button" class="btn btn-sm btn-outline-danger py-1 px-2" title="Reject this expense"
+                                                onclick="openRejectModal(@c.Id)">
+                                            <i class="fas fa-times"></i>
+                                        </button>
+                                    </div>
+                                }
+                            </td>
+                        }
+                    </tr>
+                }
+            </tbody>
+            <tfoot>
+                <tr class="table-light fw-bold">
+                    <td colspan="4">Total</td>
+                    <td>₹@Model.ExpenseClaims.Sum(c => c.Amount).ToString("N2")</td>
+                    <td colspan="@(isReviewing ? 3 : 2)"></td>
+                </tr>
+            </tfoot>
+        </table>
+    </div>
+</div>
+
+@if (isReviewing)
+{
+    int pendingCount  = Model.ExpenseClaims.Count(c => c.Status == ExpenseStatus.Pending);
+    int approvedCount = Model.ExpenseClaims.Count(c => c.Status == ExpenseStatus.Approved);
+    int declinedCount = Model.ExpenseClaims.Count(c => c.Status == ExpenseStatus.Declined);
+    <div class="card border-0 shadow-sm mt-3" style="border-radius:14px;overflow:hidden">
+        <div class="card-header fw-semibold" style="background:#1e3a5f;color:#fff">
+            <i class="fas fa-clipboard-check me-2"></i>Account Team Review
+        </div>
+        <div class="card-body">
+            @if (pendingCount > 0)
+            {
+                <div class="alert alert-info mb-3" style="font-size:.87rem;border-radius:10px">
+                    <i class="fas fa-info-circle me-2"></i>
+                    Use the <strong><i class="fas fa-check"></i></strong> and <strong><i class="fas fa-times"></i></strong> buttons in the table above to review each expense.
+                    <strong>@approvedCount</strong> approved &nbsp;·&nbsp; <strong class="text-danger">@declinedCount</strong> rejected &nbsp;·&nbsp; <strong>@pendingCount</strong> pending.
+                </div>
+            }
+            <div class="row g-3">
+                <!-- Approve & Forward -->
+                <div class="col-md-6">
+                    <div class="p-3 rounded-3" style="background:@(allApproved?"#f0fdf4":"#f8fafc");border:1.5px solid @(allApproved?"#bbf7d0":"#e2e8f0")">
+                        <h6 class="fw-bold @(allApproved?"text-success":"text-muted") mb-2">
+                            <i class="fas fa-check-circle me-2"></i>Approve & Forward
+                        </h6>
+                        @if (allApproved)
+                        {
+                            <p class="text-muted mb-3" style="font-size:.84rem">All expenses approved — forward to Management for final approval.</p>
+                            <form method="post" action="/AccountTeam/ForwardToManagement">
+                                @Html.AntiForgeryToken()
+                                <input type="hidden" name="reportId" value="@Model.Id" />
+                                <div class="mb-3">
+                                    <label class="form-label fw-semibold" style="font-size:.85rem">Notes <span class="text-muted fw-normal">(optional)</span></label>
+                                    <textarea name="notes" class="form-control" rows="2" placeholder="Any observations for Management..."></textarea>
+                                </div>
+                                <button type="submit" class="btn btn-success w-100">
+                                    <i class="fas fa-forward me-2"></i>Approve & Forward to Management
+                                </button>
+                            </form>
+                        }
+                        else
+                        {
+                            <p class="text-muted mb-3" style="font-size:.84rem">
+                                @if (anyDeclined)
+                                {<span>Some expenses are rejected — resolve them or reject the report.</span>}
+                                else
+                                {<span>Review all expenses using ✓ / ✗ buttons in the table above before forwarding.</span>}
+                            </p>
+                            <button class="btn btn-secondary w-100" disabled>
+                                <i class="fas fa-forward me-2"></i>Approve & Forward to Management
+                            </button>
+                        }
+                    </div>
+                </div>
+                <!-- Reject -->
+                <div class="col-md-6">
+                    <div class="p-3 rounded-3" style="background:@(anyDeclined?"#fef2f2":"#fafafa");border:1.5px solid @(anyDeclined?"#fecaca":"#e2e8f0")">
+                        <h6 class="fw-bold text-danger mb-2"><i class="fas fa-times-circle me-2"></i>Reject Report</h6>
+                        @if (anyDeclined)
+                        {
+                            <p class="text-muted mb-1" style="font-size:.84rem">The following expenses were rejected:</p>
+                            <ul class="mb-3 ps-3" style="font-size:.82rem">
+                                @foreach (var dc in declinedClaims)
+                                {
+                                    <li><strong>@dc.Title</strong> — @(dc.AccountTeamRemarks ?? "No reason given")</li>
+                                }
+                            </ul>
+                        }
+                        else
+                        {
+                            <p class="text-muted mb-3" style="font-size:.84rem">Issues found — send back to employee for corrections and resubmission.</p>
+                        }
+                        <form method="post" action="/AccountTeam/RejectReport">
+                            @Html.AntiForgeryToken()
+                            <input type="hidden" name="reportId" value="@Model.Id" />
+                            <div class="mb-3">
+                                <label class="form-label fw-semibold" style="font-size:.85rem">Rejection Reason <span class="text-danger">*</span></label>
+                                <textarea name="rejectionReason" class="form-control" rows="3"
+                                          placeholder="Explain what needs to be corrected..." required>@autoRejectNote</textarea>
+                            </div>
+                            <button type="submit" class="btn btn-danger w-100">
+                                <i class="fas fa-times me-2"></i>Reject & Return to Employee
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Reject Expense Modal -->
+    <div class="modal fade" id="rejectExpenseModal" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content" style="border-radius:14px;border:none">
+                <div class="modal-header" style="border-bottom:1px solid #f1f5f9">
+                    <h5 class="modal-title fw-bold"><i class="fas fa-times-circle me-2 text-danger"></i>Reject Expense</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <form method="post" action="/AccountTeam/ReviewExpense">
+                    @Html.AntiForgeryToken()
+                    <input type="hidden" name="reportId" value="@Model.Id" />
+                    <input type="hidden" name="claimId" id="rejectClaimId" value="" />
+                    <input type="hidden" name="reviewAction" value="decline" />
+                    <div class="modal-body">
+                        <p class="text-muted mb-3" style="font-size:.87rem">Provide a reason for rejecting this expense. The employee will see this feedback.</p>
+                        <label class="form-label fw-semibold">Feedback <span class="text-danger">*</span></label>
+                        <textarea name="feedback" class="form-control" rows="3" placeholder="Explain why this expense is being rejected..." required></textarea>
+                    </div>
+                    <div class="modal-footer" style="border-top:1px solid #f1f5f9">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal" style="border-radius:8px">Cancel</button>
+                        <button type="submit" class="btn btn-danger fw-semibold" style="border-radius:8px">
+                            <i class="fas fa-times me-2"></i>Reject Expense
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    <script>
+        function openRejectModal(claimId) {
+            document.getElementById('rejectClaimId').value = claimId;
+            new bootstrap.Modal(document.getElementById('rejectExpenseModal')).show();
+        }
+    </script>
+}

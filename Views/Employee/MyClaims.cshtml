@@ -1,0 +1,166 @@
+@model List<ExpenseManagement.Models.ExpenseClaim>
+@using ExpenseManagement.Models
+@{ ViewData["Title"] = "My Claims"; }
+
+@{
+    var months = Model
+        .GroupBy(c => new { c.ExpenseDate.Year, c.ExpenseDate.Month })
+        .OrderByDescending(g => g.Key.Year).ThenByDescending(g => g.Key.Month)
+        .Select(g => new {
+            Label = new DateTime(g.Key.Year, g.Key.Month, 1).ToString("MMMM yyyy"),
+            Key   = $"{g.Key.Year}-{g.Key.Month:D2}",
+            Total = g.Sum(c => c.Amount),
+            Count = g.Count()
+        }).ToList();
+}
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h5 class="mb-0 fw-bold"><i class="fas fa-receipt me-2"></i>My Claims</h5>
+</div>
+
+@* ── MONTH FILTER TABS ── *@
+@if (months.Any())
+{
+    <div class="mb-3 d-flex gap-2 flex-wrap">
+        <button class="month-tab active" onclick="filterMonth('all', this)"
+                style="border-radius:20px;border:1.5px solid #2563eb;background:#2563eb;color:#fff;padding:4px 14px;font-size:.82rem;font-weight:600;cursor:pointer">
+            All Months
+        </button>
+        @foreach (var m in months)
+        {
+            <button class="month-tab" onclick="filterMonth('@m.Key', this)"
+                    style="border-radius:20px;border:1.5px solid #e2e8f0;background:#fff;color:#374151;padding:4px 14px;font-size:.82rem;font-weight:600;cursor:pointer"
+                    data-month="@m.Key" data-total="@m.Total" data-count="@m.Count">
+                @m.Label
+                <span style="background:#f1f5f9;border-radius:10px;padding:1px 7px;margin-left:4px;font-size:.75rem">@m.Count</span>
+            </button>
+        }
+    </div>
+
+    @* Month summary *@
+    <div id="monthBar" class="mb-3 p-3 rounded-3 d-none" style="background:#f0fdf4;border:1px solid #86efac">
+        <div class="d-flex gap-4 align-items-center flex-wrap">
+            <div><span class="text-muted" style="font-size:.8rem">Claims</span><div class="fw-bold" id="mCount">–</div></div>
+            <div><span class="text-muted" style="font-size:.8rem">Total Amount</span><div class="fw-bold text-warning" id="mTotal">–</div></div>
+        </div>
+    </div>
+}
+
+@* ── CATEGORY + STATUS FILTER ── *@
+<div class="mb-3 d-flex gap-2 flex-wrap align-items-center">
+    <select id="catFilter" class="form-select form-select-sm" style="width:auto;border-radius:8px" onchange="applyFilters()">
+        <option value="">All Categories</option>
+        @foreach (var cat in Model.Select(c => c.Category).Distinct().OrderBy(x => x))
+        { <option>@cat</option> }
+    </select>
+    <select id="statFilter" class="form-select form-select-sm" style="width:auto;border-radius:8px" onchange="applyFilters()">
+        <option value="">All Statuses</option>
+        <option value="Pending">Pending</option>
+        <option value="Approved">Approved</option>
+        <option value="Declined">Declined</option>
+    </select>
+    <span id="filteredCount" class="text-muted ms-1" style="font-size:.82rem"></span>
+</div>
+
+@if (!Model.Any())
+{
+    <div class="card text-center py-5 text-muted">
+        <i class="fas fa-receipt fa-3x mb-3 d-block"></i>No claims found
+    </div>
+}
+else
+{
+    <div class="card">
+        <div class="table-responsive">
+            <table class="table table-hover mb-0" style="font-size:.87rem" id="claimsTable">
+                <thead style="background:#f8fafc">
+                    <tr>
+                        <th>Date</th>
+                        <th>Expense</th>
+                        <th>Amount</th>
+                        <th>Bill</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var c in Model.OrderByDescending(x => x.ExpenseDate))
+                    {
+                        var badgeCls = c.Status switch {
+                            ExpenseStatus.Approved => "badge-approved",
+                            ExpenseStatus.Declined => "badge-declined",
+                            _ => "badge-pending"
+                        };
+                        var monthKey = $"{c.ExpenseDate.Year}-{c.ExpenseDate.Month:D2}";
+                        <tr class="claim-row"
+                            data-month="@monthKey"
+                            data-cat="@c.Category"
+                            data-stat="@c.Status">
+                            <td style="white-space:nowrap;color:#64748b">@c.ExpenseDate.ToString("dd MMM yy")</td>
+                            <td>
+                                <div class="fw-semibold">@c.Title</div>
+                                <small class="text-muted">@c.Category</small>
+                            </td>
+                            <td class="fw-semibold">₹@c.Amount.ToString("N2")</td>
+                            <td>
+                                @if (!string.IsNullOrEmpty(c.ReceiptPath))
+                                {
+                                    var ext = System.IO.Path.GetExtension(c.ReceiptPath).ToLower();
+                                    if (ext == ".pdf")
+                                    { <a href="@c.ReceiptPath" target="_blank" class="btn btn-sm btn-outline-danger py-0" style="border-radius:6px"><i class="fas fa-file-pdf"></i></a> }
+                                    else
+                                    { <a href="@c.ReceiptPath" target="_blank"><img src="@c.ReceiptPath" style="height:32px;width:32px;object-fit:cover;border-radius:6px;border:1px solid #e2e8f0" /></a> }
+                                }
+                                else { <span class="text-muted" style="font-size:.75rem">None</span> }
+                            </td>
+                            <td><span class="badge @badgeCls">@c.Status</span></td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+}
+
+<div id="noResults" class="text-center py-4 text-muted d-none">
+    <i class="fas fa-search fa-2x mb-2 d-block"></i>No claims found for the selected filter.
+</div>
+
+@section Scripts {
+<script>
+let selMonth = 'all';
+
+function filterMonth(month, btn) {
+    selMonth = month;
+    document.querySelectorAll('.month-tab').forEach(b => {
+        b.style.background = '#fff'; b.style.color = '#374151'; b.style.borderColor = '#e2e8f0';
+    });
+    btn.style.background = '#2563eb'; btn.style.color = '#fff'; btn.style.borderColor = '#2563eb';
+    const bar = document.getElementById('monthBar');
+    if (month !== 'all') {
+        const total = parseFloat(btn.dataset.total) || 0;
+        document.getElementById('mCount').textContent = btn.dataset.count;
+        document.getElementById('mTotal').textContent = '₹' + total.toLocaleString('en-IN', {minimumFractionDigits:2});
+        bar.classList.remove('d-none');
+    } else {
+        bar.classList.add('d-none');
+    }
+    applyFilters();
+}
+
+function applyFilters() {
+    const cat  = document.getElementById('catFilter').value;
+    const stat = document.getElementById('statFilter').value;
+    let visible = 0;
+    document.querySelectorAll('.claim-row').forEach(row => {
+        const mOk = selMonth === 'all' || row.dataset.month === selMonth;
+        const cOk = !cat  || row.dataset.cat  === cat;
+        const sOk = !stat || row.dataset.stat === stat;
+        const show = mOk && cOk && sOk;
+        row.style.display = show ? '' : 'none';
+        if (show) visible++;
+    });
+    document.getElementById('noResults').classList.toggle('d-none', visible > 0);
+    document.getElementById('filteredCount').textContent = `${visible} claim(s)`;
+}
+</script>
+}

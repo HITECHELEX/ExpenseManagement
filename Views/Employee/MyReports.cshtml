@@ -1,0 +1,279 @@
+@model List<ExpenseManagement.Models.ExpenseReport>
+@using ExpenseManagement.Models
+@{ ViewData["Title"] = "My Reports"; }
+
+@{
+    // Group by month for filter
+    var months = Model
+        .GroupBy(r => new { r.CreatedOn.Year, r.CreatedOn.Month })
+        .OrderByDescending(g => g.Key.Year).ThenByDescending(g => g.Key.Month)
+        .Select(g => new {
+            Label = new DateTime(g.Key.Year, g.Key.Month, 1).ToString("MMMM yyyy"),
+            Key   = $"{g.Key.Year}-{g.Key.Month:D2}",
+            Total = g.Sum(r => r.TotalClaimed),
+            Count = g.Count()
+        }).ToList();
+}
+
+<div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+    <h5 class="mb-0"><i class="fas fa-file-invoice me-2"></i>My Reports</h5>
+    <a href="/Employee/CreateDraftReport" class="btn btn-primary btn-sm" style="border-radius:8px">
+        <i class="fas fa-plus me-1"></i>New Report
+    </a>
+</div>
+
+@* ── MONTH FILTER TABS ── *@
+@if (months.Any())
+{
+    <div class="mb-3 d-flex gap-2 flex-wrap align-items-center">
+        <button class="month-tab active" onclick="filterMonth('all', this)" style="border-radius:20px;border:1.5px solid #2563eb;background:#2563eb;color:#fff;padding:4px 14px;font-size:.82rem;font-weight:600;cursor:pointer">
+            All
+        </button>
+        @foreach (var m in months)
+        {
+            <button class="month-tab" onclick="filterMonth('@m.Key', this)"
+                    style="border-radius:20px;border:1.5px solid #e2e8f0;background:#fff;color:#374151;padding:4px 14px;font-size:.82rem;font-weight:600;cursor:pointer"
+                    data-month="@m.Key">
+                @m.Label
+                <span style="background:#f1f5f9;border-radius:10px;padding:1px 7px;margin-left:4px;font-size:.75rem">@m.Count</span>
+            </button>
+        }
+    </div>
+
+    @* Month summary bar *@
+    <div id="monthSummaryBar" class="mb-3 p-3 rounded-3 d-none" style="background:linear-gradient(135deg,#eff6ff,#dbeafe);border:1px solid #bfdbfe">
+        <div class="row g-3 text-center">
+            <div class="col-4">
+                <div class="fw-bold" id="sumCount" style="font-size:1.4rem">–</div>
+                <div style="font-size:.75rem;color:#64748b">Reports</div>
+            </div>
+            <div class="col-4">
+                <div class="fw-bold text-warning" id="sumTotal" style="font-size:1.4rem">–</div>
+                <div style="font-size:.75rem;color:#64748b">Total Spent</div>
+            </div>
+            <div class="col-4">
+                <div class="fw-bold text-success" id="sumApproved" style="font-size:1.4rem">–</div>
+                <div style="font-size:.75rem;color:#64748b">Approved</div>
+            </div>
+        </div>
+    </div>
+}
+
+@* ── STATUS FILTER ── *@
+<div class="mb-3 d-flex gap-2 align-items-center flex-wrap">
+    <select id="statusFilter" class="form-select form-select-sm" style="width:auto;border-radius:8px" onchange="applyFilters()">
+        <option value="">All Statuses</option>
+        <option value="Draft">Draft</option>
+        <option value="SubmittedToAccountTeam">Submitted</option>
+        <option value="RejectedByAccountTeam">Rejected by AT</option>
+        <option value="ForwardedToManagement">At Management</option>
+        <option value="ApprovedByManagement">Approved</option>
+        <option value="RejectedByManagement">Rejected by Mgmt</option>
+    </select>
+    <span id="filteredCount" class="text-muted" style="font-size:.82rem"></span>
+</div>
+
+@if (!Model.Any())
+{
+    <div class="card text-center py-5">
+        <div class="text-muted">
+            <i class="fas fa-file-alt fa-3x mb-3 d-block"></i>
+            No reports yet. <a href="/Employee/CreateDraftReport">Create your first report</a>
+        </div>
+    </div>
+}
+
+<div id="reportList">
+@foreach (var r in Model.OrderByDescending(x => x.CreatedOn))
+{
+    var (cls, txt) = r.Status switch {
+        ReportStatus.Draft                  => ("badge-draft","Draft"),
+        ReportStatus.SubmittedToAccountTeam => ("badge-submitted","Submitted"),
+        ReportStatus.ForwardedToManagement  => ("badge-forwarded","At Management"),
+        ReportStatus.ApprovedByManagement   => ("badge-approved","Approved ✓"),
+        ReportStatus.RejectedByManagement   => ("badge-rejected","Rejected by Mgmt"),
+        ReportStatus.RejectedByAccountTeam  => ("badge-rejected","Rejected – Action Required"),
+        _ => ("badge-secondary",r.Status.ToString())
+    };
+
+    var isDraft        = r.Status == ReportStatus.Draft;
+    var isRejectedAT   = r.Status == ReportStatus.RejectedByAccountTeam;
+    var canEdit        = isDraft || isRejectedAT;
+    var monthKey = $"{r.CreatedOn.Year}-{r.CreatedOn.Month:D2}";
+    var statusKey = r.Status.ToString();
+
+    <div class="report-card card mb-3 @(isDraft ? "border-info" : isRejectedAT ? "border-danger" : "")"
+         data-month="@monthKey"
+         data-status="@statusKey"
+         data-claimed="@r.TotalClaimed"
+         data-approved="@(r.Status==ReportStatus.ApprovedByManagement?"1":"0")">
+        <div class="card-body">
+            <div class="d-flex justify-content-between align-items-start flex-wrap gap-2 mb-2">
+                <div>
+                    <h6 class="mb-1 fw-bold">@r.ReportTitle</h6>
+                    <small class="text-muted">
+                        <i class="fas fa-calendar me-1"></i>@r.CreatedOn.ToString("dd MMM yyyy")
+                        &nbsp;·&nbsp;
+                        <i class="fas fa-hashtag me-1"></i>@r.ExpenseClaims.Count expense(s)
+                    </small>
+                </div>
+                <span class="badge @cls px-3 py-2">@txt</span>
+            </div>
+
+            @* ── REPORT TOTALS ROW ── *@
+            <div class="row g-2 mb-2">
+                <div class="col-4 text-center">
+                    <div style="background:#fffbeb;border-radius:10px;padding:8px 4px">
+                        <div class="fw-bold text-warning">₹@r.TotalClaimed.ToString("N0")</div>
+                        <div style="font-size:.7rem;color:#64748b">Total Amount</div>
+                    </div>
+                </div>
+                <div class="col-4 text-center">
+                    @if (isDraft)
+                    {
+                        <div style="background:#eff6ff;border-radius:10px;padding:8px 4px">
+                            <div class="fw-bold text-primary">@r.ExpenseClaims.Count</div>
+                            <div style="font-size:.7rem;color:#64748b">Expenses Added</div>
+                        </div>
+                    }
+                    else
+                    {
+                        <div style="background:#f0fdf4;border-radius:10px;padding:8px 4px">
+                            <div class="fw-bold text-success">₹@r.TotalApproved.ToString("N0")</div>
+                            <div style="font-size:.7rem;color:#64748b">Approved</div>
+                        </div>
+                    }
+                </div>
+                <div class="col-4 text-center">
+                    @if (r.Status == ReportStatus.ApprovedByManagement)
+                    {
+                        if (r.RemainingBalanceAtSubmission >= 0)
+                        {
+                            <div style="background:#f0fdf4;border-radius:10px;padding:8px 4px">
+                                <div class="fw-bold text-success">₹@r.RemainingBalanceAtSubmission.ToString("N0")</div>
+                                <div style="font-size:.7rem;color:#64748b">Balance Back</div>
+                            </div>
+                        }
+                        else
+                        {
+                            <div style="background:#fef2f2;border-radius:10px;padding:8px 4px">
+                                <div class="fw-bold text-danger">₹@Math.Abs(r.RemainingBalanceAtSubmission).ToString("N0")</div>
+                                <div style="font-size:.7rem;color:#64748b">Overspent</div>
+                            </div>
+                        }
+                    }
+                    else if (isDraft)
+                    {
+                        <div style="background:#f8fafc;border-radius:10px;padding:8px 4px">
+                            <div class="fw-bold text-muted">Draft</div>
+                            <div style="font-size:.7rem;color:#64748b">Status</div>
+                        </div>
+                    }
+                    else
+                    {
+                        <div style="background:#f8fafc;border-radius:10px;padding:8px 4px">
+                            <div class="fw-bold text-muted">–</div>
+                            <div style="font-size:.7rem;color:#64748b">Pending</div>
+                        </div>
+                    }
+                </div>
+            </div>
+
+            @if (!string.IsNullOrEmpty(r.ManagementFeedback))
+            {
+                <div class="alert @(r.Status==ReportStatus.ApprovedByManagement?"alert-success":"alert-warning") py-2 px-3 mb-2" style="font-size:.83rem">
+                    <i class="fas fa-comment me-1"></i><strong>Feedback:</strong> @r.ManagementFeedback
+                </div>
+            }
+            @if (isRejectedAT && !string.IsNullOrEmpty(r.AccountTeamNotes))
+            {
+                <div class="alert alert-danger py-2 px-3 mb-2" style="font-size:.83rem">
+                    <i class="fas fa-times-circle me-1"></i><strong>Rejection Reason:</strong> @r.AccountTeamNotes
+                </div>
+            }
+
+            <div class="d-flex gap-2 flex-wrap mt-2">
+                <a href="/Employee/ReportDetail/@r.Id" class="btn btn-sm btn-outline-primary" style="border-radius:7px">
+                    <i class="fas fa-eye me-1"></i>View
+                </a>
+                @if (canEdit)
+                {
+                    <a href="/Employee/AddExpense?reportId=@r.Id" class="btn btn-sm btn-primary" style="border-radius:7px">
+                        <i class="fas fa-plus me-1"></i>Add Expense
+                    </a>
+                    <a href="/Employee/EditReport/@r.Id" class="btn btn-sm btn-outline-secondary" style="border-radius:7px">
+                        <i class="fas fa-edit me-1"></i>Edit
+                    </a>
+                    <form method="post" action="/Employee/DeleteReport" class="d-inline"
+                          onsubmit="return confirm('Delete this report? All expenses will be removed.')">
+                        @Html.AntiForgeryToken()
+                        <input type="hidden" name="reportId" value="@r.Id" />
+                        <button class="btn btn-sm btn-outline-danger" style="border-radius:7px">
+                            <i class="fas fa-trash me-1"></i>Delete
+                        </button>
+                    </form>
+                }
+            </div>
+        </div>
+    </div>
+}
+</div>
+
+<div id="noResults" class="text-center py-4 text-muted d-none">
+    <i class="fas fa-search fa-2x mb-2 d-block"></i>No reports found for the selected filter.
+</div>
+
+@section Scripts {
+<script>
+let selectedMonth = 'all';
+
+// Pre-build month data
+const monthData = {};
+document.querySelectorAll('.report-card').forEach(card => {
+    const m = card.dataset.month;
+    if (!monthData[m]) monthData[m] = { count:0, total:0, approved:0 };
+    monthData[m].count++;
+    monthData[m].total += parseFloat(card.dataset.claimed) || 0;
+    if (card.dataset.approved === '1') monthData[m].approved++;
+});
+
+function filterMonth(month, btn) {
+    selectedMonth = month;
+    document.querySelectorAll('.month-tab').forEach(b => {
+        b.style.background = '#fff'; b.style.color = '#374151'; b.style.borderColor = '#e2e8f0';
+    });
+    btn.style.background = '#2563eb'; btn.style.color = '#fff'; btn.style.borderColor = '#2563eb';
+
+    const bar = document.getElementById('monthSummaryBar');
+    if (month !== 'all' && monthData[month]) {
+        const d = monthData[month];
+        document.getElementById('sumCount').textContent = d.count;
+        document.getElementById('sumTotal').textContent = '₹' + d.total.toLocaleString('en-IN', {minimumFractionDigits:0});
+        document.getElementById('sumApproved').textContent = d.approved;
+        bar.classList.remove('d-none');
+    } else {
+        bar.classList.add('d-none');
+    }
+
+    applyFilters();
+}
+
+function applyFilters() {
+    const statusVal = document.getElementById('statusFilter').value;
+    let visible = 0;
+
+    document.querySelectorAll('.report-card').forEach(card => {
+        const monthOk = selectedMonth === 'all' || card.dataset.month === selectedMonth;
+        const statusOk = !statusVal || card.dataset.status === statusVal;
+        const show = monthOk && statusOk;
+        card.style.display = show ? '' : 'none';
+        if (show) visible++;
+    });
+
+    const noRes = document.getElementById('noResults');
+    const countEl = document.getElementById('filteredCount');
+    noRes.classList.toggle('d-none', visible > 0);
+    countEl.textContent = visible > 0 ? `Showing ${visible} report(s)` : '';
+}
+</script>
+}

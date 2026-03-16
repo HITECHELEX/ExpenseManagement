@@ -1,0 +1,89 @@
+@model ExpenseManagement.ViewModels.CreateReportVM
+@using ExpenseManagement.Models
+@{
+    ViewData["Title"] = "Create New Report";
+    decimal walletBalance = ViewBag.WalletBalance ?? 0m;
+    int primaryBudgetId  = ViewBag.PrimaryBudgetId ?? 0;
+    bool isOver = walletBalance < 0;
+}
+
+<div class="d-flex align-items-center gap-2 mb-3">
+    <a href="/Employee/Dashboard" class="btn btn-outline-secondary btn-sm" style="border-radius:8px">
+        <i class="fas fa-arrow-left me-1"></i>Back
+    </a>
+    <h5 class="mb-0 fw-bold">Create New Report</h5>
+</div>
+
+@* ── WALLET BALANCE CARD ── *@
+<div class="card mb-3 border-0"
+     style="background:linear-gradient(135deg,@(isOver?"#dc2626,#991b1b":"#1e3a8a,#2563eb"));border-radius:16px;color:#fff">
+    <div class="card-body p-4">
+        <div class="d-flex align-items-center justify-content-between mb-1">
+            <span style="opacity:.8;font-size:.82rem"><i class="fas fa-wallet me-2"></i>Your Wallet Balance</span>
+            <span style="opacity:.65;font-size:.75rem">Report will draw from this</span>
+        </div>
+        <div style="font-size:2.4rem;font-weight:800;letter-spacing:-1px;line-height:1.1">
+            @(isOver?"-":"")₹@Math.Abs(walletBalance).ToString("N2")
+        </div>
+        <div style="opacity:.7;font-size:.8rem;margin-top:6px">
+            @if (isOver)
+            {
+                <i class="fas fa-exclamation-triangle me-1 text-warning"></i>
+                <text>Wallet is negative — you can still create a report. Overspend recovered from next allocation.</text>
+            }
+            else
+            {
+                <i class="fas fa-info-circle me-1"></i>
+                <text>You can spend up to ₹@walletBalance.ToString("N2") — exceeding is allowed (recovered later).</text>
+            }
+        </div>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-header fw-semibold"><i class="fas fa-file-plus me-2"></i>Report Details</div>
+    <div class="card-body">
+        <form method="post" action="/Employee/CreateDraftReport">
+            @Html.AntiForgeryToken()
+            @* Hidden — BudgetId is set to primary wallet budget, no selection needed *@
+            <input type="hidden" name="BudgetId" value="@primaryBudgetId" />
+
+            @if (!ViewData.ModelState.IsValid)
+            {
+                <div class="alert alert-danger mb-3" style="border-radius:10px">
+                    @foreach (var e in ViewData.ModelState.Values.SelectMany(v => v.Errors))
+                    { <div>@e.ErrorMessage</div> }
+                </div>
+            }
+
+            <div class="mb-3">
+                <label class="form-label fw-semibold">Report Title <span class="text-danger">*</span></label>
+                <input type="text" name="ReportTitle" class="form-control" required
+                       style="border-radius:10px"
+                       placeholder="e.g. Sales Trip Mumbai – Mar 2025, Field Work Pune" />
+                <small class="text-muted">Give a descriptive title for this batch of expenses.</small>
+            </div>
+
+            <div class="mb-4">
+                <label class="form-label fw-semibold">Summary / Purpose</label>
+                <textarea name="Summary" class="form-control" rows="3"
+                          style="border-radius:10px"
+                          placeholder="Brief description of the business purpose or trip (optional)..."></textarea>
+            </div>
+
+            <div class="alert alert-info" style="border-radius:12px;font-size:.85rem">
+                <i class="fas fa-lightbulb me-2"></i>
+                <strong>How it works:</strong> A draft report is created. Add your daily expenses one by one with date, amount, and bill photo.
+                When all expenses are added, forward to the Account Team for review.
+                <br><small class="d-block mt-1 text-muted">
+                    <i class="fas fa-check me-1 text-success"></i>No budget selection needed — your wallet balance is used automatically.
+                    &nbsp;&nbsp;<i class="fas fa-check me-1 text-success"></i>Overspending is allowed and auto-recovered.
+                </small>
+            </div>
+
+            <button type="submit" class="btn btn-primary w-100 py-3 fw-bold" style="border-radius:12px;font-size:.95rem">
+                <i class="fas fa-file-plus me-2"></i>Create Draft Report
+            </button>
+        </form>
+    </div>
+</div>

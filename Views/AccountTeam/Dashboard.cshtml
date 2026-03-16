@@ -1,0 +1,419 @@
+@model ExpenseManagement.ViewModels.AccountDashboardVM
+@using ExpenseManagement.Models
+@{ ViewData["Title"] = "Dashboard"; ViewBag.UnreadNotifications = Model.UnreadNotifications; }
+
+@if (TempData["Success"] != null)
+{
+    <div class="alert alert-success alert-dismissible fade show mb-3" role="alert">
+        <i class="fas fa-check-circle me-2"></i>@TempData["Success"]
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+}
+
+@* ── TOP HERO CARD ── *@
+<div class="mb-4">
+    <div style="background:linear-gradient(135deg,#1e3a8a 0%,#2563eb 100%);border-radius:18px;padding:24px;color:#fff">
+
+        <div style="opacity:.8;font-size:.8rem;letter-spacing:.5px;text-transform:uppercase;margin-bottom:6px">
+            <i class="fas fa-building-columns me-2"></i>Total Allocated Budget
+        </div>
+
+        <a href="/AccountTeam/AllocationBreakdown" class="text-decoration-none">
+            <div style="font-size:2.6rem;font-weight:800;letter-spacing:-1.5px;line-height:1.1;margin-bottom:4px;color:#fff">
+                ₹@Model.TotalAllocated.ToString("N2")
+            </div>
+            <div style="font-size:.72rem;opacity:.7;margin-bottom:10px">
+                <i class="fas fa-chart-pie me-1"></i>Tap to view allocation breakdown →
+            </div>
+        </a>
+
+        <div class="row g-2 mt-2">
+            <div class="col-4">
+                <div style="background:rgba(255,255,255,.13);border-radius:12px;padding:10px 6px;text-align:center">
+                    <div style="font-size:1.1rem;font-weight:700">@Model.PendingReports</div>
+                    <div style="font-size:.68rem;opacity:.75;margin-top:2px">Pending Reports</div>
+                </div>
+            </div>
+            <div class="col-4">
+                <div style="background:rgba(255,255,255,.13);border-radius:12px;padding:10px 6px;text-align:center">
+                    <div style="font-size:1.1rem;font-weight:700">@Model.ApprovedClaims</div>
+                    <div style="font-size:.68rem;opacity:.75;margin-top:2px">Approved Claims</div>
+                </div>
+            </div>
+            <div class="col-4">
+                <div style="background:rgba(255,255,255,.13);border-radius:12px;padding:10px 6px;text-align:center">
+                    <div style="font-size:1.1rem;font-weight:700">@Model.TotalEmployees</div>
+                    <div style="font-size:.68rem;opacity:.75;margin-top:2px">Employees</div>
+                </div>
+            </div>
+        </div>
+
+        @{
+            int totalClaims = Model.PendingClaims + Model.ApprovedClaims + Model.DeclinedClaims;
+            double reviewedPct = totalClaims > 0 ? (double)(Model.ApprovedClaims + Model.DeclinedClaims) * 100 / totalClaims : 0;
+        }
+        @if (totalClaims > 0)
+        {
+            <div class="mt-3">
+                <div class="d-flex justify-content-between mb-1" style="font-size:.75rem;opacity:.8">
+                    <span>Claims Reviewed</span><span>@reviewedPct.ToString("F0")%</span>
+                </div>
+                <div style="height:6px;background:rgba(255,255,255,.25);border-radius:99px;overflow:hidden">
+                    <div style="height:100%;width:@reviewedPct%;background:@(reviewedPct>90?"#4ade80":reviewedPct>60?"#fbbf24":"#f87171");border-radius:99px;transition:width .4s"></div>
+                </div>
+            </div>
+        }
+    </div>
+</div>
+
+@* ── CLAIMS SUMMARY STRIP ── *@
+<div class="card mb-4" style="border:none;box-shadow:0 1px 6px rgba(0,0,0,.06);border-radius:14px;overflow:hidden">
+    @{
+        int pPct = totalClaims > 0 ? (int)Math.Round(100.0 * Model.PendingClaims / totalClaims) : 0;
+        int aPct = totalClaims > 0 ? (int)Math.Round(100.0 * Model.ApprovedClaims / totalClaims) : 0;
+        int dPct = totalClaims > 0 ? 100 - pPct - aPct : 0;
+    }
+    <div class="px-3 pt-3 pb-1">
+        <div class="d-flex" style="height:6px;border-radius:6px;overflow:hidden;background:#f1f5f9">
+            <div style="width:@(pPct)%;background:#f59e0b;transition:width .4s"></div>
+            <div style="width:@(aPct)%;background:#16a34a;transition:width .4s"></div>
+            <div style="width:@(dPct)%;background:#ef4444;transition:width .4s"></div>
+        </div>
+    </div>
+    <div class="d-flex">
+        <div class="flex-fill text-center py-3" style="border-right:1px solid #f1f5f9">
+            <div style="font-size:1.3rem;font-weight:800;color:#f59e0b">@Model.PendingClaims</div>
+            <div style="font-size:.72rem;color:#64748b;font-weight:500;margin-top:2px">Pending</div>
+        </div>
+        <div class="flex-fill text-center py-3" style="border-right:1px solid #f1f5f9">
+            <div style="font-size:1.3rem;font-weight:800;color:#16a34a">@Model.ApprovedClaims</div>
+            <div style="font-size:.72rem;color:#64748b;font-weight:500;margin-top:2px">Approved</div>
+        </div>
+        <div class="flex-fill text-center py-3">
+            <div style="font-size:1.3rem;font-weight:800;color:#ef4444">@Model.DeclinedClaims</div>
+            <div style="font-size:.72rem;color:#64748b;font-weight:500;margin-top:2px">Declined</div>
+        </div>
+    </div>
+</div>
+
+@* ── REPORTS AWAITING REVIEW ── *@
+@if (Model.PendingReports_List.Any())
+{
+    <div class="card mb-4" style="border:none;box-shadow:0 1px 6px rgba(0,0,0,.06);border-radius:14px;overflow:hidden">
+        <div class="card-header d-flex justify-content-between align-items-center" style="background:#eff6ff;border-bottom:1.5px solid #bfdbfe">
+            <span class="fw-semibold"><i class="fas fa-file-invoice me-2 text-primary"></i>Reports Awaiting Review</span>
+            <a href="/AccountTeam/Reports" class="btn btn-sm btn-primary" style="border-radius:8px">View All</a>
+        </div>
+        <div class="card-body p-0">
+            @{ var colors = new[] { "#dbeafe|#1d4ed8", "#dcfce7|#16a34a", "#fef3c7|#d97706", "#f3e8ff|#7c3aed", "#fce7f3|#be185d" }; }
+            @foreach (var (r, i) in Model.PendingReports_List.Select((r, i) => (r, i)))
+            {
+                var cPair = colors[i % colors.Length].Split('|');
+                var initials = string.Join("", (r.Employee?.FullName ?? "?").Split(' ', StringSplitOptions.RemoveEmptyEntries).Take(2).Select(w => w[0])).ToUpper();
+                <div class="d-flex align-items-start justify-content-between p-3 border-bottom flex-wrap gap-2">
+                    <div class="d-flex align-items-center gap-3" style="min-width:0;flex:1 1 0">
+                        <div style="width:40px;height:40px;border-radius:10px;background:@cPair[0];color:@cPair[1];display:flex;align-items:center;justify-content:center;font-weight:700;font-size:.82rem;flex-shrink:0">
+                            @initials
+                        </div>
+                        <div style="min-width:0">
+                            <div class="fw-bold text-truncate">@r.ReportTitle</div>
+                            <div class="d-flex gap-2 mt-1 flex-wrap" style="font-size:.8rem">
+                                <span class="text-muted"><i class="fas fa-user me-1"></i>@r.Employee?.FullName</span>
+                                <span class="text-muted"><i class="fas fa-receipt me-1"></i>@r.ExpenseClaims.Count expense(s)</span>
+                            </div>
+                            <div class="mt-1 fw-semibold" style="font-size:.82rem;color:#2563eb">
+                                ₹@r.TotalClaimed.ToString("N2") claimed
+                            </div>
+                        </div>
+                    </div>
+                    <a href="/AccountTeam/ReportDetail/@r.Id" class="btn btn-sm btn-primary flex-shrink-0 align-self-center" style="border-radius:7px">
+                        <i class="fas fa-eye me-1"></i>Review
+                    </a>
+                </div>
+            }
+        </div>
+    </div>
+}
+else
+{
+    <div class="card mb-4" style="border:none;box-shadow:0 1px 6px rgba(0,0,0,.06);border-radius:14px">
+        <div class="card-header d-flex justify-content-between align-items-center" style="background:#eff6ff;border-bottom:1.5px solid #bfdbfe">
+            <span class="fw-semibold"><i class="fas fa-file-invoice me-2 text-primary"></i>Reports Awaiting Review</span>
+            <a href="/AccountTeam/Reports" class="btn btn-sm btn-primary" style="border-radius:8px">View All</a>
+        </div>
+        <div class="text-center py-5">
+            <div style="width:56px;height:56px;border-radius:50%;background:#f1f5f9;display:inline-flex;align-items:center;justify-content:center;margin-bottom:12px">
+                <i class="fas fa-inbox" style="font-size:1.4rem;color:#94a3b8"></i>
+            </div>
+            <div class="text-muted" style="font-size:.85rem">No reports pending review</div>
+        </div>
+    </div>
+}
+
+@* ── QUICK ACTIONS ── *@
+<div class="card mb-4" style="border:none;box-shadow:0 1px 6px rgba(0,0,0,.06);border-radius:14px">
+    <div class="card-header fw-semibold" style="border-bottom:1px solid #e2e8f0"><i class="fas fa-bolt me-2"></i>Quick Actions</div>
+    <div class="card-body d-flex flex-column gap-2 p-3">
+        <a href="/AccountTeam/AllocateBudget" class="btn btn-primary w-100" style="border-radius:10px;padding:10px">
+            <i class="fas fa-plus-circle me-2"></i>Top Up Wallet
+        </a>
+        <a href="/AccountTeam/CreateEmployee" class="btn btn-outline-primary w-100" style="border-radius:10px;padding:10px">
+            <i class="fas fa-user-plus me-2"></i>Add Employee
+        </a>
+        <a href="/AccountTeam/Reports" class="btn btn-outline-secondary w-100" style="border-radius:10px;padding:10px">
+            <i class="fas fa-file-invoice me-2"></i>Expense Reports
+        </a>
+        <a href="/AccountTeam/Budgets" class="btn btn-outline-secondary w-100" style="border-radius:10px;padding:10px">
+            <i class="fas fa-list me-2"></i>All Budgets
+        </a>
+    </div>
+</div>
+
+@* ── WALLET TOP-UP HISTORY ── *@
+<div class="card" style="border:none;box-shadow:0 1px 6px rgba(0,0,0,.06);border-radius:14px;overflow:hidden">
+    <div class="card-header d-flex justify-content-between align-items-center" style="background:#eff6ff;border-bottom:1.5px solid #bfdbfe">
+        <span class="fw-semibold"><i class="fas fa-history me-2 text-primary"></i>Recent Wallet Top-ups</span>
+        <a href="/AccountTeam/AllocateBudget" class="btn btn-sm btn-primary" style="border-radius:8px">
+            <i class="fas fa-plus me-1"></i>Top Up
+        </a>
+    </div>
+    @if (!Model.RecentTopUps.Any())
+    {
+        <div class="text-center py-5">
+            <div style="width:56px;height:56px;border-radius:50%;background:#f1f5f9;display:inline-flex;align-items:center;justify-content:center;margin-bottom:12px">
+                <i class="fas fa-wallet" style="font-size:1.4rem;color:#94a3b8"></i>
+            </div>
+            <div class="text-muted" style="font-size:.85rem">No top-ups recorded yet.</div>
+        </div>
+    }
+    else
+    {
+        <!-- Top-up summary strip -->
+        <div class="d-flex" style="border-bottom:1px solid #e2e8f0">
+            <div class="flex-fill text-center py-3" style="border-right:1px solid #f1f5f9">
+                <div style="font-size:1.2rem;font-weight:800;color:#2563eb">@Model.TotalTopUps</div>
+                <div style="font-size:.72rem;color:#64748b;font-weight:500;margin-top:2px">Total Top-ups</div>
+            </div>
+            <div class="flex-fill text-center py-3">
+                <div style="font-size:1.2rem;font-weight:800;color:#16a34a">₹@Model.TotalTopUpAmount.ToString("N0")</div>
+                <div style="font-size:.72rem;color:#64748b;font-weight:500;margin-top:2px">Total Added</div>
+            </div>
+        </div>
+
+        var empOptions   = Model.RecentTopUps.Select(t => t.Employee?.FullName).Where(n => n != null).Distinct().OrderBy(n => n).ToList();
+        var monthOptions = Model.RecentTopUps.Select(t => t.TopUpOn.ToString("yyyy-MM")).Distinct().OrderByDescending(m => m).ToList();
+
+        @* ── FILTER BAR ── *@
+        <div class="px-3 pt-2 pb-2 border-bottom" style="background:#f8fafc">
+            <div class="row g-2 align-items-center">
+                <div class="col-6 col-md-auto">
+                    <select id="filterEmployee" onchange="applyTopUpFilters()" class="form-select form-select-sm" style="border-radius:8px">
+                        <option value="">All Employees</option>
+                        @foreach (var name in empOptions)
+                        {
+                            <option value="@name?.ToLower()">@name</option>
+                        }
+                    </select>
+                </div>
+                <div class="col-6 col-md-auto">
+                    <select id="filterMonth" onchange="applyTopUpFilters()" class="form-select form-select-sm" style="border-radius:8px">
+                        <option value="">All Months</option>
+                        @foreach (var m in monthOptions)
+                        {
+                            <option value="@m">@DateTime.ParseExact(m, "yyyy-MM", null).ToString("MMM yyyy")</option>
+                        }
+                    </select>
+                </div>
+                <div class="col">
+                    <input type="text" id="filterSearch" oninput="applyTopUpFilters()" class="form-control form-control-sm"
+                           placeholder="Search label / employee..." style="border-radius:8px" />
+                </div>
+                <div class="col-auto d-flex align-items-center gap-2">
+                    <button onclick="clearTopUpFilters()" class="btn btn-sm btn-outline-secondary px-2" style="border-radius:8px">
+                        <i class="fas fa-times"></i>
+                    </button>
+                    <span id="filterResultBadge" class="badge bg-primary rounded-pill" style="white-space:nowrap">
+                        @Model.RecentTopUps.Count record(s)
+                    </span>
+                </div>
+            </div>
+        </div>
+
+        @* ── MOBILE CARD LIST ── *@
+        <div class="d-md-none" id="mobileTopupList">
+            @foreach (var (t, idx) in Model.RecentTopUps.Select((t, i) => (t, Model.RecentTopUps.Count - i)))
+            {
+                bool neg = t.BalanceAfter < 0;
+                decimal prevBal = t.BalanceAfter - t.Amount;
+                <div class="px-3 py-3 border-bottom mobile-topup-item"
+                     data-employee="@t.Employee?.FullName?.ToLower()"
+                     data-month="@t.TopUpOn.ToString("yyyy-MM")"
+                     data-purpose="@t.Purpose.ToLower()">
+
+                    <!-- Row 1: Employee name + Amount -->
+                    <div class="d-flex justify-content-between align-items-center">
+                        <a href="/AccountTeam/EmployeeWalletHistory/@t.Employee?.Id" class="fw-bold text-decoration-none" style="font-size:.9rem;color:#0f172a">
+                            @t.Employee?.FullName
+                        </a>
+                        <span class="fw-bold text-primary" style="font-size:.92rem">+₹@t.Amount.ToString("N2")</span>
+                    </div>
+
+                    <!-- Row 2: Purpose pill + Balance -->
+                    <div class="d-flex justify-content-between align-items-center mt-2">
+                        <span class="badge rounded-pill px-2 py-1" style="background:#eff6ff;color:#2563eb;font-weight:600;font-size:.72rem">
+                            @t.Purpose
+                        </span>
+                        <div class="text-end">
+                            <span class="fw-bold @(neg ? "text-danger" : "text-success")" style="font-size:.84rem">
+                                Bal: @(neg ? "-" : "")₹@Math.Abs(t.BalanceAfter).ToString("N2")
+                            </span>
+                            @if (neg)
+                            {
+                                <span class="ms-1" style="font-size:.65rem;color:#dc2626">Overdrawn</span>
+                            }
+                        </div>
+                    </div>
+
+                    <!-- Row 3: Date -->
+                    <div class="mt-2" style="font-size:.72rem;color:#94a3b8">
+                        <i class="fas fa-clock me-1"></i>@t.TopUpOn.ToString("dd MMM yyyy, hh:mm tt")
+                    </div>
+                </div>
+            }
+        </div>
+
+        @* ── DESKTOP TABLE ── *@
+        <div class="d-none d-md-block">
+            <table class="table table-hover mb-0" id="topupTable" style="font-size:.875rem">
+                <thead style="background:#f8fafc">
+                    <tr>
+                        <th class="px-4 py-3">#</th>
+                        <th class="py-3">Employee</th>
+                        <th class="py-3">Label / Purpose</th>
+                        <th class="py-3">Topped Up By</th>
+                        <th class="py-3">Date &amp; Time</th>
+                        <th class="py-3 text-end pe-4">Amount Added</th>
+                        <th class="py-3 text-end pe-4">Balance After</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var (t, idx) in Model.RecentTopUps.Select((t, i) => (t, Model.RecentTopUps.Count - i)))
+                    {
+                        bool neg = t.BalanceAfter < 0;
+                        decimal prevBal = t.BalanceAfter - t.Amount;
+                        <tr data-employee="@t.Employee?.FullName?.ToLower()"
+                            data-month="@t.TopUpOn.ToString("yyyy-MM")"
+                            data-purpose="@t.Purpose.ToLower()">
+                            <td class="px-4 py-3">
+                                <span class="badge bg-light text-secondary border fw-semibold" style="border-radius:6px">#@idx</span>
+                            </td>
+                            <td class="py-3">
+                                <a href="/AccountTeam/EmployeeWalletHistory/@t.Employee?.Id" class="text-decoration-none">
+                                    <div class="fw-semibold text-primary">@t.Employee?.FullName</div>
+                                    <small class="text-muted">@t.Employee?.Department</small>
+                                </a>
+                            </td>
+                            <td class="py-3">
+                                <span class="badge rounded-pill px-3 py-1"
+                                      style="background:#eff6ff;color:#2563eb;font-weight:600;font-size:.78rem">
+                                    @t.Purpose
+                                </span>
+                            </td>
+                            <td class="py-3">
+                                <div class="d-flex align-items-center gap-2">
+                                    <div style="width:28px;height:28px;background:#e0e7ff;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:.7rem;font-weight:700;color:#4338ca">
+                                        @(t.TopUpBy?.FullName?.Substring(0, 1).ToUpper() ?? "A")
+                                    </div>
+                                    <span>@(t.TopUpBy?.FullName ?? "Account Team")</span>
+                                </div>
+                            </td>
+                            <td class="py-3 text-muted" style="white-space:nowrap">
+                                <i class="fas fa-clock me-1" style="font-size:.75rem"></i>
+                                @t.TopUpOn.ToString("dd MMM yyyy")
+                                <div style="font-size:.75rem">@t.TopUpOn.ToString("hh:mm tt")</div>
+                            </td>
+                            <td class="py-3 text-end pe-4">
+                                <span class="fw-bold text-primary">+₹@t.Amount.ToString("N2")</span>
+                            </td>
+                            <td class="py-3 text-end pe-4">
+                                <span class="fw-bold @(neg ? "text-danger" : "text-success")">
+                                    @(neg ? "-" : "")₹@Math.Abs(t.BalanceAfter).ToString("N2")
+                                </span>
+                                @if (neg)
+                                {
+                                    <div style="font-size:.68rem;color:#dc2626;margin-top:2px">Overdrawn</div>
+                                }
+                                else if (prevBal < 0)
+                                {
+                                    <div style="font-size:.68rem;color:#f59e0b;margin-top:2px">
+                                        <i class="fas fa-exclamation-triangle me-1"></i>₹@Math.Abs(prevBal).ToString("N2") debt recovered
+                                    </div>
+                                }
+                                else if (prevBal > 0)
+                                {
+                                    <div style="font-size:.68rem;color:#64748b;margin-top:2px">
+                                        <i class="fas fa-layer-group me-1"></i>Incl. ₹@prevBal.ToString("N2") carry-forward
+                                    </div>
+                                }
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+                @if (Model.TotalTopUps > 10)
+                {
+                    <tfoot>
+                        <tr>
+                            <td colspan="7" class="text-center py-3" style="background:#f8fafc">
+                                <a href="/AccountTeam/AllocateBudget" class="text-primary" style="font-size:.84rem">
+                                    Showing last 10 of @Model.TotalTopUps top-ups
+                                </a>
+                            </td>
+                        </tr>
+                    </tfoot>
+                }
+            </table>
+        </div>
+    }
+</div>
+
+<script>
+function applyTopUpFilters() {
+    const emp    = (document.getElementById('filterEmployee').value || '').toLowerCase();
+    const month  = document.getElementById('filterMonth').value || '';
+    const search = (document.getElementById('filterSearch').value || '').toLowerCase().trim();
+
+    let visible = 0;
+
+    document.querySelectorAll('#topupTable tbody tr').forEach(row => {
+        const ok = matchesFilter(row, emp, month, search);
+        row.style.display = ok ? '' : 'none';
+        if (ok) visible++;
+    });
+
+    document.querySelectorAll('.mobile-topup-item').forEach(card => {
+        card.style.display = matchesFilter(card, emp, month, search) ? '' : 'none';
+    });
+
+    const total = document.querySelectorAll('#topupTable tbody tr').length;
+    const badge = document.getElementById('filterResultBadge');
+    if (badge) badge.textContent = visible === total
+        ? `${total} record(s)`
+        : `${visible} of ${total}`;
+}
+
+function matchesFilter(el, emp, month, search) {
+    const rEmp     = (el.dataset.employee || '');
+    const rMonth   = (el.dataset.month   || '');
+    const rPurpose = (el.dataset.purpose  || '');
+    return (!emp    || rEmp.includes(emp))
+        && (!month  || rMonth === month)
+        && (!search || rPurpose.includes(search) || rEmp.includes(search));
+}
+
+function clearTopUpFilters() {
+    document.getElementById('filterEmployee').value = '';
+    document.getElementById('filterMonth').value    = '';
+    document.getElementById('filterSearch').value   = '';
+    applyTopUpFilters();
+}
+</script>

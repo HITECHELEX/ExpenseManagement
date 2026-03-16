@@ -1,0 +1,157 @@
+@model ExpenseManagement.ViewModels.AccountDashboardVM
+@using ExpenseManagement.Models
+@{ ViewData["Title"] = "Dashboard"; ViewBag.UnreadNotifications = Model.UnreadNotifications; }
+
+<style>
+.at-hero { background:linear-gradient(135deg,#1e3a8a,#2563eb);border-radius:18px;padding:24px;color:#fff;margin-bottom:24px; }
+.quick-action { display:flex;align-items:center;gap:14px;padding:14px 16px;border-radius:12px;border:1.5px solid #e2e8f0;background:#fff;color:#1e293b;text-decoration:none;transition:all .2s;font-weight:600; }
+.quick-action:hover { border-color:#2563eb;box-shadow:0 4px 16px rgba(37,99,235,.15);transform:translateX(2px);color:#2563eb; }
+.quick-action .qa-icon { width:40px;height:40px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:1.1rem;flex-shrink:0; }
+.report-row { display:flex;align-items:center;justify-content:space-between;padding:12px 16px;border-bottom:1px solid #f1f5f9;gap:12px;flex-wrap:wrap; }
+.report-row:hover { background:#f8fafc; }
+</style>
+
+@* ── HERO GREETING ── *@
+<div class="at-hero d-flex justify-content-between align-items-center flex-wrap gap-3">
+    <div>
+        <h4 class="mb-1 fw-bold"><i class="fas fa-shield-alt me-2"></i>Account Team Dashboard</h4>
+        <p class="mb-0" style="opacity:.75;font-size:.88rem">Manage budgets, review reports, and track employee wallets</p>
+    </div>
+    @if (Model.AwaitingTransfer > 0)
+    {
+        <a href="/AccountTeam/Reports?status=ApprovedByManagement" class="btn btn-warning fw-bold" style="border-radius:10px">
+            <i class="fas fa-exclamation-triangle me-2"></i>@Model.AwaitingTransfer Transfer(s) Pending
+        </a>
+    }
+</div>
+
+@* ── STAT CARDS ── *@
+<div class="row g-3 mb-4">
+    <div class="col-6 col-md-3">
+        <div class="stat-card">
+            <div class="stat-icon" style="background:#fef3c7;color:#d97706"><i class="fas fa-clock"></i></div>
+            <div class="stat-value">@Model.PendingReports</div>
+            <div class="stat-label">Reports to Review</div>
+        </div>
+    </div>
+    <div class="col-6 col-md-3">
+        <div class="stat-card">
+            <div class="stat-icon" style="background:#d1fae5;color:#16a34a"><i class="fas fa-check-circle"></i></div>
+            <div class="stat-value">@Model.ApprovedClaims</div>
+            <div class="stat-label">Approved Claims</div>
+        </div>
+    </div>
+    <div class="col-6 col-md-3">
+        <div class="stat-card">
+            <div class="stat-icon" style="background:#dbeafe;color:#1d4ed8"><i class="fas fa-wallet"></i></div>
+            <div class="stat-value" style="font-size:1.4rem">₹@Model.TotalAllocated.ToString("N0")</div>
+            <div class="stat-label">Total Allocated</div>
+        </div>
+    </div>
+    <div class="col-6 col-md-3">
+        <a href="/AccountTeam/Reports?status=ApprovedByManagement" class="text-decoration-none">
+            <div class="stat-card @(Model.AwaitingTransfer>0?"border-warning":"")">
+                <div class="stat-icon" style="background:#fef9c3;color:#854d0e"><i class="fas fa-exchange-alt"></i></div>
+                <div class="stat-value @(Model.AwaitingTransfer>0?"text-warning":"")">@Model.AwaitingTransfer</div>
+                <div class="stat-label">Pending Transfers</div>
+                @if (Model.AwaitingTransfer > 0)
+                { <small class="text-warning fw-semibold" style="font-size:.72rem">⚠️ Action required</small> }
+            </div>
+        </a>
+    </div>
+</div>
+
+@if (Model.AwaitingTransfer > 0)
+{
+    <div class="alert alert-warning d-flex align-items-center justify-content-between flex-wrap gap-2 mb-4" style="border-radius:12px">
+        <div><i class="fas fa-exclamation-triangle me-2"></i><strong>@Model.AwaitingTransfer report(s)</strong> approved by Management with balance pending transfer.</div>
+        <a href="/AccountTeam/Reports?status=ApprovedByManagement" class="btn btn-warning btn-sm fw-semibold" style="border-radius:8px">
+            <i class="fas fa-exchange-alt me-1"></i>Process Now
+        </a>
+    </div>
+}
+
+<div class="row g-3">
+    @* ── PENDING REPORTS ── *@
+    <div class="col-lg-7">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <span><i class="fas fa-file-invoice me-2"></i>Reports Awaiting Review</span>
+                <a href="/AccountTeam/Reports" class="btn btn-sm btn-outline-primary" style="border-radius:8px">View All</a>
+            </div>
+            @if (!Model.PendingReports_List.Any())
+            {
+                <div class="text-center py-5 text-muted">
+                    <i class="fas fa-inbox fa-2x mb-2 d-block"></i>No reports pending review
+                </div>
+            }
+            else
+            {
+                @foreach (var r in Model.PendingReports_List)
+                {
+                    <div class="report-row">
+                        <div>
+                            <div class="fw-semibold" style="font-size:.9rem">@r.ReportTitle</div>
+                            <small class="text-muted">
+                                <i class="fas fa-user me-1"></i>@r.Employee?.FullName &nbsp;·&nbsp;
+                                <i class="fas fa-rupee-sign me-1"></i>@r.TotalClaimed.ToString("N0")
+                            </small>
+                        </div>
+                        <a href="/AccountTeam/ReportDetail/@r.Id" class="btn btn-sm btn-primary" style="border-radius:8px;flex-shrink:0">
+                            Review →
+                        </a>
+                    </div>
+                }
+            }
+        </div>
+    </div>
+
+    @* ── QUICK ACTIONS ── *@
+    <div class="col-lg-5">
+        <div class="card">
+            <div class="card-header"><i class="fas fa-bolt me-2"></i>Quick Actions</div>
+            <div class="card-body d-flex flex-column gap-2">
+                <a href="/AccountTeam/AllocateBudget" class="quick-action">
+                    <div class="qa-icon" style="background:#dbeafe;color:#1d4ed8"><i class="fas fa-wallet"></i></div>
+                    <div>
+                        <div>Top Up Employee Wallet</div>
+                        <small class="text-muted fw-normal">Add funds to employee balance</small>
+                    </div>
+                    <i class="fas fa-chevron-right ms-auto text-muted"></i>
+                </a>
+                <a href="/AccountTeam/CreateEmployee" class="quick-action">
+                    <div class="qa-icon" style="background:#d1fae5;color:#16a34a"><i class="fas fa-user-plus"></i></div>
+                    <div>
+                        <div>Add New Employee</div>
+                        <small class="text-muted fw-normal">Create login & profile</small>
+                    </div>
+                    <i class="fas fa-chevron-right ms-auto text-muted"></i>
+                </a>
+                <a href="/AccountTeam/Employees" class="quick-action">
+                    <div class="qa-icon" style="background:#ede9fe;color:#7c3aed"><i class="fas fa-users"></i></div>
+                    <div>
+                        <div>Manage Employees</div>
+                        <small class="text-muted fw-normal">View, edit, delete employees</small>
+                    </div>
+                    <i class="fas fa-chevron-right ms-auto text-muted"></i>
+                </a>
+                <a href="/AccountTeam/Reports?status=ApprovedByManagement" class="quick-action @(Model.AwaitingTransfer>0?"border-warning":"")">
+                    <div class="qa-icon" style="background:#fef9c3;color:#854d0e"><i class="fas fa-exchange-alt"></i></div>
+                    <div>
+                        <div>Transfer Balances @(Model.AwaitingTransfer>0?$"({Model.AwaitingTransfer} pending)":"")</div>
+                        <small class="text-muted fw-normal">Return approved report balances</small>
+                    </div>
+                    <i class="fas fa-chevron-right ms-auto text-muted"></i>
+                </a>
+                <a href="/AccountTeam/Budgets" class="quick-action">
+                    <div class="qa-icon" style="background:#f1f5f9;color:#475569"><i class="fas fa-list"></i></div>
+                    <div>
+                        <div>All Budgets</div>
+                        <small class="text-muted fw-normal">View allocation history</small>
+                    </div>
+                    <i class="fas fa-chevron-right ms-auto text-muted"></i>
+                </a>
+            </div>
+        </div>
+    </div>
+</div>

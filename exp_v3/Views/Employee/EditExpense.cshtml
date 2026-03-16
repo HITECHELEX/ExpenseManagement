@@ -1,0 +1,230 @@
+@model ExpenseManagement.ViewModels.EditExpenseClaimVM
+@{
+    ViewData["Title"] = "Edit Expense";
+    var report = ViewBag.Report as ExpenseManagement.Models.ExpenseReport;
+    var budget = report?.Budget;
+    var remaining = budget?.RemainingBalance ?? 0;
+    var isOverspent = remaining < 0;
+    var existingReceipt = ViewBag.ExistingReceipt as string;
+}
+
+<div class="d-flex align-items-center gap-2 mb-3">
+    <a href="/Employee/ReportDetail/@report?.Id" class="btn btn-outline-secondary btn-sm">
+        <i class="fas fa-arrow-left me-1"></i>Back
+    </a>
+    <h5 class="mb-0">Edit Expense</h5>
+    <span class="badge badge-draft ms-1">Draft</span>
+</div>
+
+@if (report != null)
+{
+    var pct = budget != null && budget.TotalAmount > 0 ? Math.Min(100, (double)(budget.SpentAmount / budget.TotalAmount * 100)) : 0;
+    var cardBg = isOverspent ? "linear-gradient(135deg,#dc2626,#b91c1c)" : "linear-gradient(135deg,#2563eb,#1d4ed8)";
+    <div class="card mb-3 border-0" style="background:@cardBg;color:#fff;border-radius:14px">
+        <div class="card-body p-3">
+            <div class="d-flex justify-content-between mb-1">
+                <span style="opacity:.85;font-size:.83rem">@(isOverspent ? "⚠️ Over Budget" : "Available Balance")</span>
+                <span style="opacity:.85;font-size:.83rem">@budget?.Purpose</span>
+            </div>
+            <div style="font-size:1.8rem;font-weight:700">
+                @(isOverspent ? "-" : "")₹@Math.Abs(remaining).ToString("N2")
+            </div>
+            <div class="progress mt-2" style="height:5px;background:rgba(255,255,255,.3)">
+                <div class="progress-bar bg-white" style="width:@pct%"></div>
+            </div>
+            <small style="opacity:.75">₹@budget?.SpentAmount.ToString("N0") spent of ₹@budget?.TotalAmount.ToString("N0")</small>
+        </div>
+    </div>
+}
+
+<div class="card">
+    <div class="card-header"><i class="fas fa-edit me-2"></i>Edit Expense Details</div>
+    <div class="card-body">
+        <form method="post" action="/Employee/EditExpense" enctype="multipart/form-data">
+            @Html.AntiForgeryToken()
+            <input type="hidden" name="ClaimId" value="@Model.ClaimId" />
+
+            <div asp-validation-summary="ModelOnly" class="alert alert-danger mb-3" style="display:@(ViewData.ModelState.IsValid ? "none" : "block")"></div>
+
+            <div class="row g-3">
+                <div class="col-md-6">
+                    <label class="form-label fw-semibold">Expense Date <span class="text-danger">*</span></label>
+                    <input type="date" name="ExpenseDate" class="form-control"
+                           value="@Model.ExpenseDate.ToString("yyyy-MM-dd")" required />
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label fw-semibold">Amount (₹) <span class="text-danger">*</span></label>
+                    <div class="input-group">
+                        <span class="input-group-text">₹</span>
+                        <input type="number" name="Amount" class="form-control" value="@Model.Amount"
+                               step="0.01" min="0.01" required id="amtInput" />
+                    </div>
+                    <small class="text-muted">You can exceed your budget — overspend recovered from next allocation.</small>
+                    <div id="overspendWarn" class="mt-1 p-2 rounded d-none"
+                         style="background:#fef9c3;border:1px solid #fbbf24;font-size:.8rem">
+                        <i class="fas fa-exclamation-triangle text-warning me-1"></i>
+                        <span id="overspendMsg"></span>
+                    </div>
+                </div>
+
+                <div class="col-12">
+                    <label class="form-label fw-semibold">Expense Title <span class="text-danger">*</span></label>
+                    <input type="text" name="Title" class="form-control" value="@Model.Title"
+                           placeholder="e.g. Hotel stay, Cab fare" required />
+                </div>
+
+                <div class="col-md-6">
+                    <label class="form-label fw-semibold">Category <span class="text-danger">*</span></label>
+                    <select name="Category" class="form-select" required>
+                        <option value="">Select category</option>
+                        @foreach (var cat in new[] { "Travel","Accommodation","Food & Meals","Communication","Office Supplies","Client Entertainment","Training","Medical","Miscellaneous" })
+                        {
+                            <option value="@cat" selected="@(Model.Category == cat)">@cat</option>
+                        }
+                    </select>
+                </div>
+
+                <div class="col-md-6">
+                    <label class="form-label fw-semibold">Description</label>
+                    <input type="text" name="Description" class="form-control"
+                           value="@Model.Description" placeholder="Optional details" />
+                </div>
+
+                <!-- Current receipt -->
+                <div class="col-12">
+                    <label class="form-label fw-semibold">Bill / Receipt</label>
+                    @if (!string.IsNullOrEmpty(existingReceipt))
+                    {
+                        var ext2 = System.IO.Path.GetExtension(existingReceipt).ToLower();
+                        <div class="mb-2 p-3 rounded d-flex align-items-center gap-3"
+                             style="background:#f8fafc;border:1px solid #e2e8f0">
+                            @if (ext2 == ".pdf")
+                            {
+                                <i class="fas fa-file-pdf fa-2x text-danger"></i>
+                            }
+                            else
+                            {
+                                <img src="@existingReceipt" style="height:60px;width:60px;object-fit:cover;border-radius:6px" />
+                            }
+                            <div>
+                                <div class="fw-semibold">Current receipt attached</div>
+                                <div class="d-flex align-items-center gap-2 mt-1">
+                                    <a href="@existingReceipt" target="_blank" class="btn btn-sm btn-outline-primary py-0 px-2">
+                                        <i class="fas fa-eye me-1"></i>View
+                                    </a>
+                                    <label class="d-flex align-items-center gap-1 mb-0" style="cursor:pointer">
+                                        <input type="checkbox" name="RemoveReceipt" value="true" id="removeChk" />
+                                        <span class="text-danger" style="font-size:.85rem">Remove</span>
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+                    }
+
+                    <div id="uploadSection" @(!string.IsNullOrEmpty(existingReceipt) ? "style=\"display:none\"" : "")>
+                        <div class="bill-upload-zone" id="uploadZone" onclick="document.getElementById('billFile').click()">
+                            <i class="fas fa-camera d-block"></i>
+                            <p class="mb-1 fw-semibold">Upload New Bill Photo or PDF</p>
+                            <p class="text-muted mb-0" style="font-size:.82rem">JPG, PNG, PDF · Max 10MB</p>
+                        </div>
+                        <input type="file" name="Receipt" id="billFile" class="d-none"
+                               accept="image/*,.pdf" capture="environment" />
+                        <div id="previewContainer" style="display:none" class="text-center mt-2">
+                            <img id="billPreview" class="bill-preview d-none" />
+                            <div id="pdfPreview" class="d-none">
+                                <i class="fas fa-file-pdf fa-3x text-danger"></i>
+                                <p id="pdfName" class="mt-1 mb-0"></p>
+                            </div>
+                            <button type="button" class="btn btn-sm btn-outline-danger mt-2" onclick="clearFile()">
+                                <i class="fas fa-times me-1"></i>Remove
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="d-flex gap-2 mt-4">
+                <button type="submit" class="btn btn-primary flex-fill">
+                    <i class="fas fa-save me-2"></i>Save Changes
+                </button>
+                <a href="/Employee/ReportDetail/@report?.Id" class="btn btn-outline-secondary">Cancel</a>
+            </div>
+        </form>
+    </div>
+</div>
+
+@section Scripts {
+<script>
+const currentBalance = @remaining;
+const origAmount = @Model.Amount;
+
+document.getElementById('amtInput').addEventListener('input', function() {
+    const val = parseFloat(this.value) || 0;
+    const diff = val - origAmount;
+    const newBal = currentBalance - diff;
+    const warn = document.getElementById('overspendWarn');
+    const msg = document.getElementById('overspendMsg');
+    if (newBal < 0) {
+        msg.textContent = `This will exceed budget by ₹${Math.abs(newBal).toFixed(2)}. Recovered from next allocation.`;
+        warn.classList.remove('d-none');
+    } else {
+        warn.classList.add('d-none');
+    }
+});
+
+@if (!string.IsNullOrEmpty(existingReceipt))
+{
+    <text>
+    const removeChk = document.getElementById('removeChk');
+    const uploadSection = document.getElementById('uploadSection');
+    if (removeChk) {
+        removeChk.addEventListener('change', function() {
+            uploadSection.style.display = this.checked ? 'block' : 'none';
+        });
+    }
+    </text>
+}
+
+const billFile = document.getElementById('billFile');
+const uploadZone = document.getElementById('uploadZone');
+const previewContainer = document.getElementById('previewContainer');
+const billPreview = document.getElementById('billPreview');
+const pdfPreview = document.getElementById('pdfPreview');
+const pdfName = document.getElementById('pdfName');
+
+billFile?.addEventListener('change', function() {
+    const file = this.files[0];
+    if (!file) return;
+    previewContainer.style.display = 'block';
+    if (file.type === 'application/pdf') {
+        billPreview.classList.add('d-none');
+        pdfPreview.classList.remove('d-none');
+        pdfName.textContent = file.name;
+    } else {
+        pdfPreview.classList.add('d-none');
+        billPreview.classList.remove('d-none');
+        const reader = new FileReader();
+        reader.onload = e => billPreview.src = e.target.result;
+        reader.readAsDataURL(file);
+    }
+    if (uploadZone) uploadZone.style.borderColor = '#2563eb';
+});
+
+uploadZone?.addEventListener('dragover', e => { e.preventDefault(); uploadZone.classList.add('dragover'); });
+uploadZone?.addEventListener('dragleave', () => uploadZone.classList.remove('dragover'));
+uploadZone?.addEventListener('drop', e => {
+    e.preventDefault(); uploadZone.classList.remove('dragover');
+    const dt = new DataTransfer();
+    dt.items.add(e.dataTransfer.files[0]);
+    billFile.files = dt.files;
+    billFile.dispatchEvent(new Event('change'));
+});
+
+function clearFile() {
+    if (billFile) billFile.value = '';
+    if (previewContainer) previewContainer.style.display = 'none';
+    if (billPreview) billPreview.src = '';
+    if (uploadZone) uploadZone.style.borderColor = '';
+}
+</script>
+}

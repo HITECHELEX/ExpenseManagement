@@ -1,0 +1,39 @@
+@model ExpenseManagement.ViewModels.EditEmployeeVM
+@{ ViewData["Title"] = "Edit Employee"; }
+
+<div class="d-flex align-items-center gap-2 mb-3">
+    <a href="/AccountTeam/Employees" class="btn btn-outline-secondary btn-sm"><i class="fas fa-arrow-left me-1"></i>Back</a>
+    <h5 class="mb-0">Edit Employee</h5>
+</div>
+
+<div class="card">
+    <div class="card-header"><i class="fas fa-user-edit me-2"></i>Employee Details</div>
+    <div class="card-body">
+        <form method="post" action="/AccountTeam/EditEmployee">
+            @Html.AntiForgeryToken()
+            <input type="hidden" name="Id" value="@Model.Id" />
+            <div asp-validation-summary="All" class="alert alert-danger mb-3"></div>
+            <div class="row g-3">
+                <div class="col-md-6">
+                    <label class="form-label">Full Name <span class="text-danger">*</span></label>
+                    <input type="text" name="FullName" value="@Model.FullName" class="form-control" placeholder="John Doe" required />
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label">Department</label>
+                    <input type="text" name="Department" value="@Model.Department" class="form-control" placeholder="Sales, Marketing, etc." />
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label">Email <span class="text-danger">*</span></label>
+                    <input type="email" name="Email" value="@Model.Email" class="form-control" placeholder="john@company.com" required />
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label">New Password <span class="text-muted">(leave blank to keep current)</span></label>
+                    <input type="password" name="NewPassword" class="form-control" placeholder="Min. 6 characters" minlength="6" />
+                </div>
+            </div>
+            <button type="submit" class="btn btn-primary mt-3">
+                <i class="fas fa-save me-2"></i>Save Changes
+            </button>
+        </form>
+    </div>
+</div>

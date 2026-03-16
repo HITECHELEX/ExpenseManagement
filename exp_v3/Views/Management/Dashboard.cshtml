@@ -1,0 +1,54 @@
+@model ExpenseManagement.ViewModels.ManagementDashboardVM
+@{ ViewData["Title"] = "Management Dashboard"; ViewBag.UnreadNotifications = Model.UnreadNotifications; }
+
+<div class="row g-3 mb-4">
+    <div class="col-6 col-md-3">
+        <div class="stat-card">
+            <div class="stat-icon" style="background:#eff6ff;color:#2563eb"><i class="fas fa-users"></i></div>
+            <div class="stat-value">@Model.TotalEmployees</div>
+            <div class="stat-label">Total Employees</div>
+        </div>
+    </div>
+    <div class="col-6 col-md-3">
+        <div class="stat-card">
+            <div class="stat-icon" style="background:#fef3c7;color:#d97706"><i class="fas fa-tasks"></i></div>
+            <div class="stat-value">@Model.ReportsForReview</div>
+            <div class="stat-label">Reports to Review</div>
+        </div>
+    </div>
+    <div class="col-6 col-md-3">
+        <div class="stat-card">
+            <div class="stat-icon" style="background:#dbeafe;color:#1d4ed8"><i class="fas fa-wallet"></i></div>
+            <div class="stat-value">₹@Model.TotalBudgetAllocated.ToString("N0")</div>
+            <div class="stat-label">Total Allocated</div>
+        </div>
+    </div>
+    <div class="col-6 col-md-3">
+        <div class="stat-card">
+            <div class="stat-icon" style="background:#d1fae5;color:#16a34a"><i class="fas fa-coins"></i></div>
+            <div class="stat-value">₹@((Model.TotalBudgetAllocated - Model.TotalSpent).ToString("N0"))</div>
+            <div class="stat-label">Remaining Budget</div>
+        </div>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <span><i class="fas fa-file-invoice me-2"></i>Reports Awaiting Review</span>
+        <a href="/Management/Reports" class="btn btn-sm btn-outline-primary">View All</a>
+    </div>
+    <div class="card-body p-0">
+        @if (!Model.RecentReports.Any())
+        { <div class="text-center py-4 text-muted">No reports pending review</div> }
+        @foreach (var r in Model.RecentReports)
+        {
+            <div class="d-flex align-items-center justify-content-between p-3 border-bottom flex-wrap gap-2">
+                <div>
+                    <div class="fw-semibold">@r.ReportTitle</div>
+                    <small class="text-muted">@r.Employee?.FullName · ₹@r.TotalClaimed.ToString("N2") · @r.AccountTeamVerifiedOn?.ToString("dd MMM")</small>
+                </div>
+                <a href="/Management/ReportDetail/@r.Id" class="btn btn-sm btn-primary">Review</a>
+            </div>
+        }
+    </div>
+</div>

@@ -1,0 +1,22 @@
+@model List<ExpenseManagement.Models.ExpenseClaim>
+@using ExpenseManagement.Models
+@{ ViewData["Title"] = "All Claims"; }
+<h5 class="mb-3"><i class="fas fa-receipt me-2"></i>All Claims</h5>
+<div class="table-responsive">
+    <table class="table table-hover">
+        <thead><tr><th>Employee</th><th>Title</th><th>Category</th><th>Amount</th><th>Date</th><th>Status</th></tr></thead>
+        <tbody>
+            @foreach (var c in Model)
+            {
+                <tr>
+                    <td>@c.Employee?.FullName</td>
+                    <td>@c.Title</td>
+                    <td>@c.Category</td>
+                    <td>₹@c.Amount.ToString("N2")</td>
+                    <td>@c.ExpenseDate.ToString("dd MMM yy")</td>
+                    <td><span class="badge @(c.Status == ExpenseStatus.Approved ? "badge-approved" : c.Status == ExpenseStatus.Declined ? "badge-declined" : "badge-pending")">@c.Status</span></td>
+                </tr>
+            }
+        </tbody>
+    </table>
+</div>

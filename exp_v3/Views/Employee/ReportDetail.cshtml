@@ -1,0 +1,427 @@
+@model ExpenseManagement.Models.ExpenseReport
+@using ExpenseManagement.Models
+@{ ViewData["Title"] = Model.ReportTitle; }
+
+<div class="d-flex align-items-center mb-3 gap-2 flex-wrap">
+    <a href="/Employee/MyReports" class="btn btn-outline-secondary btn-sm"><i class="fas fa-arrow-left me-1"></i>Back</a>
+    <h5 class="mb-0 me-auto">@Model.ReportTitle</h5>
+    @{
+        var (badgeCls, badgeTxt) = Model.Status switch {
+            ReportStatus.Draft => ("badge-draft","Draft"),
+            ReportStatus.SubmittedToAccountTeam => ("badge-submitted","Submitted to Accounts"),
+            ReportStatus.ReviewedByAccountTeam => ("badge-reviewed","Reviewed by Accounts"),
+            ReportStatus.ForwardedToManagement => ("badge-forwarded","At Management"),
+            ReportStatus.ApprovedByManagement => ("badge-approved","Approved ✓"),
+            ReportStatus.RejectedByManagement => ("badge-rejected","Rejected"),
+            _ => ("badge-secondary","Unknown")
+        };
+    }
+    <span class="badge @badgeCls px-3 py-2 fs-6">@badgeTxt</span>
+
+    @* CRUD actions for Draft reports *@
+    @if (Model.Status == ReportStatus.Draft)
+    {
+        <a href="/Employee/EditReport/@Model.Id" class="btn btn-sm btn-outline-primary">
+            <i class="fas fa-edit me-1"></i>Edit
+        </a>
+        <button type="button" class="btn btn-sm btn-outline-danger" data-bs-toggle="modal" data-bs-target="#deleteReportModal">
+            <i class="fas fa-trash me-1"></i>Delete
+        </button>
+    }
+</div>
+
+@if (!string.IsNullOrEmpty(Model.ManagementFeedback))
+{
+    <div class="alert @(Model.Status == ReportStatus.ApprovedByManagement ? "alert-success" : "alert-danger") mb-3">
+        <strong><i class="fas fa-comment me-2"></i>Management Feedback:</strong> @Model.ManagementFeedback
+    </div>
+}
+
+@if (!string.IsNullOrEmpty(Model.AccountTeamNotes) && Model.Status == ReportStatus.Draft)
+{
+    <div class="alert alert-warning mb-3">
+        <i class="fas fa-exclamation-circle me-2"></i>
+        <strong>Returned by Account Team:</strong> @Model.AccountTeamNotes
+    </div>
+}
+
+@* ── STAT CARDS ── *@
+<div class="row g-3 mb-3">
+    <div class="col-6 col-md-3">
+        <div class="stat-card">
+            @if (Model.Status == ReportStatus.Draft)
+            {
+                var wb = (ViewBag.WalletBalance as decimal?) ?? Model.Budget?.RemainingBalance ?? 0;
+                <div class="stat-label">Wallet Balance</div>
+                @if (wb >= 0)
+                {
+                    <div class="stat-value text-success">₹@wb.ToString("N2")</div>
+                }
+                else
+                {
+                    <div class="stat-value text-danger">-₹@Math.Abs(wb).ToString("N2")</div>
+                    <small class="text-danger" style="font-size:.75rem">⚠️ Over budget</small>
+                }
+            }
+            else
+            {
+                <div class="stat-label">Report Total</div>
+                <div class="stat-value">₹@Model.TotalClaimed.ToString("N2")</div>
+                <small class="text-muted">@Model.ExpenseClaims.Count expense(s)</small>
+            }
+        </div>
+    </div>
+    <div class="col-6 col-md-3">
+        <div class="stat-card">
+            <div class="stat-label">Total Claimed</div>
+            <div class="stat-value text-warning">₹@Model.TotalClaimed.ToString("N2")</div>
+        </div>
+    </div>
+    <div class="col-6 col-md-3">
+        <div class="stat-card">
+            @if (Model.Status == ReportStatus.Draft)
+            {
+                var liveBalance = Model.Budget?.RemainingBalance ?? 0;
+                <div class="stat-label">Current Balance</div>
+                @if (liveBalance >= 0)
+                {
+                    <div class="stat-value text-success">₹@liveBalance.ToString("N2")</div>
+                }
+                else
+                {
+                    <div class="stat-value text-danger">-₹@Math.Abs(liveBalance).ToString("N2")</div>
+                    <small class="text-danger" style="font-size:.75rem">⚠️ Over budget — recovered from next allocation</small>
+                }
+            }
+            else
+            {
+                @if (Model.RemainingBalanceAtSubmission >= 0)
+                {
+                    <div class="stat-label">Balance Returned</div>
+                    <div class="stat-value text-success">₹@Model.RemainingBalanceAtSubmission.ToString("N2")</div>
+                }
+                else
+                {
+                    <div class="stat-label">Overspent By</div>
+                    <div class="stat-value text-danger">₹@Math.Abs(Model.RemainingBalanceAtSubmission).ToString("N2")</div>
+                    <small class="text-danger" style="font-size:.75rem">Auto-deducted from next allocation</small>
+                }
+            }
+        </div>
+    </div>
+    <div class="col-6 col-md-3">
+        <div class="stat-card">
+            <div class="stat-label">Expenses</div>
+            <div class="stat-value">@Model.ExpenseClaims.Count</div>
+        </div>
+    </div>
+</div>
+
+@* ── DRAFT ACTION BAR ── *@
+@if (Model.Status == ReportStatus.Draft)
+{
+    var draftBal = Model.Budget?.RemainingBalance ?? 0;
+    <div class="alert @(draftBal < 0 ? "alert-warning" : "alert-info") d-flex align-items-center justify-content-between flex-wrap gap-2 mb-3">
+        <div>
+            <i class="fas fa-info-circle me-2"></i>
+            @if (draftBal < 0)
+            {
+                <span>Draft report — budget exceeded by <strong>₹@Math.Abs(draftBal).ToString("N2")</strong>. This will be recovered from your next allocation.</span>
+            }
+            else
+            {
+                <span>Draft report — add expenses and forward to Account Team when done.</span>
+            }
+        </div>
+        <div class="d-flex gap-2 flex-wrap">
+            <a href="/Employee/AddExpense?reportId=@Model.Id" class="btn btn-primary btn-sm">
+                <i class="fas fa-plus me-1"></i>Add Expense
+            </a>
+            @if (Model.ExpenseClaims.Any())
+            {
+                <button type="button" class="btn btn-success btn-sm" data-bs-toggle="modal" data-bs-target="#forwardModal">
+                    <i class="fas fa-paper-plane me-1"></i>Forward to Accounts
+                </button>
+            }
+        </div>
+    </div>
+}
+
+@* ── TIMELINE ── *@
+<div class="card mb-3">
+    <div class="card-header"><i class="fas fa-stream me-2"></i>Report Progress</div>
+    <div class="card-body">
+        <div class="timeline">
+            <div class="timeline-item">
+                <div class="timeline-dot done"></div>
+                <strong>Draft Created</strong>
+                <div class="text-muted" style="font-size:.8rem">@Model.CreatedOn.ToString("dd MMM yyyy HH:mm")</div>
+            </div>
+            <div class="timeline-item">
+                <div class="timeline-dot @(Model.Status >= ReportStatus.SubmittedToAccountTeam ? "done" : "")"></div>
+                <strong>Forwarded to Account Team</strong>
+                @if (Model.ForwardedToAccountTeamOn.HasValue)
+                { <div class="text-muted" style="font-size:.8rem">@Model.ForwardedToAccountTeamOn.Value.ToString("dd MMM yyyy HH:mm")</div> }
+                else { <div class="text-muted" style="font-size:.8rem">Pending</div> }
+            </div>
+            <div class="timeline-item">
+                <div class="timeline-dot @(Model.Status >= ReportStatus.ForwardedToManagement ? "done" : "")"></div>
+                <strong>Reviewed by Account Team</strong>
+                @if (Model.AccountTeamVerifiedOn.HasValue)
+                {
+                    <div class="text-muted" style="font-size:.8rem">
+                        @Model.AccountTeamVerifiedOn.Value.ToString("dd MMM yyyy HH:mm")
+                        @if (!string.IsNullOrEmpty(Model.AccountTeamNotes)) { <span>· @Model.AccountTeamNotes</span> }
+                    </div>
+                }
+                else { <div class="text-muted" style="font-size:.8rem">Pending</div> }
+            </div>
+            <div class="timeline-item">
+                <div class="timeline-dot @(Model.Status == ReportStatus.ApprovedByManagement ? "done" : Model.Status == ReportStatus.RejectedByManagement ? "rejected" : "")"></div>
+                <strong>Management Decision</strong>
+                @if (Model.ManagementReviewedOn.HasValue)
+                {
+                    <div class="text-muted" style="font-size:.8rem">
+                        @Model.ManagementReviewedOn.Value.ToString("dd MMM yyyy HH:mm")
+                        @if (!string.IsNullOrEmpty(Model.ManagementNotes)) { <span>· @Model.ManagementNotes</span> }
+                    </div>
+                }
+                else { <div class="text-muted" style="font-size:.8rem">Pending</div> }
+            </div>
+        </div>
+    </div>
+</div>
+
+@* ── EXPENSE TABLE ── *@
+<div class="card">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <span><i class="fas fa-list me-2"></i>Expenses (@Model.ExpenseClaims.Count)</span>
+        @if (Model.Status == ReportStatus.Draft)
+        {
+            <a href="/Employee/AddExpense?reportId=@Model.Id" class="btn btn-sm btn-primary">
+                <i class="fas fa-plus me-1"></i>Add
+            </a>
+        }
+    </div>
+    <div class="table-responsive">
+        <table class="table table-hover mb-0">
+            <thead>
+                <tr>
+                    <th>Date</th>
+                    <th>Title</th>
+                    <th class="d-mobile-none">Category</th>
+                    <th>Amount</th>
+                    <th>Bill</th>
+                    @if (Model.Status == ReportStatus.Draft) { <th>Actions</th> }
+                </tr>
+            </thead>
+            <tbody>
+                @if (!Model.ExpenseClaims.Any())
+                {
+                    <tr>
+                        <td colspan="6" class="text-center py-4 text-muted">
+                            No expenses added yet.
+                            @if (Model.Status == ReportStatus.Draft)
+                            {
+                                <a href="/Employee/AddExpense?reportId=@Model.Id">Add your first expense →</a>
+                            }
+                        </td>
+                    </tr>
+                }
+                @foreach (var c in Model.ExpenseClaims.OrderBy(x => x.ExpenseDate))
+                {
+                    <tr>
+                        <td>@c.ExpenseDate.ToString("dd MMM")</td>
+                        <td>
+                            <div class="fw-semibold">@c.Title</div>
+                            <small class="text-muted d-md-none">@c.Category</small>
+                            @if (!string.IsNullOrEmpty(c.Description))
+                            { <small class="text-muted d-block">@c.Description</small> }
+                        </td>
+                        <td class="d-mobile-none">@c.Category</td>
+                        <td class="fw-semibold">₹@c.Amount.ToString("N2")</td>
+                        <td>
+                            @if (!string.IsNullOrEmpty(c.ReceiptPath))
+                            {
+                                var ext = System.IO.Path.GetExtension(c.ReceiptPath).ToLower();
+                                if (ext == ".pdf")
+                                { <a href="@c.ReceiptPath" target="_blank" class="btn btn-sm btn-outline-danger"><i class="fas fa-file-pdf"></i></a> }
+                                else
+                                { <a href="@c.ReceiptPath" target="_blank"><img src="@c.ReceiptPath" style="height:36px;width:36px;object-fit:cover;border-radius:6px;border:1px solid #e2e8f0" /></a> }
+                            }
+                            else { <span class="text-muted"><i class="fas fa-image"></i> None</span> }
+                        </td>
+                        @if (Model.Status == ReportStatus.Draft)
+                        {
+                            <td>
+                                <div class="d-flex gap-1">
+                                    <a href="/Employee/EditExpense/@c.Id" class="btn btn-sm btn-outline-primary" title="Edit">
+                                        <i class="fas fa-edit"></i>
+                                    </a>
+                                    <form method="post" action="/Employee/DeleteExpense"
+                                          onsubmit="return confirm('Remove this expense? Budget will be restored.')">
+                                        @Html.AntiForgeryToken()
+                                        <input type="hidden" name="claimId" value="@c.Id" />
+                                        <button class="btn btn-sm btn-outline-danger" title="Delete">
+                                            <i class="fas fa-trash"></i>
+                                        </button>
+                                    </form>
+                                </div>
+                            </td>
+                        }
+                    </tr>
+                }
+            </tbody>
+            @if (Model.ExpenseClaims.Any())
+            {
+                <tfoot>
+                    <tr class="table-light fw-bold">
+                        <td colspan="3">Total</td>
+                        <td>₹@Model.ExpenseClaims.Sum(c => c.Amount).ToString("N2")</td>
+                        <td colspan="@(Model.Status == ReportStatus.Draft ? 2 : 1)"></td>
+                    </tr>
+                </tfoot>
+            }
+        </table>
+    </div>
+</div>
+
+@* ── BALANCE STATUS (post-approval) ── *@
+@if (Model.Status == ReportStatus.ApprovedByManagement && Model.RemainingBalanceAtSubmission > 0)
+{
+    <div class="card border-@(Model.BalanceTransferred ? "success" : "info") mt-3">
+        <div class="card-header bg-@(Model.BalanceTransferred ? "success" : "info") text-white">
+            <i class="fas fa-exchange-alt me-2"></i>Returned Balance
+        </div>
+        <div class="card-body d-flex align-items-center justify-content-between flex-wrap gap-2">
+            <div>
+                <div class="fw-semibold">₹@Model.RemainingBalanceAtSubmission.ToString("N2") unused in this report</div>
+                <small class="text-muted">From budget: @Model.Budget?.Purpose</small>
+            </div>
+            @if (Model.BalanceTransferred)
+            {
+                <div>
+                    <span class="badge bg-success fs-6 px-3 py-2">
+                        <i class="fas fa-check-circle me-1"></i>Transferred on @Model.BalanceTransferredOn?.ToString("dd MMM yyyy")
+                    </span>
+                    @if (Model.TransferredToBudget != null)
+                    {
+                        <div class="text-muted mt-1" style="font-size:.82rem">
+                            Added to budget: <strong>@Model.TransferredToBudget.Purpose</strong>
+                        </div>
+                    }
+                </div>
+            }
+            else
+            {
+                <span class="badge bg-warning text-dark fs-6 px-3 py-2">
+                    <i class="fas fa-clock me-1"></i>Pending transfer by Account Team
+                </span>
+            }
+        </div>
+    </div>
+}
+
+@* ── OVERSPEND STATUS (post-approval) ── *@
+@if (Model.Status == ReportStatus.ApprovedByManagement && Model.RemainingBalanceAtSubmission < 0)
+{
+    <div class="card border-warning mt-3">
+        <div class="card-body d-flex align-items-center gap-3">
+            <i class="fas fa-exclamation-triangle text-warning fa-2x"></i>
+            <div>
+                <div class="fw-semibold">Overspend: ₹@Math.Abs(Model.RemainingBalanceAtSubmission).ToString("N2")</div>
+                <small class="text-muted">Automatically deducted from your next budget allocation.</small>
+            </div>
+            <span class="badge bg-success ms-auto">Auto-Settled</span>
+        </div>
+    </div>
+}
+
+@* ── FORWARD MODAL ── *@
+@if (Model.Status == ReportStatus.Draft && Model.ExpenseClaims.Any())
+{
+    var modalBal = Model.Budget?.RemainingBalance ?? 0;
+    <div class="modal fade" id="forwardModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title"><i class="fas fa-paper-plane me-2"></i>Forward Report to Account Team</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <form method="post" action="/Employee/ForwardReport">
+                    @Html.AntiForgeryToken()
+                    <input type="hidden" name="reportId" value="@Model.Id" />
+                    <div class="modal-body">
+                        @if (modalBal >= 0)
+                        {
+                            <div class="alert alert-info">
+                                <i class="fas fa-info-circle me-2"></i>
+                                Unused balance of <strong>₹@modalBal.ToString("N2")</strong> will be returned to your budget upon approval.
+                            </div>
+                        }
+                        else
+                        {
+                            <div class="alert alert-warning">
+                                <i class="fas fa-exclamation-triangle me-2"></i>
+                                You exceeded your budget by <strong>₹@Math.Abs(modalBal).ToString("N2")</strong>.
+                                This will be <strong>automatically deducted</strong> from your next budget allocation.
+                            </div>
+                        }
+                        <div class="mb-3">
+                            <label class="form-label">Summary / Notes (optional)</label>
+                            <textarea name="notes" class="form-control" rows="3"
+                                      placeholder="Any notes for the account team..."></textarea>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                        <button type="submit" class="btn btn-success">
+                            <i class="fas fa-paper-plane me-2"></i>Forward Report
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+}
+
+@* ── DELETE REPORT MODAL ── *@
+@if (Model.Status == ReportStatus.Draft)
+{
+    <div class="modal fade" id="deleteReportModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header border-0">
+                    <h5 class="modal-title text-danger"><i class="fas fa-trash me-2"></i>Delete Draft Report</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <p>Are you sure you want to delete <strong>"@Model.ReportTitle"</strong>?</p>
+                    <ul class="text-muted" style="font-size:.9rem">
+                        <li>All <strong>@Model.ExpenseClaims.Count expense(s)</strong> will be permanently removed</li>
+                        <li>Your budget balance will be <strong>fully restored</strong></li>
+                        <li>Uploaded bill photos will be deleted</li>
+                        <li>This action <strong>cannot be undone</strong></li>
+                    </ul>
+                    @if (Model.ExpenseClaims.Any())
+                    {
+                        <div class="alert alert-success py-2" style="font-size:.88rem">
+                            <i class="fas fa-coins me-2"></i>
+                            <strong>₹@Model.ExpenseClaims.Sum(c => c.Amount).ToString("N2")</strong> will be restored to budget "@Model.Budget?.Purpose"
+                        </div>
+                    }
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <form method="post" action="/Employee/DeleteReport">
+                        @Html.AntiForgeryToken()
+                        <input type="hidden" name="reportId" value="@Model.Id" />
+                        <button type="submit" class="btn btn-danger">
+                            <i class="fas fa-trash me-2"></i>Delete Report
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+}

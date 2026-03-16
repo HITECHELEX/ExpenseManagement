@@ -1,0 +1,148 @@
+@model ExpenseManagement.ViewModels.RegisterVM
+@{ ViewData["Title"] = "Add Employee"; }
+
+<style>
+.form-card { background:#fff; border-radius:18px; border:1px solid #e8ecf0; overflow:hidden; }
+.form-header { background:linear-gradient(135deg,#1e3a8a,#2563eb); padding:28px 32px; color:#fff; }
+.form-body { padding:32px; }
+.field-group { margin-bottom:20px; }
+.field-label { font-weight:600; font-size:.85rem; color:#374151; margin-bottom:6px; display:block; }
+.field-input { border:1.5px solid #e2e8f0; border-radius:10px; padding:10px 14px; font-size:.93rem; width:100%; transition:all .2s; }
+.field-input:focus { border-color:#2563eb; outline:none; box-shadow:0 0 0 3px rgba(37,99,235,.1); }
+.field-input.is-invalid { border-color:#dc2626; }
+.icon-field { position:relative; }
+.icon-field .field-icon { position:absolute; left:12px; top:50%; transform:translateY(-50%); color:#94a3b8; font-size:.9rem; }
+.icon-field .field-input { padding-left:36px; }
+.submit-btn { background:linear-gradient(135deg,#2563eb,#1d4ed8); color:#fff; border:none; border-radius:12px; padding:13px 24px; font-weight:700; font-size:.95rem; width:100%; cursor:pointer; transition:all .2s; }
+.submit-btn:hover { transform:translateY(-1px); box-shadow:0 6px 20px rgba(37,99,235,.35); }
+.tip-box { background:#f0f9ff; border:1px solid #bae6fd; border-radius:10px; padding:12px 16px; font-size:.82rem; color:#0369a1; }
+</style>
+
+<div class="d-flex align-items-center gap-2 mb-4">
+    <a href="/AccountTeam/Employees" class="btn btn-outline-secondary btn-sm" style="border-radius:8px">
+        <i class="fas fa-arrow-left me-1"></i>Back to Employees
+    </a>
+</div>
+
+<div class="row justify-content-center">
+    <div class="col-lg-7">
+        <div class="form-card">
+            <div class="form-header">
+                <div class="d-flex align-items-center gap-3">
+                    <div style="width:52px;height:52px;background:rgba(255,255,255,.2);border-radius:14px;display:flex;align-items:center;justify-content:center;font-size:1.5rem">
+                        👤
+                    </div>
+                    <div>
+                        <h4 class="mb-1 fw-bold">Add New Employee</h4>
+                        <p class="mb-0" style="opacity:.75;font-size:.85rem">Create employee login credentials and profile</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="form-body">
+                <form method="post" action="/AccountTeam/CreateEmployee">
+                    @Html.AntiForgeryToken()
+
+                    @if (!ViewData.ModelState.IsValid)
+                    {
+                        <div class="alert alert-danger" style="border-radius:10px">
+                            <i class="fas fa-exclamation-circle me-2"></i>
+                            @foreach (var e in ViewData.ModelState.Values.SelectMany(v => v.Errors))
+                            { <div>@e.ErrorMessage</div> }
+                        </div>
+                    }
+
+                    <div class="row g-3">
+                        <div class="col-md-7">
+                            <div class="field-group">
+                                <label class="field-label">Full Name <span class="text-danger">*</span></label>
+                                <div class="icon-field">
+                                    <i class="fas fa-user field-icon"></i>
+                                    <input type="text" name="FullName" class="field-input" placeholder="e.g. Rahul Sharma" required />
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-5">
+                            <div class="field-group">
+                                <label class="field-label">Department</label>
+                                <div class="icon-field">
+                                    <i class="fas fa-building field-icon"></i>
+                                    <input type="text" name="Department" class="field-input" placeholder="Sales, Finance..." />
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-12">
+                            <div class="field-group">
+                                <label class="field-label">Email Address <span class="text-danger">*</span></label>
+                                <div class="icon-field">
+                                    <i class="fas fa-envelope field-icon"></i>
+                                    <input type="email" name="Email" class="field-input" placeholder="rahul@company.com" required />
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-12">
+                            <div class="field-group mb-0">
+                                <label class="field-label">Password <span class="text-danger">*</span></label>
+                                <div class="icon-field">
+                                    <i class="fas fa-lock field-icon"></i>
+                                    <input type="password" name="Password" id="pwdField" class="field-input" placeholder="Min. 6 characters" minlength="6" required style="padding-right:44px" />
+                                    <button type="button" onclick="togglePwd()" style="position:absolute;right:12px;top:50%;transform:translateY(-50%);background:none;border:none;color:#94a3b8;cursor:pointer">
+                                        <i class="fas fa-eye" id="eyeIcon"></i>
+                                    </button>
+                                </div>
+                                <div class="mt-2" id="pwdStrength" style="display:none">
+                                    <div style="height:4px;border-radius:99px;background:#e2e8f0;overflow:hidden">
+                                        <div id="pwdBar" style="height:100%;border-radius:99px;transition:all .3s;width:0%"></div>
+                                    </div>
+                                    <small id="pwdLabel" class="text-muted"></small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="tip-box my-4">
+                        <i class="fas fa-info-circle me-2"></i>
+                        The employee will use these credentials to log in and submit expense reports.
+                        Share the email and password securely.
+                    </div>
+
+                    <button type="submit" class="submit-btn">
+                        <i class="fas fa-user-plus me-2"></i>Create Employee Account
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+<script>
+function togglePwd() {
+    const f = document.getElementById('pwdField');
+    const i = document.getElementById('eyeIcon');
+    f.type = f.type === 'password' ? 'text' : 'password';
+    i.className = f.type === 'password' ? 'fas fa-eye' : 'fas fa-eye-slash';
+}
+
+document.getElementById('pwdField').addEventListener('input', function() {
+    const v = this.value;
+    const s = document.getElementById('pwdStrength');
+    const bar = document.getElementById('pwdBar');
+    const lbl = document.getElementById('pwdLabel');
+    if (v.length === 0) { s.style.display='none'; return; }
+    s.style.display='block';
+    let score = 0;
+    if (v.length >= 6) score++;
+    if (v.length >= 10) score++;
+    if (/[A-Z]/.test(v)) score++;
+    if (/[0-9]/.test(v)) score++;
+    if (/[^A-Za-z0-9]/.test(v)) score++;
+    const colors = ['#ef4444','#f97316','#eab308','#22c55e','#16a34a'];
+    const labels = ['Too short','Weak','Fair','Good','Strong'];
+    bar.style.width = (score*20)+'%';
+    bar.style.background = colors[score-1] || '#ef4444';
+    lbl.textContent = labels[score-1] || '';
+    lbl.style.color = colors[score-1] || '#ef4444';
+});
+</script>
+}
