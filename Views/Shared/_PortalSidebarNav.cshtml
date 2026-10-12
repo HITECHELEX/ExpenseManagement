@@ -1,0 +1,11 @@
+﻿<div class="nav-label">Modules</div>
+
+<a href="/Portal/Expense"
+   class="@(Context.Request.Path.StartsWithSegments("/Portal/Expense") ? "active" : "")">
+    <i class="fas fa-wallet"></i> Expense
+</a>
+
+<a href="/Portal/HRM"
+   class="@(Context.Request.Path.StartsWithSegments("/Portal/HRM") ? "active" : "")">
+    <i class="fas fa-users"></i> HRM
+</a>

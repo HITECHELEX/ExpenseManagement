@@ -4,53 +4,492 @@
 <html lang="en">
 <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
-    <title>Login - ExpenseTrack</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Sign In — ExpenseTrack</title>
     <link rel="icon" type="image/png" href="/LOGO.png" />
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.2/css/bootstrap.min.css" />
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
     <style>
-        body { background: linear-gradient(135deg, #1e3a5f 0%, #0f172a 100%); min-height: 100vh; display:flex; align-items:center; justify-content:center; padding: 20px; }
-        .login-card { background: #fff; border-radius: 16px; padding: 36px 32px; width: 100%; max-width: 420px; box-shadow: 0 20px 60px rgba(0,0,0,.3); }
-        .login-logo { width: 72px; height: 72px; border-radius: 12px; margin: 0 auto 16px; overflow: hidden; }
-        .login-logo img { width: 100%; height: 100%; object-fit: contain; }
-        .form-control { border-radius: 8px; padding: 12px 14px; }
-        .btn-login { background: linear-gradient(135deg, #2563eb, #1d4ed8); border: none; border-radius: 8px; padding: 12px; font-weight: 600; }
-        @@media(max-width:480px) { .login-card { padding: 24px 20px; } }
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            min-height: 100vh;
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+            display: flex;
+        }
+
+        /* ── Left branding panel ── */
+        .left {
+            flex: 0 0 44%;
+            background: linear-gradient(150deg, #0f2057 0%, #1e3a8a 45%, #2563eb 100%);
+            padding: 56px 52px;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            position: relative;
+            overflow: hidden;
+        }
+
+        /* Decorative orbs */
+        .left::before {
+            content: '';
+            position: absolute;
+            width: 400px; height: 400px;
+            border-radius: 50%;
+            background: radial-gradient(circle, rgba(255,255,255,.06) 0%, transparent 70%);
+            bottom: -100px; right: -80px;
+        }
+        .left::after {
+            content: '';
+            position: absolute;
+            width: 220px; height: 220px;
+            border-radius: 50%;
+            background: radial-gradient(circle, rgba(255,255,255,.05) 0%, transparent 70%);
+            top: 60px; right: 30px;
+        }
+        .orb3 {
+            position: absolute;
+            width: 100px; height: 100px;
+            border-radius: 50%;
+            background: radial-gradient(circle, rgba(255,255,255,.04) 0%, transparent 70%);
+            top: 200px; right: 0;
+        }
+
+        .left-inner { position: relative; z-index: 1; display: flex; flex-direction: column; height: 100%; }
+
+        /* Brand */
+        .brand {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+        }
+        .brand-logo {
+            width: 48px; height: 48px;
+            background: rgba(255,255,255,.15);
+            border: 1px solid rgba(255,255,255,.22);
+            border-radius: 14px;
+            display: flex; align-items: center; justify-content: center;
+            box-shadow: 0 4px 16px rgba(0,0,0,.2);
+        }
+        .brand-logo img { width: 32px; height: 32px; object-fit: contain; }
+        .brand-name {
+            color: #fff;
+            font-size: 1.25rem;
+            font-weight: 800;
+            letter-spacing: -.4px;
+        }
+        .brand-name span { color: rgba(255,255,255,.4); font-weight: 400; }
+
+        /* Center content */
+        .left-center { flex: 1; display: flex; flex-direction: column; justify-content: center; padding: 48px 0 32px; }
+
+        .left-tagline {
+            font-size: clamp(1.7rem, 3vw, 2.3rem);
+            font-weight: 800;
+            color: #fff;
+            letter-spacing: -.8px;
+            line-height: 1.18;
+            margin-bottom: 14px;
+        }
+        .left-tagline em { color: rgba(255,255,255,.45); font-style: normal; }
+
+        .left-sub {
+            color: rgba(255,255,255,.55);
+            font-size: .88rem;
+            line-height: 1.65;
+            margin-bottom: 40px;
+            max-width: 340px;
+        }
+
+        /* Features */
+        .features { display: flex; flex-direction: column; gap: 18px; }
+        .feat {
+            display: flex;
+            align-items: flex-start;
+            gap: 14px;
+        }
+        .feat-icon {
+            width: 36px; height: 36px;
+            border-radius: 10px;
+            background: rgba(255,255,255,.1);
+            border: 1px solid rgba(255,255,255,.15);
+            display: flex; align-items: center; justify-content: center;
+            flex-shrink: 0;
+        }
+        .feat-icon i { font-size: .78rem; color: rgba(255,255,255,.85); }
+        .feat-body { min-width: 0; }
+        .feat-title { color: #fff; font-size: .84rem; font-weight: 600; margin-bottom: 2px; }
+        .feat-desc  { color: rgba(255,255,255,.5); font-size: .77rem; line-height: 1.5; }
+
+        /* Role badges */
+        .roles {
+            display: flex; flex-wrap: wrap; gap: 8px;
+            margin-top: 36px;
+        }
+        .role-badge {
+            background: rgba(255,255,255,.08);
+            border: 1px solid rgba(255,255,255,.15);
+            border-radius: 100px;
+            padding: 5px 13px;
+            color: rgba(255,255,255,.65);
+            font-size: .72rem;
+            font-weight: 600;
+            display: flex; align-items: center; gap: 5px;
+        }
+        .role-badge i { font-size: .6rem; opacity: .8; }
+
+        /* Bottom */
+        .left-foot {
+            color: rgba(255,255,255,.25);
+            font-size: .68rem;
+        }
+
+        /* ── Right form panel ── */
+        .right {
+            flex: 1;
+            background: #fff;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 40px 40px;
+        }
+
+        .form-wrap {
+            width: 100%;
+            max-width: 380px;
+        }
+
+        /* Form header */
+        .form-eyebrow {
+            font-size: .65rem;
+            font-weight: 700;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            color: #2563eb;
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            gap: 7px;
+        }
+        .eyebrow-dot {
+            width: 6px; height: 6px;
+            border-radius: 50%;
+            background: #2563eb;
+        }
+        .form-title {
+            font-size: 2rem;
+            font-weight: 800;
+            color: #0f172a;
+            letter-spacing: -.6px;
+            line-height: 1.1;
+            margin-bottom: 6px;
+        }
+        .form-sub {
+            font-size: .83rem;
+            color: #94a3b8;
+            margin-bottom: 32px;
+        }
+
+        /* Error */
+        .error-box {
+            background: #fff1f2;
+            border: 1px solid #fecdd3;
+            border-radius: 12px;
+            padding: 12px 15px;
+            color: #be123c;
+            font-size: .82rem;
+            font-weight: 500;
+            margin-bottom: 22px;
+            display: flex;
+            align-items: center;
+            gap: 9px;
+        }
+
+        /* Fields */
+        .field { margin-bottom: 20px; }
+        .field-lbl {
+            display: block;
+            font-size: .72rem;
+            font-weight: 700;
+            color: #374151;
+            margin-bottom: 7px;
+            letter-spacing: .2px;
+        }
+        .field-lbl sup { color: #ef4444; }
+
+        .inp-wrap { position: relative; }
+        .inp {
+            width: 100%;
+            padding: 13px 44px 13px 44px;
+            background: #f8fafc;
+            border: 1.5px solid #e2e8f0;
+            border-radius: 12px;
+            font-size: .9rem;
+            color: #0f172a;
+            outline: none;
+            transition: border-color .18s, box-shadow .18s, background .18s;
+            font-family: inherit;
+        }
+        .inp::placeholder { color: #cbd5e1; }
+        .inp:focus {
+            border-color: #2563eb;
+            background: #fff;
+            box-shadow: 0 0 0 4px rgba(37,99,235,.1);
+        }
+        .inp:-webkit-autofill { -webkit-box-shadow: 0 0 0 100px #f0f6ff inset; -webkit-text-fill-color: #0f172a; }
+        .inp:focus:-webkit-autofill { -webkit-box-shadow: 0 0 0 100px #fff inset; }
+
+        .inp-icon {
+            position: absolute;
+            left: 15px; top: 50%;
+            transform: translateY(-50%);
+            font-size: .78rem;
+            color: #cbd5e1;
+            pointer-events: none;
+            transition: color .18s;
+        }
+        .inp-wrap:focus-within .inp-icon { color: #2563eb; }
+        .inp-eye {
+            position: absolute;
+            right: 13px; top: 50%;
+            transform: translateY(-50%);
+            background: none; border: none;
+            padding: 4px 6px;
+            color: #cbd5e1; cursor: pointer;
+            font-size: .8rem;
+            transition: color .18s;
+        }
+        .inp-eye:hover { color: #64748b; }
+
+        /* Divider */
+        .divider {
+            display: flex; align-items: center; gap: 12px;
+            margin: 24px 0 20px;
+        }
+        .divider-line { flex: 1; height: 1px; background: #f1f5f9; }
+        .divider-txt { font-size: .68rem; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; color: #cbd5e1; }
+
+        /* Submit */
+        .btn-sign {
+            width: 100%;
+            padding: 14px 24px;
+            background: linear-gradient(135deg, #1e3a8a 0%, #2563eb 100%);
+            border: none; border-radius: 12px;
+            color: #fff; font-size: .92rem; font-weight: 700;
+            letter-spacing: .15px;
+            cursor: pointer;
+            display: flex; align-items: center; justify-content: center; gap: 10px;
+            transition: transform .2s, box-shadow .2s;
+            box-shadow: 0 4px 20px rgba(37,99,235,.35);
+            margin-top: 4px;
+            font-family: inherit;
+            position: relative; overflow: hidden;
+        }
+        .btn-sign::after {
+            content: '';
+            position: absolute; inset: 0;
+            background: linear-gradient(135deg, rgba(255,255,255,.1), transparent);
+            opacity: 0; transition: opacity .2s;
+        }
+        .btn-sign:hover::after { opacity: 1; }
+        .btn-sign:hover  { transform: translateY(-2px); box-shadow: 0 8px 28px rgba(37,99,235,.45); }
+        .btn-sign:active { transform: translateY(0); }
+        .btn-sign:disabled { opacity: .65; cursor: not-allowed; transform: none; }
+
+        .spin {
+            display: none; width: 16px; height: 16px;
+            border: 2.5px solid rgba(255,255,255,.3);
+            border-top-color: #fff;
+            border-radius: 50%;
+            animation: rotate .65s linear infinite;
+        }
+        @@keyframes rotate { to { transform: rotate(360deg); } }
+
+        /* Info box */
+        .info-box {
+            background: #f0f9ff;
+            border: 1px solid #bae6fd;
+            border-radius: 12px;
+            padding: 13px 15px;
+            display: flex; gap: 10px; align-items: flex-start;
+            font-size: .78rem;
+            color: #0369a1;
+            line-height: 1.6;
+        }
+        .info-box i { flex-shrink: 0; margin-top: 1px; font-size: .8rem; color: #0284c7; }
+
+        /* Footer */
+        .form-foot {
+            text-align: center;
+            margin-top: 20px;
+            font-size: .7rem;
+            color: #cbd5e1;
+            display: flex; align-items: center; justify-content: center; gap: 6px;
+        }
+        .form-foot i { font-size: .65rem; }
+
+        /* ── Mobile ── */
+        @@media (max-width: 820px) {
+            body { flex-direction: column; }
+            .left { flex: 0 0 auto; padding: 36px 32px 32px; }
+            .left-center { padding: 28px 0 20px; }
+            .left-tagline { font-size: 1.4rem; }
+            .left-sub, .features { display: none; }
+            .right { padding: 36px 24px; align-items: flex-start; padding-top: 32px; }
+            .form-wrap { max-width: 100%; }
+        }
     </style>
 </head>
 <body>
-<div class="login-card">
-    <div class="login-logo"><img src="/LOGO.png" alt="ExpenseTrack Logo" /></div>
-    <h4 class="text-center fw-700 mb-1">ExpenseTrack</h4>
-    <p class="text-center text-muted mb-4" style="font-size:.875rem">Sign in to your account</p>
 
-    @if (TempData["Error"] != null)
-    { <div class="alert alert-danger py-2">@TempData["Error"]</div> }
+    <!-- Left Panel -->
+    <div class="left">
+        <div class="orb3"></div>
+        <div class="left-inner">
 
-    <form method="post" action="/Account/Login">
-        @Html.AntiForgeryToken()
-        <div class="mb-3">
-            <label class="form-label fw-500">Email</label>
-            <input type="email" name="Email" class="form-control" placeholder="your@email.com" required id="emailInput" />
-        </div>
-        <div class="mb-4">
-            <label class="form-label fw-500">Password</label>
-            <div class="input-group">
-                <input type="password" name="Password" class="form-control" placeholder="Password" required id="pwdInput" />
-                <button type="button" class="btn btn-outline-secondary" onclick="togglePwd()"><i class="fas fa-eye" id="pwdIcon"></i></button>
+            <!-- Brand -->
+            <div class="brand">
+                <div class="brand-logo">
+                    <img src="/LOGO.png" alt="ET"
+                         onerror="this.style.display='none';this.nextElementSibling.style.display='flex'"/>
+                    <i class="fas fa-chart-line" style="display:none;color:#fff;font-size:.95rem"></i>
+                </div>
+                <div class="brand-name">ExpenseTrack<span>.</span></div>
             </div>
+
+            <!-- Tagline & Features -->
+            <div class="left-center">
+                <div class="left-tagline">
+                    Smarter expense<br/>management<br/><em>for your team.</em>
+                </div>
+                <div class="left-sub">
+                    From budget allocation to management approval — everything tracked, audited, and reported in one place.
+                </div>
+
+                <div class="features">
+                    <div class="feat">
+                        <div class="feat-icon"><i class="fas fa-wallet"></i></div>
+                        <div class="feat-body">
+                            <div class="feat-title">Wallet-based Budgets</div>
+                            <div class="feat-desc">Allocate, track, and carry forward employee budgets with full visibility.</div>
+                        </div>
+                    </div>
+                    <div class="feat">
+                        <div class="feat-icon"><i class="fas fa-layer-group"></i></div>
+                        <div class="feat-body">
+                            <div class="feat-title">Multi-stage Approvals</div>
+                            <div class="feat-desc">Employee → Account Team → Management with complete audit trail.</div>
+                        </div>
+                    </div>
+                    <div class="feat">
+                        <div class="feat-icon"><i class="fas fa-file-excel"></i></div>
+                        <div class="feat-body">
+                            <div class="feat-title">Auto-generated Reports</div>
+                            <div class="feat-desc">Download formatted Excel reports with receipts bundled as ZIP.</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="roles">
+                    <span class="role-badge"><i class="fas fa-user"></i>Employee</span>
+                    <span class="role-badge"><i class="fas fa-calculator"></i>Account Team</span>
+                    <span class="role-badge"><i class="fas fa-user-tie"></i>Management</span>
+                </div>
+            </div>
+
+            <!-- Footer -->
+            <div class="left-foot">&copy; @DateTime.Now.Year ExpenseTrack &nbsp;·&nbsp; All rights reserved</div>
         </div>
-        <button type="submit" class="btn btn-login text-white w-100">Sign In</button>
-    </form>
-</div>
-<script>
-function togglePwd() {
-    const i = document.getElementById('pwdInput');
-    const icon = document.getElementById('pwdIcon');
-    if (i.type === 'password') { i.type = 'text'; icon.className = 'fas fa-eye-slash'; }
-    else { i.type = 'password'; icon.className = 'fas fa-eye'; }
-}
-</script>
+    </div>
+
+    <!-- Right Panel -->
+    <div class="right">
+        <div class="form-wrap">
+
+            <div class="form-eyebrow">
+                <div class="eyebrow-dot"></div>
+                Welcome back
+            </div>
+            <div class="form-title">Sign in</div>
+            <div class="form-sub">Enter your credentials to continue</div>
+
+            @if (TempData["Error"] != null)
+            {
+                <div class="error-box">
+                    <i class="fas fa-exclamation-circle"></i>
+                    <span>@TempData["Error"]</span>
+                </div>
+            }
+
+            <form method="post" action="/Account/Login" id="loginForm" onsubmit="handleSubmit()">
+                @Html.AntiForgeryToken()
+
+                <div class="field">
+                    <label class="field-lbl" for="emailInput">Email address <sup>*</sup></label>
+                    <div class="inp-wrap">
+                        <i class="fas fa-envelope inp-icon"></i>
+                        <input type="email" name="Email" id="emailInput"
+                               class="inp" placeholder="you@company.com"
+                               autocomplete="email" required />
+                    </div>
+                </div>
+
+                <div class="field">
+                    <label class="field-lbl" for="pwdInput">Password <sup>*</sup></label>
+                    <div class="inp-wrap">
+                        <i class="fas fa-lock inp-icon"></i>
+                        <input type="password" name="Password" id="pwdInput"
+                               class="inp" placeholder="Enter your password"
+                               autocomplete="current-password" required />
+                        <button type="button" class="inp-eye" onclick="togglePwd()" tabindex="-1" aria-label="Toggle password">
+                            <i class="fas fa-eye" id="eyeIcon"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <button type="submit" class="btn-sign" id="signBtn">
+                    <span class="spin" id="spinner"></span>
+                    <span id="btnTxt">Sign in to ExpenseTrack</span>
+                    <i class="fas fa-arrow-right" id="btnArrow" style="margin-left:auto"></i>
+                </button>
+            </form>
+
+            <div class="divider">
+                <div class="divider-line"></div>
+                <div class="divider-txt">note</div>
+                <div class="divider-line"></div>
+            </div>
+
+            <div class="info-box">
+                <i class="fas fa-info-circle"></i>
+                <span>Access is role-based — Employee, Account Team, or Management. Contact your administrator if you need an account.</span>
+            </div>
+
+            <div class="form-foot">
+                <i class="fas fa-shield-alt"></i>
+                Protected by role-based authentication
+            </div>
+
+        </div>
+    </div>
+
+    <script>
+        function togglePwd() {
+            const inp  = document.getElementById('pwdInput');
+            const icon = document.getElementById('eyeIcon');
+            inp.type   = inp.type === 'password' ? 'text' : 'password';
+            icon.className = inp.type === 'password' ? 'fas fa-eye' : 'fas fa-eye-slash';
+        }
+        function handleSubmit() {
+            const btn  = document.getElementById('signBtn');
+            const spin = document.getElementById('spinner');
+            const txt  = document.getElementById('btnTxt');
+            const arr  = document.getElementById('btnArrow');
+            btn.disabled      = true;
+            spin.style.display = 'block';
+            txt.textContent   = 'Signing in…';
+            if (arr) arr.style.display = 'none';
+        }
+        document.getElementById('emailInput').focus();
+    </script>
 </body>
 </html>

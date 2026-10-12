@@ -1,0 +1,1051 @@
+﻿@using ExpenseManagement.Models
+
+@{
+    Layout = null;
+
+    var employee = ViewBag.Employee as Employee;
+    var payroll = ViewBag.Payroll as Payroll;
+    var salary = ViewBag.Salary as SalaryMaster;
+    var payslipNumber =
+    payroll.PayslipNumber?.ToString() ?? "-";
+
+    int month = ViewBag.Month;
+    int year = ViewBag.Year;
+
+    if (employee == null || payroll == null)
+    {
+        <div style="padding:40px;font-family:Arial;">
+            <h3>Payslip data could not be loaded.</h3>
+        </div>
+
+        return;
+    }
+
+    var user = employee.User;
+    var company = user?.Company;
+
+    var companyName =
+        company?.Name ?? "Company";
+
+    var employeeName =
+        user?.FullName ?? "-";
+
+    var employeeCode =
+        employee.EmployeeCode ?? "-";
+
+    var department =
+        user?.Department ?? "-";
+
+    var designation =
+        employee.Designation ?? "-";
+
+    var joiningDate =
+        employee.JoiningDate.HasValue
+            ? employee.JoiningDate.Value.ToString("dd-MMM-yyyy")
+            : "-";
+
+    var monthStart =
+        new DateTime(year, month, 1);
+
+    var daysInMonth =
+        DateTime.DaysInMonth(year, month);
+
+    // ---------------------------------------------------------
+    // SALARY / STATUTORY DETAILS
+    // ---------------------------------------------------------
+
+    var uanNumber =
+        salary?.UANNumber ?? "-";
+
+    var esicNumber =
+        salary?.ESICNumber ?? "NA";
+
+    // ---------------------------------------------------------
+    // PAYROLL DETAILS
+    // ---------------------------------------------------------
+
+    decimal workingDays = Convert.ToDecimal(payroll.WorkingDays);
+decimal payDays = Convert.ToDecimal(payroll.PayDays);
+decimal paidDays = Convert.ToDecimal(payroll.PaidDays);
+decimal lop = Convert.ToDecimal(payroll.LOP);
+
+decimal basicSalary = Convert.ToDecimal(payroll.BasicSalary);
+decimal hra = Convert.ToDecimal(payroll.HRA);
+decimal conveyance = Convert.ToDecimal(payroll.ConveyanceAllowance);
+decimal washingAllowance = Convert.ToDecimal(payroll.WashingAllowance);
+decimal otherAllowances = Convert.ToDecimal(payroll.OtherAllowances);
+
+decimal grossSalary = Convert.ToDecimal(payroll.GrossSalary);
+
+decimal pf = Convert.ToDecimal(payroll.PF);
+decimal esi = Convert.ToDecimal(payroll.ESI);
+decimal professionalTax = Convert.ToDecimal(payroll.ProfessionalTax);
+decimal lwf = Convert.ToDecimal(payroll.LWF);
+decimal otherDeductions = Convert.ToDecimal(payroll.OtherDeductions);
+
+decimal totalDeductions = Convert.ToDecimal(payroll.TotalDeductions);
+decimal netSalary = Convert.ToDecimal(payroll.NetSalary);
+
+    // ---------------------------------------------------------
+    // MONTHLY SALARY RATE
+    // ---------------------------------------------------------
+
+    decimal monthlyGross =
+        basicSalary +
+        hra +
+        conveyance +
+        washingAllowance +
+        otherAllowances;
+
+    // ---------------------------------------------------------
+    // DISPLAY-ONLY EARNING CALCULATION
+    //
+    // Finalized payroll.GrossSalary remains the source of truth.
+    // These values are only used to display the earning
+    // components proportionally.
+    // ---------------------------------------------------------
+
+    decimal earningFactor =
+        monthlyGross > 0m
+            ? grossSalary / monthlyGross
+            : 0m;
+
+    decimal basicActual =
+        Math.Round(
+            basicSalary * earningFactor,
+            2,
+            MidpointRounding.AwayFromZero);
+
+    decimal hraActual =
+        Math.Round(
+            hra * earningFactor,
+            2,
+            MidpointRounding.AwayFromZero);
+
+    decimal conveyanceActual =
+        Math.Round(
+            conveyance * earningFactor,
+            2,
+            MidpointRounding.AwayFromZero);
+
+    decimal washingActual =
+        Math.Round(
+            washingAllowance * earningFactor,
+            2,
+            MidpointRounding.AwayFromZero);
+
+    decimal otherActual =
+        Math.Round(
+            otherAllowances * earningFactor,
+            2,
+            MidpointRounding.AwayFromZero);
+
+    // ---------------------------------------------------------
+    // NUMBER TO WORDS
+    // ---------------------------------------------------------
+
+    string NumberToWords(long number)
+    {
+        if (number == 0)
+            return "Zero";
+
+        if (number < 0)
+            return "Minus " + NumberToWords(Math.Abs(number));
+
+        string[] ones =
+        {
+            "",
+            "One",
+            "Two",
+            "Three",
+            "Four",
+            "Five",
+            "Six",
+            "Seven",
+            "Eight",
+            "Nine",
+            "Ten",
+            "Eleven",
+            "Twelve",
+            "Thirteen",
+            "Fourteen",
+            "Fifteen",
+            "Sixteen",
+            "Seventeen",
+            "Eighteen",
+            "Nineteen"
+        };
+
+        string[] tens =
+        {
+            "",
+            "",
+            "Twenty",
+            "Thirty",
+            "Forty",
+            "Fifty",
+            "Sixty",
+            "Seventy",
+            "Eighty",
+            "Ninety"
+        };
+
+        string result = "";
+
+        if (number >= 10000000)
+        {
+            result +=
+                NumberToWords(number / 10000000)
+                + " Crore ";
+
+            number %= 10000000;
+        }
+
+        if (number >= 100000)
+        {
+            result +=
+                NumberToWords(number / 100000)
+                + " Lakh ";
+
+            number %= 100000;
+        }
+
+        if (number >= 1000)
+        {
+            result +=
+                NumberToWords(number / 1000)
+                + " Thousand ";
+
+            number %= 1000;
+        }
+
+        if (number >= 100)
+        {
+            result +=
+                NumberToWords(number / 100)
+                + " Hundred ";
+
+            number %= 100;
+        }
+
+        if (number >= 20)
+        {
+            result +=
+                tens[number / 10]
+                + " ";
+
+            number %= 10;
+        }
+
+        if (number > 0)
+        {
+            result +=
+                ones[number]
+                + " ";
+        }
+
+        return result.Trim();
+    }
+
+    string AmountInWords(decimal amount)
+    {
+        long rupees =
+            (long)Math.Floor(amount);
+
+        int paise =
+            (int)Math.Round(
+                (amount - rupees) * 100m,
+                0,
+                MidpointRounding.AwayFromZero);
+
+        if (paise == 100)
+        {
+            rupees++;
+            paise = 0;
+        }
+
+        var words =
+            NumberToWords(rupees)
+            + " Rupees";
+
+        if (paise > 0)
+        {
+            words +=
+                " and "
+                + NumberToWords(paise)
+                + " Paise";
+        }
+
+        return words + " Only";
+    }
+
+    var netPayInWords =
+        AmountInWords(netSalary);
+}
+
+<!DOCTYPE html>
+
+<html lang="en">
+
+<head>
+
+    <meta charset="utf-8" />
+
+    <title>
+        Payslip - @employeeName - @monthStart.ToString("MMMM yyyy")
+    </title>
+
+    <style>
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            padding: 30px;
+            background: #f2f2f2;
+            font-family: Arial, Helvetica, sans-serif;
+            color: #222;
+        }
+
+        .payslip-container {
+            width: 100%;
+            max-width: 850px;
+            margin: 0 auto;
+            background: #fff;
+            padding: 28px;
+            border: 1px solid #d8d8d8;
+        }
+
+        .company-header {
+            text-align: center;
+            border-bottom: 2px solid #222;
+            padding-bottom: 14px;
+            margin-bottom: 16px;
+        }
+
+        .company-name {
+            font-size: 24px;
+            font-weight: 700;
+            margin-bottom: 6px;
+        }
+
+        .company-address {
+            font-size: 12px;
+            line-height: 1.5;
+            color: #555;
+        }
+
+        .payslip-title {
+            text-align: center;
+            font-size: 21px;
+            font-weight: 700;
+            margin: 12px 0 4px;
+        }
+
+        .payslip-period {
+            text-align: center;
+            font-size: 13px;
+            margin-bottom: 20px;
+        }
+
+        .section-title {
+            font-size: 14px;
+            font-weight: 700;
+            background: #f0f0f0;
+            border: 1px solid #d5d5d5;
+            padding: 8px 10px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        th,
+        td {
+            border: 1px solid #d5d5d5;
+            padding: 7px 8px;
+            font-size: 12px;
+        }
+
+        th {
+            font-weight: 700;
+            background: #f7f7f7;
+        }
+
+        .label {
+            font-weight: 700;
+            width: 18%;
+        }
+
+        .value {
+            width: 32%;
+        }
+
+        .right {
+            text-align: right;
+        }
+
+        .center {
+            text-align: center;
+        }
+
+        .amount {
+            text-align: right;
+            white-space: nowrap;
+        }
+
+        .earnings-deductions {
+            margin-top: 18px;
+        }
+
+        .earnings-deductions td {
+            vertical-align: middle;
+        }
+
+        .total-row td {
+            font-weight: 700;
+            background: #f5f5f5;
+        }
+
+        .net-pay {
+            margin-top: 16px;
+            border: 2px solid #222;
+            padding: 12px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .net-pay-label {
+            font-size: 17px;
+            font-weight: 700;
+        }
+
+        .net-pay-value {
+            font-size: 19px;
+            font-weight: 700;
+        }
+
+        .amount-words {
+            margin-top: 12px;
+            border: 1px solid #d5d5d5;
+            padding: 10px;
+            font-size: 12px;
+        }
+
+        .leave-section {
+            margin-top: 18px;
+        }
+
+        .footer-note {
+            margin-top: 22px;
+            text-align: center;
+            font-size: 10px;
+            color: #666;
+            line-height: 1.6;
+        }
+
+        .print-actions {
+            max-width: 850px;
+            margin: 0 auto 15px;
+            display: flex;
+            justify-content: flex-end;
+            gap: 8px;
+        }
+
+        .print-button {
+            border: 0;
+            padding: 9px 16px;
+            background: #222;
+            color: white;
+            cursor: pointer;
+            border-radius: 4px;
+            font-size: 13px;
+        }
+
+        .print-button:hover {
+            opacity: 0.9;
+        }
+
+        @@media print {
+
+            body {
+                background: white;
+                padding: 0;
+            }
+
+            .payslip-container {
+                max-width: none;
+                border: none;
+                padding: 10px;
+            }
+
+            .print-actions {
+                display: none;
+            }
+
+            .company-header {
+                margin-top: 0;
+            }
+
+            @@page {
+                size: A4;
+                margin: 10mm;
+            }
+        }
+
+        @@media (max-width: 700px) {
+
+            body {
+                padding: 8px;
+            }
+
+            .payslip-container {
+                padding: 12px;
+            }
+
+            .company-name {
+                font-size: 20px;
+            }
+
+            th,
+            td {
+                font-size: 10px;
+                padding: 5px;
+            }
+
+            .label {
+                width: 22%;
+            }
+
+            .value {
+                width: 28%;
+            }
+        }
+
+    </style>
+
+</head>
+
+<body>
+@if (ViewBag.IsManagementPayslip != true)
+        {
+            <div class="print-actions">
+
+                <a asp-controller="Payroll"
+                asp-action="Index"
+                asp-route-month="@month"
+                asp-route-year="@year"
+                class="print-button"
+                style="text-decoration: none; display: inline-block;">
+
+                    <i class="fas fa-arrow-left me-1"></i>
+                    Back to Payroll
+
+                </a>
+
+                <button type="button"
+                class="print-button"
+                onclick="window.print()">
+
+                    <i class="fas fa-print me-1"></i>
+                    Print / Save PDF
+
+                </button>
+
+            </div>                  
+        }
+
+    <div class="payslip-container">
+
+        <!-- =====================================================
+             COMPANY HEADER
+        ====================================================== -->
+
+        <div class="company-header">
+
+            <div class="company-name">
+                @companyName
+            </div>
+
+            <div class="company-address">
+                Official Salary Payslip
+            </div>
+
+        </div>
+
+        <div class="payslip-title">
+            Payslip
+        </div>
+
+        <div class="payslip-period">
+
+            Month &amp; Year:
+
+            <strong>
+                @monthStart.ToString("MMMM yyyy")
+            </strong>
+
+        </div>
+
+        <!-- =====================================================
+             EMPLOYEE DETAILS
+        ====================================================== -->
+
+        <div class="section-title">
+            Employee Details
+        </div>
+
+        <table>
+
+            <tr>
+
+                <td class="label">
+                    Name
+                </td>
+
+                <td class="value">
+                    @employeeName
+                </td>
+
+                <td class="label">
+                    Employee ID
+                </td>
+
+                <td class="value">
+                    @employeeCode
+                </td>
+
+            </tr>
+
+            <tr>
+
+                <td class="label">
+                    Department
+                </td>
+
+                <td class="value">
+                    @department
+                </td>
+
+                <td class="label">
+                    Designation
+                </td>
+
+                <td class="value">
+                    @designation
+                </td>
+
+            </tr>
+
+            <tr>
+
+                <td class="label">
+                    Date of Joining
+                </td>
+
+                <td class="value">
+                    @joiningDate
+                </td>
+
+                <td class="label">
+                    No. of Days in Month
+                </td>
+
+                <td class="value">
+                    @daysInMonth
+                </td>
+
+            </tr>
+
+            <tr>
+
+                <td class="label">
+                    Pay Days
+                </td>
+
+                <td class="value">
+                    @payDays.ToString("0.00")
+                </td>
+
+                <td class="label">
+                    LOP
+                </td>
+
+                <td class="value">
+                    @lop.ToString("0.00")
+                </td>
+
+            </tr>
+
+            <tr>
+
+                <td class="label">
+                    Paid Days
+                </td>
+
+                <td class="value">
+                    @paidDays.ToString("0.00")
+                </td>
+
+                <td class="label">
+                    Payslip No.
+                </td>
+
+                <td class="value">
+                    @payslipNumber
+                </td>
+
+            </tr>
+
+            <tr>
+
+                <td class="label">
+                    UAN No.
+                </td>
+
+                <td class="value">
+                    @uanNumber
+                </td>
+
+                <td class="label">
+                    ESIC No.
+                </td>
+
+                <td class="value">
+                    @esicNumber
+                </td>
+
+            </tr>
+
+        </table>
+
+        <!-- =====================================================
+             EARNINGS / DEDUCTIONS
+        ====================================================== -->
+
+        <div class="earnings-deductions">
+
+            <table>
+
+                <thead>
+
+                    <tr>
+
+                        <th colspan="4">
+                            Earnings
+                        </th>
+
+                        <th colspan="2">
+                            Deductions
+                        </th>
+
+                    </tr>
+
+                    <tr>
+
+                        <th>
+                            Description
+                        </th>
+
+                        <th class="right">
+                            Rate
+                        </th>
+
+                        <th class="right">
+                            Actual
+                        </th>
+
+                        <th class="right">
+                            Total
+                        </th>
+
+                        <th>
+                            Description
+                        </th>
+
+                        <th class="right">
+                            Total
+                        </th>
+
+                    </tr>
+
+                </thead>
+
+                <tbody>
+
+                    <tr>
+
+                        <td>
+                            Basic Salary
+                        </td>
+
+                        <td class="amount">
+                            ₹@basicSalary.ToString("N2")
+                        </td>
+
+                        <td class="amount">
+                            ₹@basicActual.ToString("N2")
+                        </td>
+
+                        <td class="amount">
+                            ₹@basicActual.ToString("N2")
+                        </td>
+
+                        <td>
+                            PF
+                        </td>
+
+                        <td class="amount">
+                            ₹@pf.ToString("N2")
+                        </td>
+
+                    </tr>
+
+                    <tr>
+
+                        <td>
+                            House Rent Allowance - HRA
+                        </td>
+
+                        <td class="amount">
+                            ₹@hra.ToString("N2")
+                        </td>
+
+                        <td class="amount">
+                            ₹@hraActual.ToString("N2")
+                        </td>
+
+                        <td class="amount">
+                            ₹@hraActual.ToString("N2")
+                        </td>
+
+                        <td>
+                            ESIC
+                        </td>
+
+                        <td class="amount">
+                            ₹@esi.ToString("N2")
+                        </td>
+
+                    </tr>
+
+                    <tr>
+
+                        <td>
+                            Conveyance Allowance
+                        </td>
+
+                        <td class="amount">
+                            ₹@conveyance.ToString("N2")
+                        </td>
+
+                        <td class="amount">
+                            ₹@conveyanceActual.ToString("N2")
+                        </td>
+
+                        <td class="amount">
+                            ₹@conveyanceActual.ToString("N2")
+                        </td>
+
+                        <td>
+                            Professional Tax
+                        </td>
+
+                        <td class="amount">
+                            ₹@professionalTax.ToString("N2")
+                        </td>
+
+                    </tr>
+
+                    <tr>
+
+                        <td>
+                            Washing Allowance
+                        </td>
+
+                        <td class="amount">
+                            ₹@washingAllowance.ToString("N2")
+                        </td>
+
+                        <td class="amount">
+                            ₹@washingActual.ToString("N2")
+                        </td>
+
+                        <td class="amount">
+                            ₹@washingActual.ToString("N2")
+                        </td>
+
+                        <td>
+                            LWF
+                        </td>
+
+                        <td class="amount">
+                            ₹@lwf.ToString("N2")
+                        </td>
+
+                    </tr>
+
+                    <tr>
+
+                        <td>
+                            Other Allowances
+                        </td>
+
+                        <td class="amount">
+                            ₹@otherAllowances.ToString("N2")
+                        </td>
+
+                        <td class="amount">
+                            ₹@otherActual.ToString("N2")
+                        </td>
+
+                        <td class="amount">
+                            ₹@otherActual.ToString("N2")
+                        </td>
+
+                        <td>
+                            Other Deductions
+                        </td>
+
+                        <td class="amount">
+                            ₹@otherDeductions.ToString("N2")
+                        </td>
+
+                    </tr>
+
+                    <tr class="total-row">
+
+                        <td colspan="3">
+                            Gross Earnings
+                        </td>
+
+                        <td class="amount">
+                            ₹@grossSalary.ToString("N2")
+                        </td>
+
+                        <td>
+                            Gross Deductions
+                        </td>
+
+                        <td class="amount">
+                            ₹@totalDeductions.ToString("N2")
+                        </td>
+
+                    </tr>
+
+                </tbody>
+
+            </table>
+
+        </div>
+
+        <!-- =====================================================
+             NET PAY
+        ====================================================== -->
+
+        <div class="net-pay">
+
+            <div class="net-pay-label">
+                Net Pay
+            </div>
+
+            <div class="net-pay-value">
+                ₹@netSalary.ToString("N2")
+            </div>
+
+        </div>
+
+        <!-- =====================================================
+             AMOUNT IN WORDS
+        ====================================================== -->
+
+        <div class="amount-words">
+
+            <strong>
+                Amount in words:
+            </strong>
+
+            @netPayInWords
+
+        </div>
+
+        <!-- =====================================================
+             ATTENDANCE SUMMARY
+        ====================================================== -->
+
+        <div class="leave-section">
+
+            <div class="section-title">
+                Leave / Attendance Summary
+            </div>
+
+            <table>
+
+                <tr>
+
+                    <td class="label">
+                        Working Days
+                    </td>
+
+                    <td>
+                        @workingDays.ToString("0.00")
+                    </td>
+
+                    <td class="label">
+                        Pay Days
+                    </td>
+
+                    <td>
+                        @payDays.ToString("0.00")
+                    </td>
+
+                </tr>
+
+                <tr>
+
+                    <td class="label">
+                        Paid Days
+                    </td>
+
+                    <td>
+                        @paidDays.ToString("0.00")
+                    </td>
+
+                    <td class="label">
+                        LOP
+                    </td>
+
+                    <td>
+                        @lop.ToString("0.00")
+                    </td>
+
+                </tr>
+
+            </table>
+
+        </div>
+
+        <!-- =====================================================
+             FOOTER
+        ====================================================== -->
+
+        <div class="footer-note">
+
+            This is a computer generated payslip and does not
+            require signature.
+
+            <br />
+
+            @companyName
+
+        </div>
+
+    </div>
+
+</body>
+
+</html>

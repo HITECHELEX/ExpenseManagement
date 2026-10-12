@@ -1,45 +1,216 @@
 @model List<ExpenseManagement.Models.ExpenseReport>
 @using ExpenseManagement.Models
-@{ ViewData["Title"] = "Expense Reports"; var currentStatus = ViewBag.CurrentStatus as string; }
+@{
+    ViewData["Title"] = "Expense Reports";
+    var currentStatus = ViewBag.CurrentStatus as string ?? "SubmittedToAccountTeam";
+    int? selectedEmp  = ViewBag.SelectedEmployee as int?;
+    var employees     = ViewBag.Employees as IEnumerable<dynamic> ?? Enumerable.Empty<dynamic>();
 
-<div class="d-flex justify-content-between align-items-center mb-3">
-    <h5 class="mb-0"><i class="fas fa-file-invoice me-2"></i>Expense Reports</h5>
-</div>
+    // Find selected employee name
+    string? selectedEmpName = null;
+    string? selectedEmpDept = null;
+    foreach (var e in employees)
+    {
+        if (e.Id == selectedEmp)
+        {
+            selectedEmpName = e.FullName;
+            selectedEmpDept = e.Department;
+            break;
+        }
+    }
 
-<div class="mb-3 d-flex flex-wrap gap-2">
-    <a href="/AccountTeam/Reports?status=SubmittedToAccountTeam" class="btn btn-sm @(currentStatus == "SubmittedToAccountTeam" ? "btn-primary" : "btn-outline-secondary")">Pending</a>
-    <a href="/AccountTeam/Reports?status=ForwardedToManagement" class="btn btn-sm @(currentStatus == "ForwardedToManagement" ? "btn-primary" : "btn-outline-secondary")">Forwarded</a>
-    <a href="/AccountTeam/Reports?status=ApprovedByManagement" class="btn btn-sm @(currentStatus == "ApprovedByManagement" ? "btn-success" : "btn-outline-secondary")">Approved</a>
-    <a href="/AccountTeam/Reports?status=RejectedByAccountTeam" class="btn btn-sm @(currentStatus == "RejectedByAccountTeam" ? "btn-danger" : "btn-outline-secondary")">Rejected by AT</a>
-    <a href="/AccountTeam/Reports?status=RejectedByManagement" class="btn btn-sm @(currentStatus == "RejectedByManagement" ? "btn-danger" : "btn-outline-secondary")">Rejected by Mgmt</a>
-</div>
+    // Tab URL helper — preserves employee filter
+    string TabUrl(string status) =>
+        selectedEmp.HasValue && selectedEmp > 0
+            ? $"/AccountTeam/Reports?status={status}&employeeId={selectedEmp}"
+            : $"/AccountTeam/Reports?status={status}";
 
-@if (!Model.Any())
-{ <div class="card text-center py-5 text-muted"><i class="fas fa-inbox fa-3x mb-3 d-block"></i>No reports found</div> }
-
-@foreach (var r in Model)
-{
-    var (cls, txt) = r.Status switch {
-        ReportStatus.SubmittedToAccountTeam => ("badge-submitted","Awaiting Review"),
-        ReportStatus.ForwardedToManagement => ("badge-forwarded","At Management"),
-        ReportStatus.ApprovedByManagement => ("badge-approved","Approved"),
-        ReportStatus.RejectedByManagement => ("badge-rejected","Rejected"),
-        _ => ("badge-secondary", r.Status.ToString())
+    // Status display map
+    var statusLabel = currentStatus switch {
+        "SubmittedToAccountTeam" => "Pending",
+        "ForwardedToManagement"  => "Forwarded",
+        "ApprovedByManagement"   => "Approved",
+        "RejectedByAccountTeam"  => "Rejected by AT",
+        "RejectedByManagement"   => "Rejected by Mgmt",
+        _                        => "All"
     };
-    <div class="card mb-2">
-        <div class="card-body d-flex align-items-center justify-content-between flex-wrap gap-2">
-            <div>
-                <div class="fw-semibold">@r.ReportTitle</div>
-                <small class="text-muted">@r.Employee?.FullName · @r.CreatedOn.ToString("dd MMM yyyy") · ₹@r.TotalClaimed.ToString("N2")</small>
+}
+
+<!-- ── Page Header ── -->
+<div class="d-flex align-items-center justify-content-between mb-4 flex-wrap gap-2">
+    <div>
+        <h5 class="mb-0 fw-bold"><i class="fas fa-file-invoice me-2 text-primary"></i>Expense Reports</h5>
+        <small class="text-muted">Review and manage employee expense reports</small>
+    </div>
+    <div class="d-flex gap-2 align-items-center">
+        @if (Model.Any())
+        {
+            <span class="badge bg-primary rounded-pill" style="font-size:.8rem;padding:6px 12px">
+                @Model.Count @statusLabel report(s)
+            </span>
+        }
+    </div>
+</div>
+
+<!-- ── Employee Filter Bar ── -->
+<div class="mb-4" style="background:linear-gradient(135deg,#eef2ff,#f0f9ff);border-radius:16px;padding:18px 22px;border:1.5px solid #c7d2fe">
+    <form method="get" action="/AccountTeam/Reports">
+        <input type="hidden" name="status" value="@currentStatus" />
+        <div class="d-flex align-items-center gap-3 flex-wrap">
+            <!-- Icon + Label -->
+            <div style="width:40px;height:40px;background:linear-gradient(135deg,#6366f1,#818cf8);border-radius:12px;display:flex;align-items:center;justify-content:center;flex-shrink:0">
+                <i class="fas fa-users" style="color:#fff;font-size:.9rem"></i>
             </div>
-            <div class="d-flex gap-2 align-items-center">
-                <span class="badge @cls">@txt</span>
-                <a href="/AccountTeam/ReportDetail/@r.Id" class="btn btn-sm btn-outline-primary">View</a>
+            <div style="flex:1;min-width:200px;max-width:360px">
+                <label style="font-size:.72rem;font-weight:700;color:#4338ca;text-transform:uppercase;letter-spacing:.6px;margin-bottom:4px;display:block">
+                    Filter by Employee
+                </label>
+                <select name="employeeId" id="empSelect"
+                        class="form-select form-select-sm"
+                        style="border:1.5px solid #c7d2fe;border-radius:10px;background:#fff;font-weight:500;color:#1e293b;box-shadow:none"
+                        onchange="this.form.submit()">
+                    <option value="">— All Employees —</option>
+                    @foreach (var emp in employees)
+                    {
+                        <option value="@emp.Id" selected="@(emp.Id == selectedEmp ? "selected" : null)">
+                            @emp.FullName@(!string.IsNullOrEmpty((string?)emp.Department) ? $"  ·  {emp.Department}" : "")
+                        </option>
+                    }
+                </select>
+            </div>
+
+            @* Selected Employee Chip *@
+            @if (selectedEmp.HasValue && selectedEmp > 0 && selectedEmpName != null)
+            {
+                <div style="display:flex;align-items:center;gap:8px;background:#fff;border:1.5px solid #a5b4fc;border-radius:40px;padding:6px 14px 6px 8px">
+                    <div style="width:30px;height:30px;background:linear-gradient(135deg,#6366f1,#818cf8);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:.75rem;font-weight:700;color:#fff;flex-shrink:0">
+                        @selectedEmpName.Substring(0,1).ToUpper()
+                    </div>
+                    <div>
+                        <div style="font-size:.82rem;font-weight:700;color:#3730a3;line-height:1.1">@selectedEmpName</div>
+                        @if (!string.IsNullOrEmpty(selectedEmpDept))
+                        {
+                            <div style="font-size:.68rem;color:#818cf8">@selectedEmpDept</div>
+                        }
+                    </div>
+                    <a href="/AccountTeam/Reports?status=@currentStatus"
+                       style="margin-left:4px;color:#a5b4fc;text-decoration:none;font-size:.8rem;font-weight:700;line-height:1"
+                       title="Clear filter">✕</a>
+                </div>
+            }
+            else
+            {
+                <div style="font-size:.8rem;color:#6366f1;opacity:.7">
+                    <i class="fas fa-info-circle me-1"></i>Select an employee to filter their reports
+                </div>
+            }
+        </div>
+    </form>
+</div>
+
+<!-- ── Status Tabs ── -->
+<div class="mb-4 d-flex flex-wrap gap-2 align-items-center">
+    @{
+        var tabs = new[] {
+            ("SubmittedToAccountTeam", "Pending",          "primary", "fas fa-clock"),
+            ("ForwardedToManagement",  "Forwarded",         "primary", "fas fa-paper-plane"),
+            ("ApprovedByManagement",   "Approved",          "success", "fas fa-check-circle"),
+            ("RejectedByAccountTeam",  "Rejected by AT",    "danger",  "fas fa-times-circle"),
+            ("RejectedByManagement",   "Rejected by Mgmt",  "danger",  "fas fa-ban"),
+        };
+    }
+    @foreach (var (key, label, color, icon) in tabs)
+    {
+        bool active = currentStatus == key;
+        <a href="@TabUrl(key)"
+           style="display:inline-flex;align-items:center;gap:6px;padding:7px 16px;border-radius:30px;font-size:.82rem;font-weight:600;text-decoration:none;transition:all .15s;
+                  @(active
+                      ? $"background:var(--bs-{color});color:#fff;box-shadow:0 2px 8px rgba(0,0,0,.15)"
+                      : "background:#f1f5f9;color:#64748b;border:1px solid #e2e8f0"
+                  )">
+            <i class="@icon" style="font-size:.72rem"></i>@label
+        </a>
+    }
+</div>
+
+<!-- ── Report List ── -->
+@if (!Model.Any())
+{
+    <div style="background:#f8fafc;border-radius:16px;padding:48px 24px;text-align:center;border:2px dashed #e2e8f0">
+        <div style="width:60px;height:60px;background:#f1f5f9;border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto 16px">
+            <i class="fas fa-inbox" style="font-size:1.4rem;color:#94a3b8"></i>
+        </div>
+        <div style="font-weight:600;color:#475569;margin-bottom:6px">No reports found</div>
+        <div style="font-size:.82rem;color:#94a3b8">
+            @if (selectedEmp.HasValue && selectedEmp > 0)
+            { <span>@selectedEmpName has no @statusLabel.ToLower() reports.</span> }
+            else
+            { <span>There are no @statusLabel.ToLower() reports at this time.</span> }
+        </div>
+    </div>
+}
+else
+{
+    @foreach (var r in Model)
+    {
+        var (badgeBg, badgeColor, badgeTxt) = r.Status switch {
+            ReportStatus.SubmittedToAccountTeam => ("#fef3c7", "#92400e", "Awaiting Review"),
+            ReportStatus.ForwardedToManagement  => ("#dbeafe", "#1e40af", "At Management"),
+            ReportStatus.ApprovedByManagement   => ("#dcfce7", "#166534", "Approved"),
+            ReportStatus.RejectedByAccountTeam  => ("#fee2e2", "#991b1b", "Rejected by AT"),
+            ReportStatus.RejectedByManagement   => ("#fee2e2", "#991b1b", "Rejected by Mgmt"),
+            _                                   => ("#f1f5f9", "#475569", r.Status.ToString())
+        };
+
+        <div class="mb-2" style="background:#fff;border-radius:14px;border:1.5px solid #f1f5f9;padding:16px 20px;
+                                  display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;
+                                  box-shadow:0 1px 4px rgba(0,0,0,.04);transition:box-shadow .15s"
+             onmouseover="this.style.boxShadow='0 4px 12px rgba(0,0,0,.09)'"
+             onmouseout="this.style.boxShadow='0 1px 4px rgba(0,0,0,.04)'">
+            <div class="d-flex align-items-center gap-3">
+                <!-- Status dot -->
+                <div style="width:42px;height:42px;border-radius:12px;background:@badgeBg;display:flex;align-items:center;justify-content:center;flex-shrink:0">
+                    @{
+                        string dotIcon = r.Status switch {
+                            ReportStatus.SubmittedToAccountTeam => "fas fa-hourglass-half",
+                            ReportStatus.ForwardedToManagement  => "fas fa-paper-plane",
+                            ReportStatus.ApprovedByManagement   => "fas fa-check",
+                            _                                   => "fas fa-times"
+                        };
+                    }
+                    <i class="@dotIcon" style="color:@badgeColor;font-size:.85rem"></i>
+                </div>
+                <div>
+                    <div class="fw-semibold" style="font-size:.95rem;color:#1e293b">@r.ReportTitle</div>
+                    <div style="font-size:.78rem;color:#64748b;margin-top:2px">
+                        <span style="display:inline-flex;align-items:center;gap:4px">
+                            <i class="fas fa-user" style="font-size:.65rem"></i>@r.Employee?.FullName
+                        </span>
+                        <span class="mx-2" style="opacity:.4">·</span>
+                        <span style="display:inline-flex;align-items:center;gap:4px">
+                            <i class="fas fa-calendar" style="font-size:.65rem"></i>@r.CreatedOn.ToIst().ToString("dd MMM yyyy")
+                        </span>
+                        <span class="mx-2" style="opacity:.4">·</span>
+                        <span style="font-weight:600;color:#0f172a">₹@r.TotalClaimed.ToString("N2")</span>
+                    </div>
+                </div>
+            </div>
+            <div class="d-flex gap-2 align-items-center flex-wrap">
+                <span style="background:@badgeBg;color:@badgeColor;border-radius:20px;padding:4px 12px;font-size:.75rem;font-weight:700">
+                    @badgeTxt
+                </span>
+                <a href="/AccountTeam/ReportDetail/@r.Id"
+                   style="display:inline-flex;align-items:center;gap:5px;padding:6px 14px;border-radius:8px;border:1.5px solid #6366f1;color:#6366f1;text-decoration:none;font-size:.82rem;font-weight:600">
+                    <i class="fas fa-eye" style="font-size:.7rem"></i>View
+                </a>
                 @if (r.Status == ReportStatus.ApprovedByManagement)
                 {
-                    <a href="/AccountTeam/DownloadReport/@r.Id" class="btn btn-sm btn-success"><i class="fas fa-download"></i></a>
+                    <a href="/AccountTeam/DownloadReport/@r.Id"
+                       style="display:inline-flex;align-items:center;gap:5px;padding:6px 14px;border-radius:8px;background:#16a34a;color:#fff;text-decoration:none;font-size:.82rem;font-weight:600">
+                        <i class="fas fa-download" style="font-size:.7rem"></i>Download
+                    </a>
                 }
             </div>
         </div>
-    </div>
+    }
 }

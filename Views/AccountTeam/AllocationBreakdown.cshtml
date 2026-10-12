@@ -1,21 +1,50 @@
 @model ExpenseManagement.ViewModels.AllocationBreakdownVM
 @using ExpenseManagement.Models
-@{ ViewData["Title"] = "Allocation Breakdown"; }
+@{
+    ViewData["Title"] = "Allocation Breakdown";
+    string selectedMonth  = ViewBag.SelectedMonth ?? "";
+    var availableMonths   = ViewBag.AvailableMonths as IEnumerable<dynamic> ?? Enumerable.Empty<dynamic>();
+    string monthLabel     = string.IsNullOrEmpty(selectedMonth) ? "All Time" :
+        availableMonths.FirstOrDefault(m => m.Key == selectedMonth)?.Label ?? selectedMonth;
+}
 
 @{
+    bool    isMonthlyView = (bool)(ViewBag.IsMonthlyView ?? false);
     decimal maxEmp   = Model.ByEmployee.Any() ? Model.ByEmployee.Max(e => e.TotalAllocated) : 1;
     decimal maxMonth = Model.ByMonth.Any()    ? Model.ByMonth.Max(m => m.TotalAdded)        : 1;
+    decimal totalTopUps = Model.ByEmployee.Sum(e => e.TopUpAmount);
 }
 
 <!-- Header -->
-<div class="d-flex align-items-center gap-2 mb-4 flex-wrap">
-    <a href="/AccountTeam/Dashboard" class="btn btn-outline-secondary btn-sm">
-        <i class="fas fa-arrow-left me-1"></i>Back
-    </a>
-    <div>
-        <h5 class="mb-0 fw-bold"><i class="fas fa-chart-pie me-2 text-primary"></i>Total Allocation Breakdown</h5>
-        <small class="text-muted">How ₹@Model.TotalAllocated.ToString("N2") was distributed across employees and months</small>
+<div class="d-flex align-items-center gap-2 mb-4 flex-wrap justify-content-between">
+    <div class="d-flex align-items-center gap-2">
+        <a href="/AccountTeam/Dashboard" class="btn btn-outline-secondary btn-sm">
+            <i class="fas fa-arrow-left me-1"></i>Back
+        </a>
+        <div>
+            <h5 class="mb-0 fw-bold"><i class="fas fa-chart-pie me-2 text-primary"></i>Allocation Breakdown
+                <small class="text-muted fw-normal" style="font-size:.75rem">@monthLabel</small>
+            </h5>
+            <small class="text-muted">₹@Model.TotalAllocated.ToString("N2") distributed across employees and months</small>
+        </div>
     </div>
+    <!-- Month Filter -->
+    <form method="get" action="/AccountTeam/AllocationBreakdown" class="d-flex align-items-center gap-2">
+        <select name="month" class="form-select form-select-sm" style="min-width:150px"
+                onchange="this.form.submit()">
+            <option value="">All Months</option>
+            @foreach (var m in availableMonths)
+            {
+                <option value="@m.Key" selected="@(m.Key == selectedMonth ? "selected" : null)">@m.Label</option>
+            }
+        </select>
+        @if (!string.IsNullOrEmpty(selectedMonth))
+        {
+            <a href="/AccountTeam/AllocationBreakdown" class="btn btn-sm btn-outline-secondary">
+                <i class="fas fa-times"></i>
+            </a>
+        }
+    </form>
 </div>
 
 <!-- ── SUMMARY BANNER ── -->
@@ -23,10 +52,12 @@
     <div class="col-6 col-md-4">
         <div style="background:linear-gradient(135deg,#1e3a8a,#2563eb);border-radius:14px;padding:20px;color:#fff">
             <div style="opacity:.75;font-size:.7rem;text-transform:uppercase;letter-spacing:.6px;margin-bottom:4px">
-                <i class="fas fa-wallet me-1"></i>Total Allocated
+                <i class="fas fa-wallet me-1"></i>@(isMonthlyView ? "Total Top-Ups" : "Total Allocated")
             </div>
             <div style="font-size:1.7rem;font-weight:800;letter-spacing:-1px">₹@Model.TotalAllocated.ToString("N0")</div>
-            <div style="font-size:.72rem;opacity:.7;margin-top:4px">Across @Model.ByEmployee.Count employee(s)</div>
+            <div style="font-size:.72rem;opacity:.7;margin-top:4px">
+                @(isMonthlyView ? $"Across {Model.ByEmployee.Count} employee(s) · {monthLabel}" : $"Across {Model.ByEmployee.Count} employee(s)")
+            </div>
         </div>
     </div>
     <div class="col-6 col-md-4">
@@ -60,51 +91,102 @@
     <div class="col-12 col-lg-7">
         <div class="card h-100">
             <div class="card-header d-flex justify-content-between align-items-center">
-                <span><i class="fas fa-users me-2"></i>By Employee</span>
+                <span>
+                    <i class="fas fa-users me-2"></i>By Employee
+                    @if (isMonthlyView)
+                    {
+                        <small class="text-muted ms-1" style="font-size:.75rem">· top-ups in @monthLabel</small>
+                    }
+                </span>
                 <span class="badge bg-primary rounded-pill">@Model.ByEmployee.Count</span>
             </div>
             <div class="card-body p-0">
                 @foreach (var e in Model.ByEmployee)
                 {
-                    decimal pct     = maxEmp > 0 ? (e.TotalAllocated / maxEmp) * 100 : 0;
+                    decimal pct      = maxEmp > 0 ? (e.TotalAllocated / maxEmp) * 100 : 0;
+                    decimal sharePct = totalTopUps > 0 ? (e.TopUpAmount / totalTopUps) * 100 : 0;
                     decimal spentPct = e.TotalAllocated > 0 ? (e.TotalSpent / e.TotalAllocated) * 100 : 0;
-                    bool over       = e.Remaining < 0;
+                    bool over        = e.Remaining < 0;
                     <div class="px-4 py-3 border-bottom">
                         <div class="d-flex justify-content-between align-items-start mb-2 flex-wrap gap-1">
                             <div>
                                 <a href="/AccountTeam/EmployeeWalletHistory/@e.EmployeeId"
-                                   class="fw-semibold text-decoration-none text-primary">
-                                    @e.EmployeeName
-                                </a>
+                                   class="fw-semibold text-decoration-none text-primary">@e.EmployeeName</a>
                                 <small class="text-muted ms-2">@e.Department</small>
                                 <div style="font-size:.72rem;color:#94a3b8;margin-top:2px">
-                                    @e.BudgetCount budget(s) &nbsp;·&nbsp; @e.ReportCount report(s)
+                                    @if (isMonthlyView)
+                                    {
+                                        <span>
+                                            <i class="fas fa-arrow-up me-1" style="color:#16a34a"></i>@e.TopUpCount top-up(s)
+                                            &nbsp;·&nbsp; @e.BudgetCount budget(s) this month
+                                        </span>
+                                    }
+                                    else
+                                    {
+                                        <span>@e.BudgetCount budget(s) &nbsp;·&nbsp; @e.ReportCount report(s)</span>
+                                    }
                                 </div>
                             </div>
                             <div class="text-end">
                                 <div class="fw-bold text-primary" style="font-size:.95rem">₹@e.TotalAllocated.ToString("N0")</div>
-                                <div style="font-size:.72rem;color:#64748b">
-                                    Spent: <span class="text-danger fw-semibold">₹@e.TotalSpent.ToString("N0")</span>
-                                    &nbsp;·&nbsp;
-                                    Left: <span class="@(over?"text-danger":"text-success") fw-semibold">
-                                        @(over?"-":"")₹@Math.Abs(e.Remaining).ToString("N0")
-                                    </span>
-                                </div>
+                                @if (isMonthlyView)
+                                {
+                                    <div style="font-size:.7rem;color:#64748b">
+                                        <span style="color:#16a34a;font-weight:600">
+                                            <i class="fas fa-arrow-circle-up me-1"></i>Received via top-ups
+                                        </span>
+                                    </div>
+                                    if (e.BudgetCount > 0)
+                                    {
+                                        <div style="font-size:.7rem;color:#64748b;margin-top:1px">
+                                            Spent: <span class="text-danger fw-semibold">₹@e.TotalSpent.ToString("N0")</span>
+                                            &nbsp;·&nbsp;
+                                            Left: <span class="@(over?"text-danger":"text-success") fw-semibold">
+                                                @(over?"-":"")₹@Math.Abs(e.Remaining).ToString("N0")
+                                            </span>
+                                        </div>
+                                    }
+                                }
+                                else
+                                {
+                                    <div style="font-size:.72rem;color:#64748b">
+                                        Spent: <span class="text-danger fw-semibold">₹@e.TotalSpent.ToString("N0")</span>
+                                        &nbsp;·&nbsp;
+                                        Left: <span class="@(over?"text-danger":"text-success") fw-semibold">
+                                            @(over?"-":"")₹@Math.Abs(e.Remaining).ToString("N0")
+                                        </span>
+                                    </div>
+                                }
                             </div>
                         </div>
-                        <!-- Allocation bar -->
-                        <div style="background:#f1f5f9;border-radius:6px;height:6px;overflow:hidden">
-                            <div style="width:@pct.ToString("N1")%;height:100%;background:#2563eb;border-radius:6px"></div>
-                        </div>
-                        <!-- Spent-within-allocation bar -->
-                        <div style="background:#fee2e2;border-radius:4px;height:4px;overflow:hidden;margin-top:3px">
-                            <div style="width:@(Math.Min(spentPct,100).ToString("N1"))%;height:100%;background:#dc2626;border-radius:4px"></div>
-                        </div>
-                        <div class="d-flex justify-content-between mt-1" style="font-size:.65rem;color:#94a3b8">
-                            <span>0</span>
-                            <span class="text-primary">@spentPct.ToString("N0")% spent</span>
-                            <span>₹@e.TotalAllocated.ToString("N0")</span>
-                        </div>
+                        @if (isMonthlyView)
+                        {
+                            <!-- Share-of-month bar -->
+                            <div style="background:#f1f5f9;border-radius:6px;height:7px;overflow:hidden">
+                                <div style="width:@sharePct.ToString("N1")%;height:100%;background:linear-gradient(90deg,#16a34a,#4ade80);border-radius:6px"></div>
+                            </div>
+                            <div class="d-flex justify-content-between mt-1" style="font-size:.65rem;color:#94a3b8">
+                                <span>0</span>
+                                <span style="color:#16a34a;font-weight:600">@sharePct.ToString("N1")% of month's top-ups</span>
+                                <span>₹@totalTopUps.ToString("N0")</span>
+                            </div>
+                        }
+                        else
+                        {
+                            <!-- Allocation bar -->
+                            <div style="background:#f1f5f9;border-radius:6px;height:6px;overflow:hidden">
+                                <div style="width:@pct.ToString("N1")%;height:100%;background:#2563eb;border-radius:6px"></div>
+                            </div>
+                            <!-- Spent bar -->
+                            <div style="background:#fee2e2;border-radius:4px;height:4px;overflow:hidden;margin-top:3px">
+                                <div style="width:@(Math.Min(spentPct,100).ToString("N1"))%;height:100%;background:#dc2626;border-radius:4px"></div>
+                            </div>
+                            <div class="d-flex justify-content-between mt-1" style="font-size:.65rem;color:#94a3b8">
+                                <span>0</span>
+                                <span class="text-primary">@spentPct.ToString("N0")% spent</span>
+                                <span>₹@e.TotalAllocated.ToString("N0")</span>
+                            </div>
+                        }
                     </div>
                 }
             </div>
@@ -164,7 +246,7 @@
                         <div class="fw-semibold" style="font-size:.88rem">@b.Purpose</div>
                         <small class="text-muted">
                             <i class="fas fa-user me-1"></i>@b.Employee?.FullName
-                            &nbsp;·&nbsp; @b.AllocatedOn.ToString("dd MMM yyyy")
+                            &nbsp;·&nbsp; @b.AllocatedOn.ToIst().ToString("dd MMM yyyy")
                         </small>
                     </div>
                     <div class="text-end ms-2">
@@ -216,7 +298,7 @@
                                 @b.Purpose
                             </span>
                         </td>
-                        <td class="py-3 text-muted">@b.AllocatedOn.ToString("dd MMM yyyy")</td>
+                        <td class="py-3 text-muted">@b.AllocatedOn.ToIst().ToString("dd MMM yyyy")</td>
                         <td class="py-3 text-end fw-semibold text-primary">₹@b.TotalAmount.ToString("N2")</td>
                         <td class="py-3 text-end text-danger">₹@b.SpentAmount.ToString("N2")</td>
                         <td class="py-3 text-end pe-4 fw-bold @(neg?"text-danger":"text-success")">

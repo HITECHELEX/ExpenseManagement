@@ -95,7 +95,7 @@ else
                             data-month="@monthKey"
                             data-cat="@c.Category"
                             data-stat="@c.Status">
-                            <td style="white-space:nowrap;color:#64748b">@c.ExpenseDate.ToString("dd MMM yy")</td>
+                            <td style="white-space:nowrap;color:#64748b">@c.ExpenseDate.ToIst().ToString("dd MMM yy")</td>
                             <td>
                                 <div class="fw-semibold">@c.Title</div>
                                 <small class="text-muted">@c.Category</small>

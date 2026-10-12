@@ -1,0 +1,271 @@
+﻿@model ExpenseManagement.Models.User
+
+@{
+    ViewData["Title"] = "My HRM Dashboard";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+
+<div class="page-content">
+
+
+
+    <!-- Welcome -->
+
+    <div class="card border-0 mb-4"
+         style="border-radius:14px;
+        background:linear-gradient(135deg,#1e3a8a,#2563eb);
+        color:white;">
+
+        <div class="card-body p-4">
+
+            <h4 class="fw-bold mb-1">
+                Welcome, @Model.FullName
+            </h4>
+
+            <p class="mb-0" style="opacity:.85;">
+                View and manage your personal HR information.
+            </p>
+
+        </div>
+
+    </div>
+
+
+    <!-- Employee Information -->
+
+    <div class="card border-0 shadow-sm mb-4">
+
+        <div class="card-header bg-white fw-semibold">
+            My Information
+        </div>
+
+        <div class="card-body">
+
+            <div class="row g-4">
+
+                <!-- Name -->
+
+                <div class="col-md-4">
+
+                    <div class="text-muted small">
+                        Full Name
+                    </div>
+
+                    <div class="fw-semibold mt-1">
+                        @Model.FullName
+                    </div>
+
+                </div>
+
+
+                <!-- Email -->
+
+                <div class="col-md-4">
+
+                    <div class="text-muted small">
+                        Email
+                    </div>
+
+                    <div class="fw-semibold mt-1">
+                        @Model.Email
+                    </div>
+
+                </div>
+
+
+                <!-- Department -->
+
+                <div class="col-md-4">
+
+                    <div class="text-muted small">
+                        Department
+                    </div>
+
+                    <div class="fw-semibold mt-1">
+                        @(Model.Department ?? "Not assigned")
+                    </div>
+
+                </div>
+
+
+                <!-- Company -->
+
+                <div class="col-md-4">
+
+                    <div class="text-muted small">
+                        Company
+                    </div>
+
+                    <div class="fw-semibold mt-1">
+                        @(Model.Company?.Name ?? "Not assigned")
+                    </div>
+
+                </div>
+
+
+                <!-- Employee ID -->
+
+                <div class="col-md-4">
+
+                    <div class="text-muted small">
+                        Employee ID
+                    </div>
+
+                    <div class="fw-semibold mt-1">
+                        @Model.Id
+                    </div>
+
+                </div>
+
+
+                <!-- Joining Date -->
+
+                <div class="col-md-4">
+
+                    <div class="text-muted small">
+                        Joined
+                    </div>
+
+                    <div class="fw-semibold mt-1">
+                        @Model.CreatedAt.ToString("dd MMM yyyy")
+                    </div>
+
+                </div>
+
+            </div>
+
+        </div>
+
+    </div>
+
+
+    <!-- HRM Modules -->
+
+    <div class="card border-0 shadow-sm">
+
+        <div class="card-header bg-white fw-semibold">
+            My HRM
+        </div>
+
+        <div class="card-body">
+
+            <div class="row g-3">
+
+
+                <!-- Profile -->
+                <!-- Profile -->
+
+                <div class="col-md-4">
+
+                    <a href="/HRMEmployee/MyProfile"
+                       class="text-decoration-none text-dark d-block">
+
+                        <div class="border rounded p-3 h-100">
+
+                            <i class="fas fa-user text-primary me-2"></i>
+
+                            <strong>
+                                My Profile
+                            </strong>
+
+                            <div class="small text-muted mt-1">
+                                View your employee profile
+                            </div>
+
+                        </div>
+
+                    </a>
+
+                </div>
+
+
+                <!-- Attendance -->
+
+                <div class="col-md-4">
+
+                    <div class="border rounded p-3 h-100">
+
+                        <i class="fas fa-calendar-check text-success me-2"></i>
+
+                        <strong>
+                            My Attendance
+                        </strong>
+
+                        <div class="small text-muted mt-1">
+                            View your attendance
+                        </div>
+
+                    </div>
+
+                </div>
+
+
+                <!-- Leave -->
+
+                <div class="col-md-4">
+
+                    <div class="border rounded p-3 h-100">
+
+                        <i class="fas fa-calendar-minus text-warning me-2"></i>
+
+                        <strong>
+                            My Leave
+                        </strong>
+
+                        <div class="small text-muted mt-1">
+                            View and manage leave
+                        </div>
+
+                    </div>
+
+                </div>
+
+
+                <!-- Payroll -->
+
+                <div class="col-md-4">
+
+                    <div class="border rounded p-3 h-100">
+
+                        <i class="fas fa-money-check-dollar text-primary me-2"></i>
+
+                        <strong>
+                            My Payroll
+                        </strong>
+
+                        <div class="small text-muted mt-1">
+                            View payroll information
+                        </div>
+
+                    </div>
+
+                </div>
+
+
+                <!-- Documents -->
+
+                <div class="col-md-4">
+
+                    <div class="border rounded p-3 h-100">
+
+                        <i class="fas fa-folder-open text-info me-2"></i>
+
+                        <strong>
+                            My Documents
+                        </strong>
+
+                        <div class="small text-muted mt-1">
+                            View your HR documents
+                        </div>
+
+                    </div>
+
+                </div>
+
+            </div>
+
+        </div>
+
+    </div>
+
+</div>

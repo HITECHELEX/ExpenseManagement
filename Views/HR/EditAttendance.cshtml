@@ -1,0 +1,161 @@
+﻿@model ExpenseManagement.Models.Attendance
+
+@{
+    ViewData["Title"] = "Edit Attendance";
+
+    var indiaTimeZone =
+        TimeZoneInfo.FindSystemTimeZoneById("India Standard Time");
+
+    var attendanceIndiaDate =
+    TimeZoneInfo.ConvertTimeFromUtc(
+        DateTime.SpecifyKind(Model.AttendanceDate, DateTimeKind.Utc),
+        indiaTimeZone
+    ).Date;
+
+    var checkInValue = Model.CheckIn.HasValue
+        ? TimeZoneInfo.ConvertTimeFromUtc(
+            Model.CheckIn.Value.ToUniversalTime(),
+            indiaTimeZone
+          ).ToString("yyyy-MM-ddTHH:mm")
+        : "";
+
+    var checkOutValue = Model.CheckOut.HasValue
+        ? TimeZoneInfo.ConvertTimeFromUtc(
+            Model.CheckOut.Value.ToUniversalTime(),
+            indiaTimeZone
+          ).ToString("yyyy-MM-ddTHH:mm")
+        : "";
+}
+
+<div class="container-fluid">
+
+    <!-- Header -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2 class="mb-1">Edit Attendance</h2>
+            <p class="text-muted mb-0">
+                Correct employee attendance record
+            </p>
+        </div>
+
+        <a href="/Attendance/Index?date=@attendanceIndiaDate.ToString("yyyy-MM-dd")"
+           class="btn btn-outline-secondary">
+            Back
+        </a>
+    </div>
+
+    <div class="card shadow-sm">
+        <div class="card-body p-4">
+
+            <div class="row mb-4">
+
+                <div class="col-md-4">
+                    <label class="text-muted small">
+                        Employee Code
+                    </label>
+
+                    <div class="fw-semibold">
+                        @Model.Employee.EmployeeCode
+                    </div>
+                </div>
+
+                <div class="col-md-4">
+                    <label class="text-muted small">
+                        Employee Name
+                    </label>
+
+                    <div class="fw-semibold">
+                        @Model.Employee.User.FullName
+                    </div>
+                </div>
+
+                <div class="col-md-4">
+                    <label class="text-muted small">
+                        Attendance Date
+                    </label>
+
+                    <div class="fw-semibold">
+                        @attendanceIndiaDate.ToString("dd MMM yyyy")
+                    </div>
+                </div>
+
+            </div>
+
+            <hr />
+
+            <form asp-action="Edit"
+                  method="post">
+
+                @Html.AntiForgeryToken()
+
+                <input type="hidden"
+                       name="id"
+                       value="@Model.Id" />
+
+                <div asp-validation-summary="ModelOnly"
+                     class="text-danger mb-3">
+                </div>
+
+                <div class="row g-4">
+
+                    <div class="col-md-6">
+
+                        <label class="form-label fw-semibold">
+                            Check-In
+                        </label>
+
+                        <input type="datetime-local"
+                               name="checkIn"
+                               value="@checkInValue"
+                               class="form-control" />
+
+                    </div>
+
+                    <div class="col-md-6">
+
+                        <label class="form-label fw-semibold">
+                            Check-Out
+                        </label>
+
+                        <input type="datetime-local"
+                               name="checkOut"
+                               value="@checkOutValue"
+                               class="form-control" />
+
+                    </div>
+
+                    <div class="col-md-12">
+
+                        <label class="form-label fw-semibold">
+                            Remarks
+                        </label>
+
+                        <textarea name="remarks"
+                                  class="form-control"
+                                  rows="4"
+                                  placeholder="Enter reason for attendance correction">@Model.CorrectionRemarks</textarea>
+
+                    </div>
+
+                </div>
+
+                <div class="mt-4 d-flex gap-2">
+
+                    <button type="submit"
+                            class="btn btn-primary">
+                        Save Changes
+                    </button>
+
+                    <a href="/Attendance/Index?date=@attendanceIndiaDate.ToString("yyyy-MM-dd")"
+                       class="btn btn-outline-secondary">
+                        Cancel
+                    </a>
+
+                </div>
+
+            </form>
+
+        </div>
+    </div>
+
+</div>

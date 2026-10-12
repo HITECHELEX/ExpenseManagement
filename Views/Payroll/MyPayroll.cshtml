@@ -1,0 +1,470 @@
+﻿@model IEnumerable<ExpenseManagement.Models.Payroll>
+
+@{
+    ViewData["Title"] = "My Payroll";
+
+    var selectedMonth =
+        (int?)ViewBag.SelectedMonth ?? DateTime.UtcNow.AddHours(5).AddMinutes(30).Month;
+
+    var selectedYear =
+        (int?)ViewBag.SelectedYear ?? DateTime.UtcNow.AddHours(5).AddMinutes(30).Year;
+
+    var selectedPayroll =
+        ViewBag.SelectedPayroll as ExpenseManagement.Models.Payroll;
+
+    string MonthName(int month)
+    {
+        return new DateTime(2000, month, 1).ToString("MMMM");
+    }
+
+    string Money(decimal? value)
+    {
+        return $"₹ {value.GetValueOrDefault():N2}";
+    }
+}
+
+<div class="container-fluid">
+
+    <!-- Header -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2 class="mb-1">My Payroll</h2>
+            <p class="text-muted mb-0">
+                View your processed payroll records and salary details.
+            </p>
+        </div>
+    </div>
+
+
+    <!-- Month Filter -->
+    <div class="card shadow-sm border-0 mb-4">
+        <div class="card-body">
+
+            <form method="get"
+                  asp-action="MyPayroll"
+                  class="row g-3 align-items-end">
+
+                <div class="col-md-4">
+                    <label class="form-label">
+                        Month
+                    </label>
+
+                    <select name="month"
+                            class="form-select">
+
+                        @for (var m = 1; m <= 12; m++)
+                        {
+                            <option value="@m"
+                                    selected="@(m == selectedMonth)">
+                                @MonthName(m)
+                            </option>
+                        }
+
+                    </select>
+                </div>
+
+                <div class="col-md-4">
+                    <label class="form-label">
+                        Year
+                    </label>
+
+                    <select name="year"
+                            class="form-select">
+
+                        @for (
+                            var y = selectedYear - 2;
+                            y <= selectedYear + 1;
+                            y++)
+                        {
+                            <option value="@y"
+                                    selected="@(y == selectedYear)">
+                                @y
+                            </option>
+                        }
+
+                    </select>
+                </div>
+
+                <div class="col-md-4">
+                    <button type="submit"
+                            class="btn btn-primary w-100">
+
+                        <i class="fas fa-search me-2"></i>
+                        View Payroll
+
+                    </button>
+                </div>
+
+            </form>
+
+        </div>
+    </div>
+
+
+    @if (selectedPayroll == null)
+    {
+        <div class="alert alert-info">
+            No processed payroll is available for
+            <strong>
+                @MonthName(selectedMonth) @selectedYear
+            </strong>.
+        </div>
+    }
+    else
+    {
+        @if (selectedPayroll.Status == "Finalized")
+{
+   <div class="mt-3 mb-4">
+    <a asp-controller="HRMEmployee"
+       asp-action="Payslip"
+       asp-route-month="@selectedPayroll.Month"
+       asp-route-year="@selectedPayroll.Year"
+       class="btn btn-primary d-inline-flex align-items-center justify-content-center"
+       style="
+           min-width: 200px;
+           height: 46px;
+           padding: 0 24px;
+           gap: 10px;
+           white-space: nowrap;
+           font-size: 15px;
+       ">
+        <i class="fas fa-file-invoice-dollar"></i>
+        <span>View Payslip</span>
+    </a>
+</div>
+}
+    <!-- Payroll History -->
+    <div class="card shadow-sm border-0">
+
+        <div class="card-header bg-white py-3">
+            <h5 class="mb-0 fw-bold">
+                Payroll History
+            </h5>
+        </div>
+
+        <div class="card-body">
+
+            @if (!Model.Any())
+            {
+                <div class="text-muted">
+                    No processed payroll records are available yet.
+                </div>
+            }
+            else
+            {
+                <div class="table-responsive">
+
+                    <table class="table table-hover align-middle">
+
+                        <thead>
+                            <tr>
+                                <th>Period</th>
+                                <th>Status</th>
+                                <th class="text-end">Gross Salary</th>
+                                <th class="text-end">Deductions</th>
+                                <th class="text-end">Net Salary</th>
+                            </tr>
+                        </thead>
+
+                        <tbody>
+
+                            @foreach (var payroll in Model)
+                            {
+                                <tr>
+
+                                    <td>
+                                        <a asp-action="MyPayroll"
+                                           asp-route-month="@payroll.Month"
+                                           asp-route-year="@payroll.Year"
+                                           class="text-decoration-none fw-semibold">
+
+                                            @MonthName(payroll.Month)
+                                            @payroll.Year
+
+                                        </a>
+                                    </td>
+
+                                    <td>
+                                        <span class="badge
+                                            @(payroll.Status == "Finalized"
+                                                ? "bg-success"
+                                                : "bg-primary")">
+
+                                            @payroll.Status
+
+                                        </span>
+                                    </td>
+
+                                    <td class="text-end">
+                                        ₹@((payroll.GrossSalary ?? 0m).ToString("N2"))
+                                    </td>
+
+                                    <td class="text-end">
+                                        ₹@((payroll.TotalDeductions ?? 0m).ToString("N2"))
+                                    </td>
+
+                                    <td class="text-end fw-bold">
+                                        ₹@((payroll.NetSalary ?? 0m).ToString("N2"))
+                                    </td>
+
+                                </tr>
+                            }
+
+                        </tbody>
+
+                    </table>
+
+                </div>
+            }
+
+        </div>
+    </div>
+
+    }
+
+</div>
+
+<style>
+
+    .salary-slip {
+        background: #fff;
+        border: 1px solid #dee2e6;
+        box-shadow: 0 4px 18px rgba(0, 0, 0, .08);
+        padding: 34px;
+        margin-bottom: 40px;
+    }
+
+    .salary-slip-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: 20px;
+        padding-bottom: 22px;
+        border-bottom: 2px solid #212529;
+    }
+
+    .salary-company-name {
+        font-size: 1.45rem;
+        font-weight: 700;
+    }
+
+    .salary-company-subtitle {
+        color: #6c757d;
+        font-size: .9rem;
+    }
+
+    .salary-slip-title {
+        text-align: right;
+        color: #6c757d;
+        font-size: .9rem;
+    }
+
+    .salary-slip-title h2 {
+        margin: 0 0 5px;
+        color: #212529;
+        font-size: 1.35rem;
+        font-weight: 700;
+    }
+
+    .salary-section-title {
+        margin-top: 28px;
+        margin-bottom: 10px;
+        padding-bottom: 7px;
+        border-bottom: 1px solid #212529;
+        font-size: .95rem;
+        font-weight: 700;
+        text-transform: uppercase;
+    }
+
+    .salary-info-table {
+        border: 1px solid #dee2e6;
+    }
+
+    .salary-info-row {
+        display: flex;
+        border-bottom: 1px solid #dee2e6;
+    }
+
+    .salary-info-row:last-child {
+        border-bottom: 0;
+    }
+
+    .salary-info-label {
+        width: 20%;
+        padding: 10px 12px;
+        background: #f8f9fa;
+        font-size: .82rem;
+        font-weight: 600;
+        color: #495057;
+    }
+
+    .salary-info-value {
+        width: 30%;
+        padding: 10px 12px;
+        font-size: .88rem;
+    }
+
+    .attendance-summary {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 10px;
+    }
+
+    .attendance-card {
+        border: 1px solid #dee2e6;
+        padding: 12px;
+        text-align: center;
+    }
+
+    .attendance-label {
+        color: #6c757d;
+        font-size: .78rem;
+    }
+
+    .attendance-value {
+        margin-top: 4px;
+        font-size: 1rem;
+        font-weight: 700;
+    }
+
+    .salary-table {
+        width: 100%;
+        border-collapse: collapse;
+    }
+
+    .salary-table th,
+    .salary-table td {
+        border: 1px solid #dee2e6;
+        padding: 10px 12px;
+        font-size: .88rem;
+    }
+
+    .salary-table th {
+        background: #f8f9fa;
+        font-weight: 700;
+    }
+
+    .salary-total-row td {
+        background: #f8f9fa;
+        font-weight: 700;
+    }
+
+    .net-salary-box {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-top: 22px;
+        padding: 16px 18px;
+        border: 2px solid #212529;
+        font-size: 1rem;
+        font-weight: 700;
+    }
+
+    .net-salary-box strong {
+        font-size: 1.35rem;
+    }
+
+    .payment-info {
+        border: 1px solid #dee2e6;
+    }
+
+    .payment-row {
+        display: flex;
+        justify-content: space-between;
+        padding: 9px 12px;
+        border-bottom: 1px solid #dee2e6;
+        font-size: .86rem;
+    }
+
+    .payment-row:last-child {
+        border-bottom: 0;
+    }
+
+    .salary-footer-note {
+        margin-top: 28px;
+        text-align: center;
+        color: #6c757d;
+        font-size: .78rem;
+        line-height: 1.5;
+    }
+
+    @@media (max-width: 768px) {
+
+        .salary-slip {
+            padding: 18px;
+        }
+
+        .salary-slip-header {
+            flex-direction: column;
+        }
+
+        .salary-slip-title {
+            text-align: left;
+        }
+
+        .salary-info-label,
+        .salary-info-value {
+            width: 50%;
+        }
+
+        .attendance-summary {
+            grid-template-columns: repeat(2, 1fr);
+        }
+
+        .net-salary-box {
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 8px;
+        }
+    }
+
+    @@media print {
+
+        @@page {
+            size: A4;
+            margin: 12mm;
+        }
+
+        body {
+            background: #fff !important;
+        }
+
+        body * {
+            visibility: hidden;
+        }
+
+        .salary-slip,
+        .salary-slip * {
+            visibility: visible;
+        }
+
+        .salary-slip {
+            position: absolute;
+            left: 0;
+            top: 0;
+            width: 100%;
+            border: 0;
+            box-shadow: none;
+            margin: 0;
+            padding: 0;
+        }
+
+        .salary-slip-wrapper {
+            margin: 0;
+        }
+
+        .salary-section-title,
+        .salary-info-table,
+        .salary-table,
+        .payment-info,
+        .net-salary-box {
+            break-inside: avoid;
+        }
+
+        button,
+        .btn {
+            display: none !important;
+        }
+    }
+
+</style>

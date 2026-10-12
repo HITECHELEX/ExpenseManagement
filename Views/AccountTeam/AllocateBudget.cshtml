@@ -79,9 +79,10 @@
                 <label class="form-label">Top-up Amount (₹) <span class="text-danger">*</span></label>
                 <div class="input-group">
                     <span class="input-group-text"><i class="fas fa-rupee-sign"></i></span>
-                    <input type="number" name="TotalAmount" class="form-control form-control-lg"
-                           placeholder="e.g. 10000" min="1" step="0.01" required
-                           id="amtInput" oninput="updatePreview()" />
+                    <input type="number" name="TotalAmount" class="form-control form-control-lg no-spinner"
+                           placeholder="e.g. 10000" min="1" step="any" required
+                           id="amtInput" oninput="updatePreview()"
+                           style="-webkit-appearance:none;-moz-appearance:textfield;" />
                 </div>
             </div>
 
@@ -93,6 +94,20 @@
                 <small class="text-muted">A short label for this top-up.</small>
             </div>
 
+            <!-- Transfer Date -->
+            <div class="mb-4">
+                <label class="form-label">
+                    Transfer Date
+                    <small class="text-muted fw-normal ms-1">(date money was actually sent — leave blank to use today)</small>
+                </label>
+                <div class="input-group">
+                    <span class="input-group-text"><i class="fas fa-calendar-day"></i></span>
+                    <input type="date" name="TransferDate" class="form-control"
+                           id="transferDateInput"
+                           value="@DateTime.Today.ToString("yyyy-MM-dd")" />
+                </div>
+                <small class="text-muted">This date is recorded in the allocation history.</small>
+            </div>
 
             <button type="submit" class="btn btn-primary btn-lg w-100">
                 <i class="fas fa-plus-circle me-2"></i>Top Up Wallet
@@ -101,7 +116,116 @@
     </div>
 </div>
 
+<!-- ══════════════════════════════════════════════════════════ -->
+<!-- OPENING / CARRY-FORWARD BALANCE SECTION                  -->
+<!-- ══════════════════════════════════════════════════════════ -->
+<div class="mt-4">
+    <button class="btn btn-outline-secondary w-100 d-flex align-items-center justify-content-between"
+            type="button" data-bs-toggle="collapse" data-bs-target="#openingBalSection"
+            aria-expanded="false">
+        <span><i class="fas fa-history me-2 text-warning"></i>Add Previous / Opening Balance (Carry-Forward)</span>
+        <i class="fas fa-chevron-down"></i>
+    </button>
+
+    <div class="collapse mt-2" id="openingBalSection">
+        <div class="card border-warning">
+            <div class="card-header" style="background:#fffbeb;border-bottom:1px solid #fde68a">
+                <i class="fas fa-exclamation-triangle me-2 text-warning"></i>
+                <strong>Opening / Carry-Forward Balance</strong>
+                <small class="text-muted ms-2">Use this to add a carry-forward balance from a previous period with proof.</small>
+            </div>
+            <div class="card-body">
+                <form method="post" action="/AccountTeam/AddOpeningBalance" enctype="multipart/form-data">
+                    @Html.AntiForgeryToken()
+
+                    <!-- Info box -->
+                    <div class="alert alert-info py-2 mb-3" style="font-size:.84rem">
+                        <i class="fas fa-info-circle me-1"></i>
+                        <strong>Positive amount</strong> = employee has unused credit from previous period (balance goes <span class="text-success fw-bold">UP</span>).
+                        &nbsp;&nbsp;
+                        <strong>Negative amount</strong> = employee has a debt from previous period (balance goes <span class="text-danger fw-bold">DOWN</span>).
+                    </div>
+
+                    <!-- Employee -->
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">Employee <span class="text-danger">*</span></label>
+                        <select name="EmployeeId" class="form-select" required id="obEmpSelect" onchange="obEmpChange(this.value)">
+                            <option value="">-- Select Employee --</option>
+                            @foreach (var e in ViewBag.Employees as List<ExpenseManagement.Models.User> ?? new())
+                            {
+                                decimal wallet = (ViewBag.WalletMap as Dictionary<int, decimal> ?? new()).GetValueOrDefault(e.Id);
+                                <option value="@e.Id" data-wallet="@wallet">@e.FullName (@e.Department)</option>
+                            }
+                        </select>
+                    </div>
+
+                    <!-- Current balance display -->
+                    <div id="obWalletInfo" class="mb-3 d-none">
+                        <div class="p-3 rounded-3" style="background:#f0fdf4;border:1.5px solid #bbf7d0">
+                            <div style="font-size:.72rem;color:#16a34a;text-transform:uppercase;letter-spacing:.4px">Current Wallet Balance</div>
+                            <div id="obWalletBal" class="fw-bold fs-5"></div>
+                            <div id="obAfterSection" class="d-none mt-1">
+                                <div style="font-size:.72rem;color:#94a3b8;text-transform:uppercase;letter-spacing:.4px">Balance After Adjustment</div>
+                                <div id="obAfterBal" class="fw-bold fs-5"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Amount (positive or negative) -->
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">Balance Amount (₹) <span class="text-danger">*</span></label>
+                        <div class="input-group">
+                            <span class="input-group-text"><i class="fas fa-rupee-sign"></i></span>
+                            <input type="number" name="Amount" id="obAmount" class="form-control form-control-lg no-spinner"
+                                   placeholder="e.g. 2000 or -2000" step="any" required
+                                   oninput="obUpdatePreview()"
+                                   style="-webkit-appearance:none;-moz-appearance:textfield;" />
+                        </div>
+                        <small class="text-muted">Enter positive for credit carry-forward, negative for debt carry-forward.</small>
+                    </div>
+
+                    <!-- Period -->
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">Period <span class="text-danger">*</span></label>
+                        <input type="text" name="Period" class="form-control"
+                               placeholder="e.g. April 2026, FY 2025-26, Q4 Mar 2026" required />
+                        <small class="text-muted">The period this carry-forward balance is for.</small>
+                    </div>
+
+                    <!-- Proof Document (required) -->
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">
+                            Proof Document <span class="text-danger">*</span>
+                            <span class="badge bg-danger ms-1" style="font-size:.6rem">REQUIRED</span>
+                        </label>
+                        <input type="file" name="ProofDocument" class="form-control" required
+                               accept=".pdf,.jpg,.jpeg,.png,.xlsx,.xls,.doc,.docx" />
+                        <small class="text-muted">Upload a bank statement, ledger extract, or official document confirming this balance.</small>
+                    </div>
+
+                    <!-- Remarks (optional) -->
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">Remarks <small class="text-muted">(optional)</small></label>
+                        <input type="text" name="Remarks" class="form-control"
+                               placeholder="e.g. Carry-forward from FY 2025-26 closing balance" />
+                    </div>
+
+                    <button type="submit" class="btn btn-warning w-100 fw-semibold"
+                            onclick="return confirm('Are you sure you want to apply this opening balance? This will adjust the employee wallet balance and cannot be easily reversed.')">
+                        <i class="fas fa-balance-scale me-2"></i>Apply Opening Balance
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
 @section Scripts {
+<style>
+input[type=number].no-spinner::-webkit-inner-spin-button,
+input[type=number].no-spinner::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+input[type=number].no-spinner { -moz-appearance: textfield; }
+</style>
 <script>
 let currentWallet = 0;
 
@@ -167,6 +291,34 @@ function loadHistory(empId) {
             rows.innerHTML = '<div class="text-center py-3 text-danger" style="font-size:.85rem">Failed to load history.</div>';
         });
 }
+
+// ── Opening Balance section JS ─────────────────────────
+let obCurrentWallet = 0;
+function obEmpChange(empId) {
+    const sel = document.getElementById('obEmpSelect');
+    const opt = sel.options[sel.selectedIndex];
+    obCurrentWallet = parseFloat(opt.dataset.wallet) || 0;
+    const info = document.getElementById('obWalletInfo');
+    info.classList.remove('d-none');
+    const balEl = document.getElementById('obWalletBal');
+    balEl.textContent = formatRupee(obCurrentWallet);
+    balEl.className   = 'fw-bold fs-5 ' + (obCurrentWallet < 0 ? 'text-danger' : 'text-primary');
+    obUpdatePreview();
+}
+function obUpdatePreview() {
+    const amt     = parseFloat(document.getElementById('obAmount').value) || 0;
+    const afterSec = document.getElementById('obAfterSection');
+    const afterEl  = document.getElementById('obAfterBal');
+    if (amt !== 0 && document.getElementById('obWalletInfo').classList.contains('d-none') === false) {
+        const newBal = obCurrentWallet + amt;
+        afterEl.textContent = formatRupee(newBal);
+        afterEl.className   = 'fw-bold fs-5 ' + (newBal < 0 ? 'text-danger' : 'text-success');
+        afterSec.classList.remove('d-none');
+    } else {
+        afterSec.classList.add('d-none');
+    }
+}
+// ──────────────────────────────────────────────────────
 
 const HISTORY_PREVIEW = 3;
 let _historyData = [];

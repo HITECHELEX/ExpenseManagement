@@ -49,7 +49,7 @@
                         <td><span class="badge bg-light text-dark border" style="font-size:.72rem;">@c.Category</span></td>
                         <td class="fw-bold" style="color:#1e293b;">₹@c.Amount.ToString("N2")</td>
                         <td class="text-muted" style="font-size:.78rem;">@c.Budget?.Purpose</td>
-                        <td class="text-muted" style="font-size:.78rem;">@c.SubmittedOn.ToString("MMM dd, yyyy")</td>
+                        <td class="text-muted" style="font-size:.78rem;">@c.SubmittedOn.ToIst().ToString("MMM dd, yyyy")</td>
                         <td>
                             @if (!string.IsNullOrEmpty(c.ReceiptPath))
                             {

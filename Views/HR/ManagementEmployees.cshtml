@@ -1,0 +1,282 @@
+﻿@model IEnumerable<ExpenseManagement.Models.Employee>
+
+@{
+    ViewData["Title"] = "Employees";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+
+    var companies = ViewBag.Companies
+        as IEnumerable<ExpenseManagement.Models.Company>;
+
+    int selectedCompanyId = ViewBag.SelectedCompanyId;
+}
+
+<div class="page-content">
+
+    <!-- Header -->
+
+    <div class="card border-0 mb-4"
+         style="border-radius:14px;
+        background:linear-gradient(135deg,#1e3a8a,#2563eb);
+        color:white;">
+
+        <div class="card-body p-4">
+
+            <h4 class="fw-bold mb-1">
+                Employee Overview
+            </h4>
+
+            <p class="mb-0" style="opacity:.85;">
+                High-level workforce information for
+                @ViewBag.SelectedCompanyName.
+            </p>
+
+        </div>
+
+    </div>
+
+
+    <!-- Company Selector -->
+
+    <div class="card border-0 shadow-sm mb-4">
+
+        <div class="card-body">
+
+            <div class="row align-items-end">
+
+                <div class="col-md-6">
+
+                    <label class="form-label fw-semibold">
+                        Company
+                    </label>
+
+                    <select class="form-select"
+                            onchange="changeCompany(this.value)">
+
+                        @foreach (var company in companies ?? Enumerable.Empty<ExpenseManagement.Models.Company>())
+                        {
+                            <option value="@company.Id"
+                                    selected="@(company.Id == selectedCompanyId)">
+                                @company.Name
+                            </option>
+                        }
+
+                    </select>
+
+                </div>
+
+            </div>
+
+        </div>
+
+    </div>
+
+
+    <!-- Summary -->
+
+    <div class="row g-3 mb-4">
+
+        <div class="col-md-4">
+
+            <div class="card border-0 shadow-sm h-100">
+
+                <div class="card-body">
+
+                    <div class="text-muted small">
+                        Total Employees
+                    </div>
+
+                    <div class="fs-3 fw-bold mt-1">
+                        @ViewBag.TotalEmployees
+                    </div>
+
+                </div>
+
+            </div>
+
+        </div>
+
+
+        <div class="col-md-4">
+
+            <div class="card border-0 shadow-sm h-100">
+
+                <div class="card-body">
+
+                    <div class="text-muted small">
+                        Active Employees
+                    </div>
+
+                    <div class="fs-3 fw-bold mt-1">
+                        @ViewBag.ActiveEmployees
+                    </div>
+
+                </div>
+
+            </div>
+
+        </div>
+
+
+        <div class="col-md-4">
+
+            <div class="card border-0 shadow-sm h-100">
+
+                <div class="card-body">
+
+                    <div class="text-muted small">
+                        Inactive Employees
+                    </div>
+
+                    <div class="fs-3 fw-bold mt-1">
+                        @ViewBag.InactiveEmployees
+                    </div>
+
+                </div>
+
+            </div>
+
+        </div>
+
+    </div>
+
+
+    <!-- Employee List -->
+
+    <div class="card border-0 shadow-sm">
+
+        <div class="card-header bg-white fw-semibold">
+            Employees
+        </div>
+
+        <div class="card-body">
+
+            @if (!Model.Any())
+            {
+                <div class="text-center text-muted py-5">
+                    No employee profiles found for this company.
+                </div>
+            }
+            else
+            {
+                <div class="table-responsive">
+
+                    <table class="table align-middle">
+
+                        <thead>
+
+                            <tr>
+
+                                <th>
+                                    Employee Code
+                                </th>
+
+                                <th>
+                                    Employee
+                                </th>
+
+                                <th>
+                                    Department
+                                </th>
+
+                                <th>
+                                    Designation
+                                </th>
+
+                                <th>
+                                    Reporting Manager
+                                </th>
+
+                                <th>
+                                    Employment Type
+                                </th>
+
+                                <th>
+                                    Joining Date
+                                </th>
+
+                                <th>
+                                    Status
+                                </th>
+
+                            </tr>
+
+                        </thead>
+
+                        <tbody>
+
+                            @foreach (var employee in Model)
+                            {
+                                <tr>
+
+                                    <td class="fw-semibold">
+                                        @employee.EmployeeCode
+                                    </td>
+
+                                    <td>
+                                        @employee.User.FullName
+                                    </td>
+
+                                    <td>
+                                        @(employee.User.Department ?? "Not assigned")
+                                    </td>
+
+                                    <td>
+                                        @(employee.Designation ?? "Not assigned")
+                                    </td>
+
+                                    <td>
+                                        @(employee.ReportingManager?.User?.FullName
+                                            ?? "Not assigned")
+                                    </td>
+
+                                    <td>
+                                        @(employee.EmploymentType ?? "Not assigned")
+                                    </td>
+
+                                    <td>
+                                        @(employee.JoiningDate?.ToString("dd MMM yyyy")
+                                            ?? "Not available")
+                                    </td>
+
+                                    <td>
+                                        @if (employee.EmploymentStatus == "Active")
+                                        {
+                                            <span class="badge bg-success">
+                                                Active
+                                            </span>
+                                        }
+                                        else
+                                        {
+                                            <span class="badge bg-secondary">
+                                                @(employee.EmploymentStatus ?? "Unknown")
+                                            </span>
+                                        }
+                                    </td>
+
+                                </tr>
+                            }
+
+                        </tbody>
+
+                    </table>
+
+                </div>
+            }
+
+        </div>
+
+    </div>
+
+</div>
+
+
+<script>
+
+    function changeCompany(companyId) {
+
+        window.location.href =
+            '/HRMManagement/Employees?companyId=' + companyId;
+
+    }
+
+</script>

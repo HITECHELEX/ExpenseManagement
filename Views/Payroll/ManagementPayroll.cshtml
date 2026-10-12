@@ -1,0 +1,1682 @@
+﻿@using System.Globalization
+
+@{
+    ViewData["Title"] = "Management Payroll";
+    
+
+    int month = ViewBag.Month;
+    int year = ViewBag.Year;
+
+    int selectedCompanyId = ViewBag.SelectedCompanyId;
+    string selectedCompanyName = ViewBag.SelectedCompanyName ?? "Company";
+
+    var companies = ViewBag.Companies
+        as IEnumerable<ExpenseManagement.Models.Company>
+        ?? Enumerable.Empty<ExpenseManagement.Models.Company>();
+
+    var rows = ViewBag.Rows as IEnumerable<dynamic>
+        ?? Enumerable.Empty<dynamic>();
+
+    int totalEmployees = ViewBag.TotalEmployees ?? 0;
+    int salaryConfigured = ViewBag.SalaryConfigured ?? 0;
+    int pendingPayroll = ViewBag.PendingPayroll ?? 0;
+    int draftPayroll = ViewBag.DraftPayroll ?? 0;
+    int processedPayroll = ViewBag.ProcessedPayroll ?? 0;
+    int finalizedPayroll = ViewBag.FinalizedPayroll ?? 0;
+
+    decimal totalGross = ViewBag.TotalGross ?? 0m;
+    decimal totalDeductions = ViewBag.TotalDeductions ?? 0m;
+    decimal totalNetSalary = ViewBag.TotalNetSalary ?? 0m;
+
+    var monthName = CultureInfo.CurrentCulture
+        .DateTimeFormat
+        .GetMonthName(month);
+}
+
+<div class="container-fluid py-4">
+
+    <!-- ========================================================= -->
+    <!-- HEADER -->
+    <!-- ========================================================= -->
+
+    <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
+
+        <div>
+            <h2 class="fw-bold mb-1">
+                Payroll Overview
+            </h2>
+
+           
+
+            <p class="text-muted mb-0">
+                Management view of employee payroll and salary processing.
+            </p>
+        </div>
+
+        <div class="text-end">
+            <div class="small text-muted">
+                Selected Company
+            </div>
+
+            <div class="fw-semibold">
+                @selectedCompanyName
+            </div>
+        </div>
+
+    </div>
+
+
+    <!-- ========================================================= -->
+    <!-- FILTERS -->
+    <!-- ========================================================= -->
+
+    <div class="card shadow-sm border-0 mb-4">
+
+        <div class="card-body">
+
+           <form method="get"
+      asp-controller="HRMManagement"
+      asp-action="Payroll">
+
+    <div class="row g-3 align-items-end">
+
+        <!-- Company -->
+        <div class="col-12 col-lg-4">
+            <label class="form-label fw-semibold">Company</label>
+
+            <select name="companyId" class="form-select">
+                @foreach (var company in companies)
+                {
+                    <option value="@company.Id"
+                            selected="@(company.Id == selectedCompanyId ? "selected" : null)">
+                        @company.Name
+                    </option>
+                }
+            </select>
+        </div>
+
+        <!-- Month -->
+        <div class="col-12 col-md-6 col-lg-3">
+            <label class="form-label fw-semibold">Month</label>
+
+            <select name="month" class="form-select">
+                @for (int m = 1; m <= 12; m++)
+                {
+                    <option value="@m"
+                            selected="@(m == month ? "selected" : null)">
+                        @(CultureInfo.GetCultureInfo("en-IN")
+                            .DateTimeFormat
+                            .GetMonthName(m))
+                    </option>
+                }
+            </select>
+        </div>
+
+        <!-- Year -->
+        <div class="col-12 col-md-6 col-lg-2">
+            <label class="form-label fw-semibold">Year</label>
+
+            <select name="year" class="form-select">
+                @for (int y = year - 2; y <= year + 2; y++)
+                {
+                    <option value="@y"
+                            selected="@(y == year ? "selected" : null)">
+                        @y
+                    </option>
+                }
+            </select>
+        </div>
+
+        <!-- Button -->
+        <div class="col-12 col-lg-3">
+            <button type="submit"
+                    class="btn btn-primary w-100">
+                <i class="fas fa-search me-2"></i>
+                View Payroll
+            </button>
+        </div>
+
+    </div>
+
+</form>
+
+        </div>
+
+    </div>
+
+
+    <!-- ========================================================= -->
+    <!-- PAYROLL PERIOD -->
+    <!-- ========================================================= -->
+
+    <div class="d-flex align-items-center gap-2 mb-3">
+
+        <h5 class="fw-bold mb-0">
+            @monthName @year Payroll
+        </h5>
+
+        <span class="badge bg-light text-dark border">
+            @selectedCompanyName
+        </span>
+
+    </div>
+
+
+    <!-- ========================================================= -->
+    <!-- SUMMARY CARDS -->
+    <!-- ========================================================= -->
+
+    <div class="row g-3 mb-4">
+
+        <!-- Employees -->
+
+        <div class="col-xl-3 col-md-6">
+
+            <div class="card shadow-sm border-0 h-100">
+
+                <div class="card-body">
+
+                    <div class="d-flex justify-content-between">
+
+                        <div>
+                            <div class="text-muted small">
+                                Total Employees
+                            </div>
+
+                            <h3 class="fw-bold mb-0 mt-1">
+                                @totalEmployees
+                            </h3>
+                        </div>
+
+                        <div class="text-primary fs-4">
+                            <i class="fas fa-users"></i>
+                        </div>
+
+                    </div>
+
+                </div>
+
+            </div>
+
+        </div>
+
+
+        <!-- Pending -->
+
+        <div class="col-xl-3 col-md-6">
+
+            <div class="card shadow-sm border-0 h-100">
+
+                <div class="card-body">
+
+                    <div class="d-flex justify-content-between">
+
+                        <div>
+                            <div class="text-muted small">
+                                Pending Payroll
+                            </div>
+
+                            <h3 class="fw-bold mb-0 mt-1">
+                                @pendingPayroll
+                            </h3>
+                        </div>
+
+                        <div class="text-warning fs-4">
+                            <i class="fas fa-clock"></i>
+                        </div>
+
+                    </div>
+
+                </div>
+
+            </div>
+
+        </div>
+
+
+        <!-- Processed -->
+
+        <div class="col-xl-3 col-md-6">
+
+            <div class="card shadow-sm border-0 h-100">
+
+                <div class="card-body">
+
+                    <div class="d-flex justify-content-between">
+
+                        <div>
+                            <div class="text-muted small">
+                                Processed
+                            </div>
+
+                            <h3 class="fw-bold mb-0 mt-1">
+                                @processedPayroll
+                            </h3>
+                        </div>
+
+                        <div class="text-info fs-4">
+                            <i class="fas fa-calculator"></i>
+                        </div>
+
+                    </div>
+
+                </div>
+
+            </div>
+
+        </div>
+
+
+        <!-- Finalized -->
+
+        <div class="col-xl-3 col-md-6">
+
+            <div class="card shadow-sm border-0 h-100">
+
+                <div class="card-body">
+
+                    <div class="d-flex justify-content-between">
+
+                        <div>
+                            <div class="text-muted small">
+                                Finalized
+                            </div>
+
+                            <h3 class="fw-bold mb-0 mt-1">
+                                @finalizedPayroll
+                            </h3>
+                        </div>
+
+                        <div class="text-success fs-4">
+                            <i class="fas fa-lock"></i>
+                        </div>
+
+                    </div>
+
+                </div>
+
+            </div>
+
+        </div>
+
+    </div>
+
+
+    <!-- ========================================================= -->
+    <!-- FINANCIAL SUMMARY -->
+    <!-- ========================================================= -->
+
+    <div class="row g-3 mb-4">
+
+        <!-- Gross -->
+
+        <div class="col-lg-4">
+
+            <div class="card shadow-sm border-0 h-100">
+
+                <div class="card-body">
+
+                    <div class="text-muted small">
+                        Total Gross Payroll
+                    </div>
+
+                    <h4 class="fw-bold mt-2 mb-0">
+                        ₹@totalGross.ToString("N2")
+                    </h4>
+
+                </div>
+
+            </div>
+
+        </div>
+
+
+        <!-- Deductions -->
+
+        <div class="col-lg-4">
+
+            <div class="card shadow-sm border-0 h-100">
+
+                <div class="card-body">
+
+                    <div class="text-muted small">
+                        Total Deductions
+                    </div>
+
+                    <h4 class="fw-bold mt-2 mb-0">
+                        ₹@totalDeductions.ToString("N2")
+                    </h4>
+
+                </div>
+
+            </div>
+
+        </div>
+
+
+        <!-- Net -->
+
+        <div class="col-lg-4">
+
+            <div class="card shadow-sm border-0 h-100">
+
+                <div class="card-body">
+
+                    <div class="text-muted small">
+                        Total Net Payroll
+                    </div>
+
+                    <h4 class="fw-bold mt-2 mb-0">
+                        ₹@totalNetSalary.ToString("N2")
+                    </h4>
+
+                </div>
+
+            </div>
+
+        </div>
+
+    </div>
+
+
+    <!-- ========================================================= -->
+    <!-- EMPLOYEE PAYROLL -->
+    <!-- ========================================================= -->
+
+    <div class="card shadow-sm border-0">
+
+        <div class="card-header bg-white py-3">
+
+            <div class="d-flex flex-wrap justify-content-between align-items-center gap-2">
+
+                <div>
+
+                    <h5 class="fw-bold mb-1">
+                        Employee Payroll
+                    </h5>
+
+                    <div class="small text-muted">
+                        @monthName @year · @selectedCompanyName
+                    </div>
+
+                </div>
+
+                <span class="badge bg-light text-dark border">
+                    Read Only
+                </span>
+
+            </div>
+
+        </div>
+
+
+        <div class="card-body p-0">
+
+            <div class="table-responsive">
+
+                <table class="table table-hover align-middle mb-0">
+
+                    <thead class="table-light">
+
+                        <tr>
+
+                            <th class="ps-4">
+                                Employee
+                            </th>
+
+                            <th>
+                                Code
+                            </th>
+
+                            <th>
+                                Pay Days
+                            </th>
+
+                            <th>
+                                LOP
+                            </th>
+
+                            <th>
+                                Gross
+                            </th>
+
+                            <th>
+                                Deductions
+                            </th>
+
+                            <th>
+                                Net Salary
+                            </th>
+
+                            <th>
+                                Status
+                            </th>
+
+                            <th class="text-end pe-4">
+                                Action
+                            </th>
+
+                        </tr>
+
+                    </thead>
+
+
+                    <tbody>
+
+                        @if (!rows.Any())
+                        {
+                            <tr>
+
+                                <td colspan="9"
+                                    class="text-center py-5 text-muted">
+
+                                    <div class="mb-2 fs-3">
+                                        <i class="fas fa-file-invoice-dollar"></i>
+                                    </div>
+
+                                    No active employees found
+                                    for this company.
+
+                                </td>
+
+                            </tr>
+                        }
+                        else
+                        {
+                            foreach (var row in rows)
+                            {
+                                var employee = row.Employee;
+                                var salary = row.Salary;
+                                var payroll = row.Payroll;
+
+                                <tr>
+
+                                    <!-- Employee -->
+
+                                    <td class="ps-4">
+
+                                        <div class="fw-semibold">
+                                            @employee.User.FullName
+                                        </div>
+
+                                        <div class="small text-muted">
+                                            @employee.User.Email
+                                        </div>
+
+                                    </td>
+
+
+                                    <!-- Code -->
+
+                                    <td>
+
+                                        <span class="badge bg-light text-dark border">
+                                            @employee.EmployeeCode
+                                        </span>
+
+                                    </td>
+
+
+                                    <!-- Pay Days -->
+
+                                    <td>
+
+                                        @if (payroll != null)
+                                        {
+                                            @payroll.PayDays.ToString("0.##")
+                                        }
+                                        else
+                                        {
+                                            <span class="text-muted">
+                                                —
+                                            </span>
+                                        }
+
+                                    </td>
+
+
+                                    <!-- LOP -->
+
+                                    <td>
+
+                                        @if (payroll != null)
+                                        {
+                                            @payroll.LOP.ToString("0.##")
+                                        }
+                                        else
+                                        {
+                                            <span class="text-muted">
+                                                —
+                                            </span>
+                                        }
+
+                                    </td>
+
+
+                                    <!-- Gross -->
+
+                                    <td>
+
+                                        @if (payroll != null)
+                                        {
+                                            <span class="fw-semibold">
+                                                ₹@payroll.GrossSalary.ToString("N2")
+                                            </span>
+                                        }
+                                        else
+                                        {
+                                            <span class="text-muted">
+                                                —
+                                            </span>
+                                        }
+
+                                    </td>
+
+
+                                    <!-- Deductions -->
+
+                                    <td>
+
+                                        @if (payroll != null)
+                                        {
+                                            @payroll.TotalDeductions.ToString("N2");
+                                        }
+                                        else
+                                        {
+                                            <span class="text-muted">
+                                                —
+                                            </span>
+                                        }
+
+                                    </td>
+
+
+                                    <!-- Net -->
+
+                                    <td>
+
+                                        @if (payroll != null)
+                                        {
+                                            <span class="fw-bold">
+                                                ₹@payroll.NetSalary.ToString("N2")
+                                            </span>
+                                        }
+                                        else
+                                        {
+                                            <span class="text-muted">
+                                                —
+                                            </span>
+                                        }
+
+                                    </td>
+
+
+                                    <!-- Status -->
+
+                                    <td>
+
+                                        @if (payroll == null)
+                                        {
+                                            <span class="badge bg-warning text-dark">
+                                                Pending
+                                            </span>
+                                        }
+                                        else if (payroll.Status == "Draft")
+                                        {
+                                            <span class="badge bg-secondary">
+                                                Draft
+                                            </span>
+                                        }
+                                        else if (payroll.Status == "Processed")
+                                        {
+                                            <span class="badge bg-info text-dark">
+                                                Processed
+                                            </span>
+                                        }
+                                        else if (payroll.Status == "Finalized")
+                                        {
+                                            <span class="badge bg-success">
+                                                Finalized
+                                            </span>
+                                        }
+                                        else
+                                        {
+                                            <span class="badge bg-light text-dark border">
+                                                @payroll.Status
+                                            </span>
+                                        }
+
+                                    </td>
+
+
+                                    <!-- Action -->
+
+                                    <td class="text-end pe-4">
+
+                                        @if (payroll != null)
+                                        {
+                                            <div class="d-flex justify-content-end gap-2">
+
+                                               <button type="button"
+        class="btn btn-sm btn-outline-primary"
+        onclick="openPayrollDetails(
+            @row.Employee.Id,
+            @month,
+            @year,
+            @selectedCompanyId
+        )">
+    <i class="fas fa-eye me-1"></i>
+    View
+</button>
+
+@if (row.Payroll != null &&
+     row.Payroll.Status == "Finalized")
+{
+    <button type="button"
+            class="btn btn-sm btn-outline-success"
+            onclick="openPayrollPayslip(
+                @row.Employee.Id,
+                @month,
+                @year,
+                @selectedCompanyId
+            )">
+        <i class="fas fa-file-invoice-dollar me-1"></i>
+        Payslip
+    </button>
+}
+
+                                            </div>
+                                        }
+                                        else
+                                        {
+                                            <span class="text-muted small">
+                                                Not processed
+                                            </span>
+                                        }
+
+                                    </td>
+
+                                </tr>
+                            }
+                        }
+
+                    </tbody>
+
+                </table>
+
+            </div>
+
+        </div>
+
+    </div>
+
+</div>
+
+<!-- ========================================================= -->
+<!-- PAYROLL DETAILS MODAL                                     -->
+<!-- ========================================================= -->
+
+<div class="modal fade"
+     id="payrollDetailsModal"
+     tabindex="-1"
+     aria-hidden="true">
+
+    <div class="modal-dialog modal-xl modal-dialog-scrollable">
+
+        <div class="modal-content">
+
+            <div class="modal-header">
+
+                <div>
+                    <h5 class="modal-title fw-bold mb-1">
+                        Payroll Details
+                    </h5>
+
+                    <div class="text-muted small"
+                         id="payrollDetailsSubtitle">
+                        Loading...
+                    </div>
+                </div>
+
+                <button type="button"
+                        class="btn-close"
+                        data-bs-dismiss="modal">
+                </button>
+
+            </div>
+
+            <div class="modal-body">
+
+                <div id="payrollDetailsLoading"
+                     class="text-center py-5">
+
+                    <div class="spinner-border text-primary"
+                         role="status">
+                    </div>
+
+                    <div class="mt-3 text-muted">
+                        Loading payroll details...
+                    </div>
+
+                </div>
+
+                <div id="payrollDetailsContent"
+                     style="display:none;">
+
+                    <!-- Employee -->
+                    <div class="card border-0 shadow-sm mb-4">
+
+                        <div class="card-body">
+
+                            <h6 class="fw-bold mb-3">
+                                Employee Information
+                            </h6>
+
+                            <div class="row g-3">
+
+                                <div class="col-md-4">
+                                    <small class="text-muted">
+                                        Employee Name
+                                    </small>
+
+                                    <div class="fw-semibold"
+                                         id="detailEmployeeName">
+                                    </div>
+                                </div>
+
+                                <div class="col-md-4">
+                                    <small class="text-muted">
+                                        Employee Code
+                                    </small>
+
+                                    <div class="fw-semibold"
+                                         id="detailEmployeeCode">
+                                    </div>
+                                </div>
+
+                                <div class="col-md-4">
+                                    <small class="text-muted">
+                                        Company
+                                    </small>
+
+                                    <div class="fw-semibold"
+                                         id="detailCompany">
+                                    </div>
+                                </div>
+
+                                <div class="col-md-4">
+                                    <small class="text-muted">
+                                        Department
+                                    </small>
+
+                                    <div class="fw-semibold"
+                                         id="detailDepartment">
+                                    </div>
+                                </div>
+
+                                <div class="col-md-4">
+                                    <small class="text-muted">
+                                        Designation
+                                    </small>
+
+                                    <div class="fw-semibold"
+                                         id="detailDesignation">
+                                    </div>
+                                </div>
+
+                                <div class="col-md-4">
+                                    <small class="text-muted">
+                                        Joining Date
+                                    </small>
+
+                                    <div class="fw-semibold"
+                                         id="detailJoiningDate">
+                                    </div>
+                                </div>
+
+                            </div>
+
+                        </div>
+
+                    </div>
+
+
+                    <!-- Attendance -->
+                    <div class="card border-0 shadow-sm mb-4">
+
+                        <div class="card-body">
+
+                            <h6 class="fw-bold mb-3">
+                                Attendance & Pay Days
+                            </h6>
+
+                            <div class="row g-3">
+
+                                <div class="col-md-3">
+                                    <div class="border rounded p-3">
+                                        <small class="text-muted">
+                                            Working Days
+                                        </small>
+
+                                        <div class="fs-5 fw-bold"
+                                             id="detailWorkingDays">
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="col-md-3">
+                                    <div class="border rounded p-3">
+                                        <small class="text-muted">
+                                            Pay Days
+                                        </small>
+
+                                        <div class="fs-5 fw-bold"
+                                             id="detailPayDays">
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="col-md-3">
+                                    <div class="border rounded p-3">
+                                        <small class="text-muted">
+                                            Paid Days
+                                        </small>
+
+                                        <div class="fs-5 fw-bold"
+                                             id="detailPaidDays">
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="col-md-3">
+                                    <div class="border rounded p-3">
+                                        <small class="text-muted">
+                                            LOP
+                                        </small>
+
+                                        <div class="fs-5 fw-bold"
+                                             id="detailLOP">
+                                        </div>
+                                    </div>
+                                </div>
+
+                            </div>
+
+                        </div>
+
+                    </div>
+
+
+                    <!-- Earnings -->
+                    <div class="card border-0 shadow-sm mb-4">
+
+                        <div class="card-body">
+
+                            <h6 class="fw-bold mb-3">
+                                Earnings
+                            </h6>
+
+                            <div class="row g-3">
+
+                                <div class="col-md-4">
+                                    Basic Salary
+                                    <strong class="float-end"
+                                            id="detailBasicSalary">
+                                    </strong>
+                                </div>
+
+                                <div class="col-md-4">
+                                    HRA
+                                    <strong class="float-end"
+                                            id="detailHRA">
+                                    </strong>
+                                </div>
+
+                                <div class="col-md-4">
+                                    Conveyance
+                                    <strong class="float-end"
+                                            id="detailConveyance">
+                                    </strong>
+                                </div>
+
+                                <div class="col-md-4">
+                                    Washing Allowance
+                                    <strong class="float-end"
+                                            id="detailWashing">
+                                    </strong>
+                                </div>
+
+                                <div class="col-md-4">
+                                    Other Allowances
+                                    <strong class="float-end"
+                                            id="detailOtherAllowances">
+                                    </strong>
+                                </div>
+
+                                <div class="col-md-4">
+                                    <strong>
+                                        Gross Salary
+                                    </strong>
+
+                                    <strong class="float-end"
+                                            id="detailGross">
+                                    </strong>
+                                </div>
+
+                            </div>
+
+                        </div>
+
+                    </div>
+
+
+                    <!-- Deductions -->
+                    <div class="card border-0 shadow-sm mb-4">
+
+                        <div class="card-body">
+
+                            <h6 class="fw-bold mb-3">
+                                Deductions
+                            </h6>
+
+                            <div class="row g-3">
+
+                                <div class="col-md-4">
+                                    PF
+                                    <strong class="float-end"
+                                            id="detailPF">
+                                    </strong>
+                                </div>
+
+                                <div class="col-md-4">
+                                    ESI
+                                    <strong class="float-end"
+                                            id="detailESI">
+                                    </strong>
+                                </div>
+
+                                <div class="col-md-4">
+                                    Professional Tax
+                                    <strong class="float-end"
+                                            id="detailPT">
+                                    </strong>
+                                </div>
+
+                                <div class="col-md-4">
+                                    LWF
+                                    <strong class="float-end"
+                                            id="detailLWF">
+                                    </strong>
+                                </div>
+
+                                <div class="col-md-4">
+                                    Other Deductions
+                                    <strong class="float-end"
+                                            id="detailOtherDeductions">
+                                    </strong>
+                                </div>
+
+                                <div class="col-md-4">
+                                    <strong>
+                                        Total Deductions
+                                    </strong>
+
+                                    <strong class="float-end"
+                                            id="detailTotalDeductions">
+                                    </strong>
+                                </div>
+
+                            </div>
+
+                        </div>
+
+                    </div>
+
+
+                    <!-- Net -->
+                    <div class="card border-0 shadow-sm">
+
+                        <div class="card-body">
+
+                            <div class="d-flex justify-content-between
+                                        align-items-center">
+
+                                <div>
+                                    <div class="text-muted">
+                                        Net Salary
+                                    </div>
+
+                                    <div class="fs-3 fw-bold"
+                                         id="detailNetSalary">
+                                    </div>
+                                </div>
+
+                                <span class="badge"
+                                      id="detailStatus">
+                                </span>
+
+                            </div>
+
+                        </div>
+
+                    </div>
+
+                </div>
+
+                <div id="payrollDetailsError"
+                     class="alert alert-danger"
+                     style="display:none;">
+                </div>
+
+            </div>
+
+        </div>
+
+    </div>
+
+</div>
+
+<!-- ========================================================= -->
+<!-- PAYSLIP MODAL                                             -->
+<!-- ========================================================= -->
+<!-- ============================================================
+     MANAGEMENT PAYSLIP MODAL
+     Loads the existing standard Payslip.cshtml
+     ============================================================ -->
+
+<div class="modal fade"
+     id="payrollPayslipModal"
+     tabindex="-1"
+     aria-labelledby="payrollPayslipModalLabel"
+     aria-hidden="true">
+
+    <div class="modal-dialog modal-xl modal-dialog-centered"
+         style="max-width: 1100px;">
+
+        <div class="modal-content">
+
+            <!-- HEADER -->
+            <div class="modal-header">
+
+                <h5 class="modal-title"
+                    id="payrollPayslipModalLabel">
+
+                    <i class="fas fa-file-invoice-dollar me-2"></i>
+                    Payslip
+
+                </h5>
+
+                <button type="button"
+                        class="btn-close"
+                        data-bs-dismiss="modal"
+                        aria-label="Close">
+                </button>
+
+            </div>
+
+
+            <!-- BODY -->
+            <div class="modal-body p-0"
+                 style="background:#f5f6f8;">
+
+                <!-- Loading -->
+                <div id="payslipLoading"
+                     class="text-center py-5">
+
+                    <div class="spinner-border text-primary"
+                         role="status">
+                    </div>
+
+                    <div class="mt-3 text-muted">
+                        Loading payslip...
+                    </div>
+
+                </div>
+
+
+                <!-- Existing Payslip.cshtml -->
+                <iframe id="managementPayslipFrame"
+                        style="
+                    display:none;
+                    width:100%;
+                    height:78vh;
+                    border:0;
+                    background:#fff;
+                    "
+                        title="Employee Payslip">
+                </iframe>
+
+
+                <!-- Error -->
+                <div id="payslipError"
+                     class="alert alert-danger m-4"
+                     style="display:none;">
+                </div>
+
+            </div>
+
+        </div>
+
+    </div>
+
+</div>
+<script>
+
+    function formatCurrency(value) {
+
+        if (value === null || value === undefined || value === "") {
+            value = 0;
+        }
+
+        return new Intl.NumberFormat("en-IN", {
+            style: "currency",
+            currency: "INR",
+            minimumFractionDigits: 2
+        }).format(Number(value));
+    }
+
+
+    function showModal(modalId) {
+
+        const element = document.getElementById(modalId);
+
+        if (!element) {
+            console.error("Modal not found:", modalId);
+            return null;
+        }
+
+        if (typeof bootstrap === "undefined") {
+            console.error("Bootstrap JavaScript is not loaded.");
+            alert("Bootstrap JavaScript is not loaded.");
+            return null;
+        }
+
+        const modal = bootstrap.Modal.getOrCreateInstance(element);
+
+        modal.show();
+
+        return modal;
+    }
+
+
+    function openPayrollDetails(employeeId, month, year, companyId) {
+
+        console.log(
+            "Opening payroll details:",
+            employeeId,
+            month,
+            year,
+            companyId
+        );
+
+
+        const modal = showModal("payrollDetailsModal");
+
+        if (!modal) {
+            return;
+        }
+
+
+        const loading =
+            document.getElementById("payrollDetailsLoading");
+
+        const content =
+            document.getElementById("payrollDetailsContent");
+
+        const error =
+            document.getElementById("payrollDetailsError");
+
+
+        loading.style.display = "block";
+        content.style.display = "none";
+        error.style.display = "none";
+
+
+        const url =
+            "/HRMManagement/PayrollDetailsData" +
+            "?employeeId=" + encodeURIComponent(employeeId) +
+            "&month=" + encodeURIComponent(month) +
+            "&year=" + encodeURIComponent(year) +
+            "&companyId=" + encodeURIComponent(companyId);
+
+
+        console.log("Payroll details URL:", url);
+
+
+        fetch(url, {
+            method: "GET",
+            headers: {
+                "Accept": "application/json"
+            }
+        })
+        .then(function (response) {
+
+            console.log(
+                "Payroll details response:",
+                response.status
+            );
+
+            if (!response.ok) {
+                throw new Error(
+                    "Unable to load payroll details. HTTP " +
+                    response.status
+                );
+            }
+
+            return response.json();
+        })
+        .then(function (data) {
+
+            console.log("Payroll details data:", data);
+
+
+            const employee = data.employee;
+            const payroll = data.payroll;
+
+
+            if (!employee || !payroll) {
+                throw new Error(
+                    "Payroll details response is incomplete."
+                );
+            }
+
+
+            document.getElementById(
+                "payrollDetailsSubtitle"
+            ).textContent =
+                (employee.name || "-") +
+                " • " +
+                payroll.month +
+                "/" +
+                payroll.year;
+
+
+            document.getElementById(
+                "detailEmployeeName"
+            ).textContent =
+                employee.name || "-";
+
+
+            document.getElementById(
+                "detailEmployeeCode"
+            ).textContent =
+                employee.code || "-";
+
+
+            document.getElementById(
+                "detailCompany"
+            ).textContent =
+                data.company || "-";
+
+
+            document.getElementById(
+                "detailDepartment"
+            ).textContent =
+                employee.department || "-";
+
+
+            document.getElementById(
+                "detailDesignation"
+            ).textContent =
+                employee.designation || "-";
+
+
+            document.getElementById(
+                "detailJoiningDate"
+            ).textContent =
+                employee.joiningDate || "-";
+
+
+            document.getElementById(
+                "detailWorkingDays"
+            ).textContent =
+                payroll.workingDays ?? "-";
+
+
+            document.getElementById(
+                "detailPayDays"
+            ).textContent =
+                payroll.payDays ?? "-";
+
+
+            document.getElementById(
+                "detailPaidDays"
+            ).textContent =
+                payroll.paidDays ?? "-";
+
+
+            document.getElementById(
+                "detailLOP"
+            ).textContent =
+                payroll.lop ?? "-";
+
+
+            document.getElementById(
+                "detailBasicSalary"
+            ).textContent =
+                formatCurrency(payroll.basicSalary);
+
+
+            document.getElementById(
+                "detailHRA"
+            ).textContent =
+                formatCurrency(payroll.hra);
+
+
+            document.getElementById(
+                "detailConveyance"
+            ).textContent =
+                formatCurrency(payroll.conveyanceAllowance);
+
+
+            document.getElementById(
+                "detailWashing"
+            ).textContent =
+                formatCurrency(payroll.washingAllowance);
+
+
+            document.getElementById(
+                "detailOtherAllowances"
+            ).textContent =
+                formatCurrency(payroll.otherAllowances);
+
+
+            document.getElementById(
+                "detailGross"
+            ).textContent =
+                formatCurrency(payroll.grossSalary);
+
+
+            document.getElementById(
+                "detailPF"
+            ).textContent =
+                formatCurrency(payroll.pf);
+
+
+            document.getElementById(
+                "detailESI"
+            ).textContent =
+                formatCurrency(payroll.esi);
+
+
+            document.getElementById(
+                "detailPT"
+            ).textContent =
+                formatCurrency(payroll.professionalTax);
+
+
+            document.getElementById(
+                "detailLWF"
+            ).textContent =
+                formatCurrency(payroll.lwf);
+
+
+            document.getElementById(
+                "detailOtherDeductions"
+            ).textContent =
+                formatCurrency(payroll.otherDeductions);
+
+
+            document.getElementById(
+                "detailTotalDeductions"
+            ).textContent =
+                formatCurrency(payroll.totalDeductions);
+
+
+            document.getElementById(
+                "detailNetSalary"
+            ).textContent =
+                formatCurrency(payroll.netSalary);
+
+
+            const statusElement =
+                document.getElementById("detailStatus");
+
+
+            statusElement.textContent =
+                payroll.status || "-";
+
+
+            if (payroll.status === "Finalized") {
+
+                statusElement.className =
+                    "badge bg-success";
+
+            }
+            else if (payroll.status === "Processed") {
+
+                statusElement.className =
+                    "badge bg-primary";
+
+            }
+            else {
+
+                statusElement.className =
+                    "badge bg-secondary";
+
+            }
+
+
+            loading.style.display = "none";
+
+            content.style.display = "block";
+
+        })
+        .catch(function (err) {
+
+            console.error(
+                "Payroll details error:",
+                err
+            );
+
+
+            loading.style.display = "none";
+
+            error.textContent =
+                err.message ||
+                "Unable to load payroll details.";
+
+            error.style.display = "block";
+
+        });
+    }
+
+
+        function openPayrollPayslip(
+        employeeId,
+        month,
+        year,
+        companyId) {
+
+        const modalElement =
+            document.getElementById(
+                "payrollPayslipModal"
+            );
+
+        const frame =
+            document.getElementById(
+                "managementPayslipFrame"
+            );
+
+        const loading =
+            document.getElementById(
+                "payslipLoading"
+            );
+
+        const error =
+            document.getElementById(
+                "payslipError"
+            );
+
+
+        if (!modalElement || !frame) {
+
+            console.error(
+                "Management payslip modal or iframe was not found."
+            );
+
+            return;
+        }
+
+
+        // Reset state
+        loading.style.display = "block";
+
+        frame.style.display = "none";
+
+        error.style.display = "none";
+
+        error.textContent = "";
+
+
+        // Build URL to the EXISTING standard payslip
+        const url =
+            "/HRMManagement/PayrollPayslip" +
+            "?employeeId=" +
+            encodeURIComponent(employeeId) +
+            "&month=" +
+            encodeURIComponent(month) +
+            "&year=" +
+            encodeURIComponent(year) +
+            "&companyId=" +
+            encodeURIComponent(companyId);
+
+
+        // Remove previous iframe document
+        frame.src = "about:blank";
+
+
+        // When the standard Payslip.cshtml finishes loading
+        frame.onload = function () {
+
+            loading.style.display = "none";
+
+            frame.style.display = "block";
+
+        };
+
+
+        // Handle iframe loading errors
+        frame.onerror = function () {
+
+            loading.style.display = "none";
+
+            frame.style.display = "none";
+
+            error.textContent =
+                "Unable to load the payslip.";
+
+            error.style.display = "block";
+
+        };
+
+
+        // Load the EXISTING standard payslip
+        frame.src = url;
+
+
+        // Show modal
+        const modal =
+            bootstrap.Modal.getOrCreateInstance(
+                modalElement
+            );
+
+        modal.show();
+    }
+
+        document
+        .getElementById("payrollPayslipModal")
+        ?.addEventListener(
+            "hidden.bs.modal",
+            function () {
+
+                const frame =
+                    document.getElementById(
+                        "managementPayslipFrame"
+                    );
+
+                const loading =
+                    document.getElementById(
+                        "payslipLoading"
+                    );
+
+                const error =
+                    document.getElementById(
+                        "payslipError"
+                    );
+
+
+                if (frame) {
+                    frame.src = "about:blank";
+                    frame.style.display = "none";
+                }
+
+                if (loading) {
+                    loading.style.display = "block";
+                }
+
+                if (error) {
+                    error.style.display = "none";
+                    error.textContent = "";
+                }
+
+            }
+        );
+
+
+   function printPayslip() {
+
+    const source =
+        document.getElementById("printablePayslip");
+
+    if (!source) {
+        alert("Payslip content not found.");
+        return;
+    }
+
+    const printWindow =
+        window.open(
+            "",
+            "_blank",
+            "width=1000,height=800"
+        );
+
+    if (!printWindow) {
+        alert(
+            "Please allow pop-ups in your browser to print the payslip."
+        );
+        return;
+    }
+
+    printWindow.document.open();
+
+    printWindow.document.write(
+        "<!DOCTYPE html>" +
+        "<html>" +
+        "<head>" +
+        "<title>Salary Slip</title>" +
+        "</head>" +
+        "</html>"
+    );
+
+    printWindow.document.close();
+
+    const body =
+        printWindow.document.body;
+
+    body.innerHTML =
+        source.innerHTML;
+
+    body.style.padding = "30px";
+    body.style.fontFamily = "Arial, sans-serif";
+
+    printWindow.focus();
+
+    setTimeout(function () {
+
+        printWindow.print();
+
+    }, 500);
+}
+
+</script>

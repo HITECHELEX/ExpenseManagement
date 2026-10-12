@@ -1,0 +1,276 @@
+﻿@{
+    ViewData["Title"] = "Apply Leave";
+
+    var leaveTypes =
+    ViewBag.LeaveTypes as Dictionary<string, string>
+    ?? new Dictionary<string, string>
+    {
+        ["CL"] = "Casual Leave",
+        ["SL"] = "Sick Leave",
+        ["C/Off"] = "Compensatory Off",
+        ["Paternity"] = "Paternity Leave",
+        ["Maternity"] = "Maternity Leave",
+        ["Medical"] = "Medical Leave"
+    };
+
+    decimal annualEntitlement =
+        ViewBag.AnnualEntitlement ?? 10m;
+}
+
+<div class="container-fluid py-4">
+
+    <!-- Header -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2 class="fw-bold mb-1">Apply Leave</h2>
+            <div class="text-muted">
+                Submit a new leave application
+            </div>
+        </div>
+
+        <a asp-controller="Leave"
+           asp-action="MyLeave"
+           class="btn btn-outline-secondary">
+            Back to My Leave
+        </a>
+    </div>
+
+
+    <!-- Messages -->
+    @if (TempData["Error"] != null)
+    {
+        <div class="alert alert-danger">
+            @TempData["Error"]
+        </div>
+    }
+
+
+    <div class="row">
+
+        <div class="col-lg-8">
+
+            <div class="card shadow-sm">
+
+                <div class="card-header bg-white">
+                    <h5 class="mb-0 fw-bold">
+                        Leave Application
+                    </h5>
+                </div>
+
+                <div class="card-body">
+
+                    <form asp-controller="Leave"
+                          asp-action="Apply"
+                          method="post">
+
+                        @Html.AntiForgeryToken()
+
+
+                        <!-- Leave Type -->
+                        <div class="mb-3">
+
+                            <label class="form-label fw-semibold">
+                                Leave Type
+                            </label>
+
+                            <select name="leaveType"
+                                    class="form-select"
+                                    required>
+
+                                <option value="">
+                                    Select Leave Type
+                                </option>
+
+                                @foreach (var type in leaveTypes)
+                                {
+                                    <option value="@type.Key">
+                                        @type.Value
+                                    </option>
+                                }
+
+                            </select>
+
+                        </div>
+
+
+                        <div class="row">
+
+                            <!-- From Date -->
+                            <div class="col-md-6 mb-3">
+
+                                <label class="form-label fw-semibold">
+                                    From Date
+                                </label>
+
+                                <input type="date"
+                                       name="fromDate"
+                                       class="form-control"
+                                       required />
+
+                            </div>
+
+
+                            <!-- To Date -->
+                            <div class="col-md-6 mb-3">
+
+                                <label class="form-label fw-semibold">
+                                    To Date
+                                </label>
+
+                                <input type="date"
+                                       name="toDate"
+                                       class="form-control"
+                                       required />
+
+                            </div>
+
+                        </div>
+
+
+                        <!-- Half Day -->
+                        <div class="mb-3">
+
+                            <div class="form-check">
+
+                                <input type="checkbox"
+                                       name="halfDay"
+                                       value="true"
+                                       class="form-check-input"
+                                       id="halfDay" />
+
+                                <label class="form-check-label"
+                                       for="halfDay">
+                                    Half Day
+                                </label>
+
+                            </div>
+
+                            <div class="form-text">
+                                Select this only when applying for a
+                                single working day.
+                            </div>
+
+                        </div>
+
+
+                        <!-- Reason -->
+                        <div class="mb-4">
+
+                            <label class="form-label fw-semibold">
+                                Reason
+                            </label>
+
+                            <textarea name="reason"
+                                      class="form-control"
+                                      rows="4"
+                                      placeholder="Enter reason for leave"></textarea>
+
+                        </div>
+
+
+                        <!-- Submit -->
+                        <div class="d-flex gap-2">
+
+                            <button type="submit"
+                                    class="btn btn-primary">
+                                Submit Leave Application
+                            </button>
+
+                            <a asp-controller="Leave"
+                               asp-action="MyLeave"
+                               class="btn btn-outline-secondary">
+                                Cancel
+                            </a>
+
+                        </div>
+
+                    </form>
+
+                </div>
+
+            </div>
+
+        </div>
+
+
+        <!-- Information Panel -->
+        <div class="col-lg-4 mt-4 mt-lg-0">
+
+            <div class="card shadow-sm">
+
+                <div class="card-header bg-white">
+                    <h5 class="mb-0 fw-bold">
+                        Leave Information
+                    </h5>
+                </div>
+
+                <div class="card-body">
+
+                    <div class="mb-3">
+                        <div class="fw-semibold">
+                            Annual Paid Leave
+                        </div>
+
+                        <div class="text-muted">
+                            @annualEntitlement.ToString("0.##")
+                            paid days per calendar year
+                        </div>
+                    </div>
+
+
+                    <div class="mb-3">
+                        <div class="fw-semibold">
+                            Leave Types
+                        </div>
+
+                        <div class="text-muted">
+                            Available leave types are based on the company's Leave Policy.
+                            Your current annual entitlement is
+                            @annualEntitlement.ToString("0.##") days.
+                        </div>
+                    </div>
+
+
+                    <div class="mb-3">
+                        <div class="fw-semibold">
+                            Half Day
+                        </div>
+
+                        <div class="text-muted">
+                            Half-day leave counts as 0.5 day.
+                        </div>
+                    </div>
+
+
+                    <div class="mb-3">
+                        <div class="fw-semibold">
+                            Weekends
+                        </div>
+
+                        <div class="text-muted">
+                            Sundays and 2nd/4th Saturdays are
+                            non-working days.
+                        </div>
+                    </div>
+
+
+                    <div>
+                        <div class="fw-semibold">
+                            Approval
+                        </div>
+
+                        <div class="text-muted">
+                            Leave remains Pending until reviewed
+                            by HR.
+                        </div>
+                    </div>
+
+                </div>
+
+            </div>
+
+        </div>
+
+    </div>
+
+</div>

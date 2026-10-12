@@ -1,0 +1,981 @@
+﻿@model ExpenseManagement.Models.Employee
+
+@{
+    ViewData["Title"] = "Add Employee";
+
+    var availableUsers =
+        ViewBag.AvailableUsers as List<ExpenseManagement.Models.User>
+        ?? new List<ExpenseManagement.Models.User>();
+
+    var managers =
+        ViewBag.Managers as List<ExpenseManagement.Models.Employee>
+        ?? new List<ExpenseManagement.Models.Employee>();
+
+    var employeeMode = ViewBag.EmployeeMode as string ?? "existing";
+}
+
+<div class="container-fluid">
+
+    <form asp-controller="HRMEmployee"
+          asp-action="Create"
+          method="post">
+
+        @Html.AntiForgeryToken()
+
+        @if (!ViewData.ModelState.IsValid)
+        {
+            <div asp-validation-summary="All" class="alert alert-danger"></div>
+        }
+
+        <div class="d-flex justify-content-between align-items-center mb-4">
+
+        <div>
+            <h2 class="mb-1">Add Employee</h2>
+            <p class="text-muted mb-0">
+                Add an existing employee user or create a new employee.
+            </p>
+        </div>
+
+        <a asp-controller="HRMEmployee"
+           asp-action="Index"
+           class="btn btn-secondary">
+            <i class="fas fa-arrow-left me-1"></i>
+            Back to Employees
+        </a>
+
+    </div>
+
+
+    <div class="card shadow-sm mb-4">
+
+        <div class="card-body">
+
+            <h5 class="mb-3">
+                Employee Setup
+            </h5>
+
+            <div class="row g-4">
+
+                <!-- Existing Employee -->
+                <div class="col-md-6">
+                    <div class="form-check">
+
+                            <input class="form-check-input"
+                                   type="radio"
+                                   name="EmployeeMode"
+                                   id="existingEmployee"
+                                   value="existing"
+                            @(employeeMode == "existing" ? "checked" : "")>
+
+                        <label class="form-check-label"
+                               for="existingEmployee">
+
+                            <strong>Existing Employee User</strong>
+
+                            <div class="text-muted">
+                                Create an HR profile for an employee who already exists in the system.
+                            </div>
+
+                        </label>
+
+                    </div>
+                </div>
+
+
+                <!-- New Employee -->
+                <div class="col-md-6">
+                    <div class="form-check">
+
+                            <input class="form-check-input"
+                                   type="radio"
+                                   name="EmployeeMode"
+                                   id="newEmployee"
+                                   value="new"
+                            @(employeeMode == "new" ? "checked" : "")>
+
+                        <label class="form-check-label"
+                               for="newEmployee">
+
+                            <strong>New Employee</strong>
+
+                            <div class="text-muted">
+                                Create a new employee User and HR profile.
+                            </div>
+
+                        </label>
+
+                    </div>
+                </div>
+
+            </div>
+
+        </div>
+
+    </div>
+
+
+ 
+
+
+        <!-- ===================================================== -->
+        <!-- EXISTING USER SECTION -->
+        <!-- ===================================================== -->
+
+        <div id="existingEmployeeSection">
+
+            <div class="card shadow-sm mb-4">
+
+                <div class="card-header bg-white">
+
+                    <h5 class="mb-0">
+                        <i class="fas fa-user-check me-2"></i>
+                        Existing Employee User
+                    </h5>
+
+                </div>
+
+                <div class="card-body">
+
+                    <div class="mb-3">
+
+                        <label asp-for="UserId"
+                               class="form-label">
+                            Employee User *
+                        </label>
+
+                        <select asp-for="UserId"
+                                class="form-select">
+
+                            <option value="">
+                                -- Select Employee --
+                            </option>
+
+                            @foreach (var user in availableUsers)
+                            {
+                                <option value="@user.Id">
+                                    @user.FullName (@user.Email)
+                                </option>
+                            }
+
+                        </select>
+
+                        <span asp-validation-for="UserId"
+                              class="text-danger">
+                        </span>
+
+                        <small class="text-muted">
+                            Only existing Employee users without an HR
+                            profile are shown.
+                        </small>
+
+                    </div>
+
+                </div>
+
+            </div>
+
+        </div>
+
+
+        <!-- ===================================================== -->
+        <!-- NEW USER SECTION -->
+        <!-- ===================================================== -->
+
+        <div id="newEmployeeSection"
+             style="display:none;">
+
+            <div class="card shadow-sm mb-4">
+
+                <div class="card-header bg-white">
+
+                    <h5 class="mb-0">
+                        <i class="fas fa-user-plus me-2"></i>
+                        New Employee Account
+                    </h5>
+
+                </div>
+
+                <div class="card-body">
+
+                    <div class="row">
+
+                        <div class="col-md-6 mb-3">
+
+                            <label class="form-label">
+                                Full Name *
+                            </label>
+
+                            <input type="text"
+                                   name="NewFullName"
+                                   class="form-control"
+                                   placeholder="Employee full name">
+
+                        </div>
+
+
+                        <div class="col-md-6 mb-3">
+
+                            <label class="form-label">
+                                Official Email *
+                            </label>
+
+                            <input type="email"
+                                   name="NewEmail"
+                                   class="form-control"
+                                   placeholder="employee@company.com">
+
+                        </div>
+
+
+                        <div class="col-md-6 mb-3">
+
+                            <label class="form-label">
+                                Password *
+                            </label>
+
+                            <input type="password"
+                                   name="NewPassword"
+                                   class="form-control"
+                                   placeholder="Initial password">
+
+                        </div>
+
+
+                       
+                    </div>
+
+                </div>
+
+            </div>
+
+        </div>
+
+
+        <!-- ===================================================== -->
+        <!-- HR PROFILE -->
+        <!-- ===================================================== -->
+
+        <div class="card shadow-sm mb-4">
+
+            <div class="card-header bg-white">
+
+                <h5 class="mb-0">
+                    <i class="fas fa-id-card me-2"></i>
+                    HR Profile
+                </h5>
+
+            </div>
+
+            <div class="card-body">
+
+                <div class="row">
+
+
+                    <!-- Employee Code -->
+
+                    <div class="col-md-6 mb-3">
+
+                        <label asp-for="EmployeeCode"
+                               class="form-label">
+                            Employee Code *
+                        </label>
+
+                        <input asp-for="EmployeeCode"
+                               class="form-control"
+                               placeholder="e.g. EMP001" />
+
+                        <span asp-validation-for="EmployeeCode"
+                              class="text-danger">
+                        </span>
+
+                    </div>
+
+
+                    <!-- Date of Birth -->
+
+                    <div class="col-md-3 mb-3">
+
+                        <label asp-for="DateOfBirth"
+                               class="form-label">
+                            Date of Birth
+                        </label>
+
+                        <input asp-for="DateOfBirth"
+                               type="date"
+                               class="form-control" />
+
+                    </div>
+
+
+                    <!-- Gender -->
+
+                    <div class="col-md-3 mb-3">
+
+                        <label asp-for="Gender"
+                               class="form-label">
+                            Gender
+                        </label>
+
+                        <select asp-for="Gender"
+                                class="form-select">
+
+                            <option value="">
+                                -- Select --
+                            </option>
+
+                            <option value="Male">
+                                Male
+                            </option>
+
+                            <option value="Female">
+                                Female
+                            </option>
+
+                            <option value="Other">
+                                Other
+                            </option>
+
+                        </select>
+
+                    </div>
+
+                    <!-- Aadhaar Number -->
+
+                    <div class="col-md-6 mb-3">
+
+                        <label asp-for="AadhaarNumber"
+                               class="form-label">
+                            Aadhaar Number
+                        </label>
+
+                        <input asp-for="AadhaarNumber"
+                               class="form-control"
+                               maxlength="20"
+                               placeholder="Enter Aadhaar number" />
+
+                        <span asp-validation-for="AadhaarNumber"
+                              class="text-danger">
+                        </span>
+
+                    </div>
+
+
+                    <!-- PAN Number -->
+
+                    <div class="col-md-6 mb-3">
+
+                        <label asp-for="PANNumber"
+                               class="form-label">
+                            PAN Number
+                        </label>
+
+                        <input asp-for="PANNumber"
+                               class="form-control"
+                               maxlength="20"
+                               placeholder="Enter PAN number" />
+
+                        <span asp-validation-for="PANNumber"
+                              class="text-danger">
+                        </span>
+
+                    </div>
+
+                    <!-- Medical History -->
+
+                    <div class="col-md-12 mb-3">
+
+                        <label asp-for="MedicalHistory"
+                               class="form-label">
+                            Medical History
+                        </label>
+
+                        <textarea asp-for="MedicalHistory"
+                                  class="form-control"
+                                  rows="4"
+                                  placeholder="Enter relevant medical history, if any"></textarea>
+
+                        <span asp-validation-for="MedicalHistory"
+                              class="text-danger">
+                        </span>
+
+                    </div>
+
+                    <!-- Phone -->
+
+                    <div class="col-md-4 mb-3">
+
+                        <label asp-for="Phone"
+                               class="form-label">
+                            Phone
+                        </label>
+
+                        <input asp-for="Phone"
+                               class="form-control" />
+
+                    </div>
+
+
+                    <!-- Alternate Phone -->
+
+                    <div class="col-md-4 mb-3">
+
+                        <label asp-for="AlternatePhone"
+                               class="form-label">
+                            Alternate Phone
+                        </label>
+
+                        <input asp-for="AlternatePhone"
+                               class="form-control" />
+
+                    </div>
+
+
+                    <!-- Personal Email -->
+
+                    <div class="col-md-4 mb-3">
+
+                        <label asp-for="PersonalEmail"
+                               class="form-label">
+                            Personal Email
+                        </label>
+
+                        <input asp-for="PersonalEmail"
+                               type="email"
+                               class="form-control" />
+
+                    </div>
+
+
+                    <!-- Emergency Contact Name -->
+
+                    <div class="col-md-6 mb-3">
+
+                        <label asp-for="EmergencyContactName"
+                               class="form-label">
+                            Emergency Contact Name
+                        </label>
+
+                        <input asp-for="EmergencyContactName"
+                               class="form-control" />
+
+                    </div>
+
+
+                    <!-- Emergency Contact Phone -->
+
+                    <div class="col-md-6 mb-3">
+
+                        <label asp-for="EmergencyContactPhone"
+                               class="form-label">
+                            Emergency Contact Phone
+                        </label>
+
+                        <input asp-for="EmergencyContactPhone"
+                               class="form-control" />
+
+                    </div>
+
+
+                    <!-- Joining Date -->
+
+                    <div class="col-md-4 mb-3">
+
+                        <label asp-for="JoiningDate"
+                               class="form-label">
+                            Joining Date
+                        </label>
+
+                        <input asp-for="JoiningDate"
+                               type="date"
+                               class="form-control" />
+
+                    </div>
+
+
+                    <!-- Designation -->
+
+                    <div class="col-md-4 mb-3">
+
+                        <label asp-for="Designation"
+                               class="form-label">
+                            Designation
+                        </label>
+
+                        <input asp-for="Designation"
+                               class="form-control" />
+
+                    </div>
+
+
+                    <!-- Employment Type -->
+
+                    <div class="col-md-4 mb-3">
+
+                        <label asp-for="EmploymentType"
+                               class="form-label">
+                            Employment Type
+                        </label>
+
+                        <select asp-for="EmploymentType"
+                                class="form-select">
+
+                            <option value="">
+                                -- Select --
+                            </option>
+
+                            <option value="Full Time">
+                                Full Time
+                            </option>
+
+                            <option value="Part Time">
+                                Part Time
+                            </option>
+
+                            <option value="Contract">
+                                Contract
+                            </option>
+
+                            <option value="Intern">
+                                Intern
+                            </option>
+
+                        </select>
+
+                    </div>
+
+
+                    <!-- Employment Status -->
+
+                    <div class="col-md-4 mb-3">
+
+                        <label asp-for="EmploymentStatus"
+                               class="form-label">
+                            Employment Status
+                        </label>
+
+                        <select asp-for="EmploymentStatus"
+                                class="form-select">
+
+                            <option value="Active">
+                                Active
+                            </option>
+
+                        </select>
+
+                    </div>
+
+
+                    <!-- Reporting Manager -->
+
+                    <div class="col-md-4 mb-3">
+
+                        <label asp-for="ReportingManagerId"
+                               class="form-label">
+                            Reporting Manager
+                        </label>
+
+                        <select asp-for="ReportingManagerId"
+                                class="form-select">
+
+                            <option value="">
+                                -- No Reporting Manager --
+                            </option>
+
+                            @foreach (var manager in managers)
+                            {
+                                <option value="@manager.Id">
+                                    @manager.User.FullName
+                                    @(string.IsNullOrWhiteSpace(manager.Designation)
+                                        ? ""
+                                        : $" - {manager.Designation}")
+                                </option>
+                            }
+
+                        </select>
+
+                        <small class="text-muted">
+                            Optional
+                        </small>
+
+                    </div>
+
+                    <!-- Employee Category -->
+
+                    <div class="card shadow-sm mb-4">
+
+                        <div class="card-header bg-white">
+
+                            <h5 class="mb-0">
+                                <i class="fas fa-tags me-2"></i>
+                                Employee Category
+                            </h5>
+
+                        </div>
+
+                        <div class="card-body">
+
+                            <div class="row">
+
+                                <div class="col-md-4 mb-3">
+
+                                    <div class="form-check form-switch">
+
+                                        <input asp-for="IsIDBI"
+                                               class="form-check-input"
+                                               type="checkbox"
+                                               id="IsIDBI" />
+
+                                        <label class="form-check-label"
+                                               for="IsIDBI">
+
+                                            <strong>IDBI</strong>
+
+                                        </label>
+
+                                    </div>
+
+                                    <small class="text-muted">
+                                        Employee salary account is with IDBI Bank.
+                                    </small>
+
+                                </div>
+
+
+                                <div class="col-md-4 mb-3">
+
+                                    <div class="form-check form-switch">
+
+                                        <input asp-for="IsNonIDBI"
+                                               class="form-check-input"
+                                               type="checkbox"
+                                               id="IsNonIDBI" />
+
+                                        <label class="form-check-label"
+                                               for="IsNonIDBI">
+
+                                            <strong>Non-IDBI</strong>
+
+                                        </label>
+
+                                    </div>
+
+                                    <small class="text-muted">
+                                        Employee salary account is not with IDBI Bank.
+                                    </small>
+
+                                </div>
+
+
+                                <div class="col-md-4 mb-3">
+
+                                    <div class="form-check form-switch">
+
+                                        <input asp-for="IsOnSite"
+                                               class="form-check-input"
+                                               type="checkbox"
+                                               id="IsOnSite" />
+
+                                        <label class="form-check-label"
+                                               for="IsOnSite">
+
+                                            <strong>On Site</strong>
+
+                                        </label>
+
+                                    </div>
+
+                                    <small class="text-muted">
+                                        Employee works on site.
+                                    </small>
+
+                                </div>
+
+                            </div>
+
+                        </div>
+
+                    </div>
+
+                    <!-- Bank Details -->
+
+                    <div class="col-12 mt-4 mb-2">
+                        <h5 class="fw-semibold">
+                            Bank Details
+                        </h5>
+                    </div>
+
+                    <div class="col-md-6 mb-3">
+
+                        <label asp-for="BankName"
+                               class="form-label">
+                            Bank Name
+                        </label>
+
+                        <input asp-for="BankName"
+                               class="form-control"
+                               maxlength="150"
+                               placeholder="Enter bank name" />
+
+                        <span asp-validation-for="BankName"
+                              class="text-danger">
+                        </span>
+
+                    </div>
+
+                    <div class="col-md-6 mb-3">
+
+                        <label asp-for="BankBranch"
+                               class="form-label">
+                            Bank Branch
+                        </label>
+
+                        <input asp-for="BankBranch"
+                               class="form-control"
+                               maxlength="150"
+                               placeholder="Enter bank branch" />
+
+                        <span asp-validation-for="BankBranch"
+                              class="text-danger">
+                        </span>
+
+                    </div>
+
+                    <div class="col-md-6 mb-3">
+
+                        <label asp-for="BankAccountNumber"
+                               class="form-label">
+                            Bank Account Number
+                        </label>
+
+                        <input asp-for="BankAccountNumber"
+                               class="form-control"
+                               maxlength="50"
+                               placeholder="Enter bank account number" />
+
+                        <span asp-validation-for="BankAccountNumber"
+                              class="text-danger">
+                        </span>
+
+                    </div>
+
+                    <div class="col-md-6 mb-3">
+
+                        <label asp-for="BankIFSCCode"
+                               class="form-label">
+                            Bank IFSC Code
+                        </label>
+
+                        <input asp-for="BankIFSCCode"
+                               class="form-control"
+                               maxlength="50"
+                               placeholder="Enter IFSC code" />
+
+                        <span asp-validation-for="BankIFSCCode"
+                              class="text-danger">
+                        </span>
+
+                    </div>
+
+                    <div class="col-md-6 mb-3">
+
+                        <label asp-for="BankAccountHolderName"
+                               class="form-label">
+                            Account Holder Name
+                        </label>
+
+                        <input asp-for="BankAccountHolderName"
+                               class="form-control"
+                               maxlength="150"
+                               placeholder="Enter account holder name" />
+
+                        <span asp-validation-for="BankAccountHolderName"
+                              class="text-danger">
+                        </span>
+
+                    </div>
+
+                    <!-- Present Address -->
+
+                    <div class="col-md-6 mb-3">
+
+                        <label asp-for="PresentAddress"
+                               class="form-label">
+                            Present Address
+                        </label>
+
+                        <textarea asp-for="PresentAddress"
+                                  class="form-control"
+                                  rows="3"></textarea>
+
+                    </div>
+
+
+                    <!-- Aadhaar Address -->
+
+                    <div class="col-md-6 mb-3">
+
+                        <label asp-for="AadhaarAddress"
+                               class="form-label">
+                            Aadhaar Address
+                        </label>
+
+                        <textarea asp-for="AadhaarAddress"
+                                  class="form-control"
+                                  rows="3"></textarea>
+
+                    </div>
+
+
+                    <!-- City -->
+
+                    <div class="col-md-4 mb-3">
+
+                        <label asp-for="City"
+                               class="form-label">
+                            City
+                        </label>
+
+                        <input asp-for="City"
+                               class="form-control" />
+
+                    </div>
+
+
+                    <!-- State -->
+
+                    <div class="col-md-4 mb-3">
+
+                        <label asp-for="State"
+                               class="form-label">
+                            State
+                        </label>
+
+                        <input asp-for="State"
+                               class="form-control" />
+
+                    </div>
+
+
+                    <!-- Pincode -->
+
+                    <div class="col-md-4 mb-3">
+
+                        <label asp-for="Pincode"
+                               class="form-label">
+                            Pincode
+                        </label>
+
+                        <input asp-for="Pincode"
+                               class="form-control" />
+
+                    </div>
+
+
+                    <!-- Exit Date -->
+
+                    <div class="col-md-6 mb-3">
+
+                        <label asp-for="ExitDate"
+                               class="form-label">
+                            Exit Date
+                        </label>
+
+                        <input asp-for="ExitDate"
+                               type="date"
+                               class="form-control" />
+
+                    </div>
+
+
+                    <!-- Exit Reason -->
+
+                    <div class="col-md-6 mb-3">
+
+                        <label asp-for="ExitReason"
+                               class="form-label">
+                            Exit Reason
+                        </label>
+
+                        <input asp-for="ExitReason"
+                               class="form-control" />
+
+                    </div>
+
+                </div>
+
+            </div>
+
+        </div>
+
+
+        <!-- Actions -->
+
+        <div class="d-flex justify-content-end gap-2 mb-5">
+
+            <a asp-controller="HRMEmployee"
+               asp-action="Index"
+               class="btn btn-light">
+                Cancel
+            </a>
+
+            <button type="submit"
+                    class="btn btn-primary">
+                <i class="fas fa-save me-1"></i>
+                Create Employee
+            </button>
+
+        </div>
+
+    </form>
+
+</div>
+
+
+<script>
+
+    document.addEventListener("DOMContentLoaded", function () {
+
+        const existingRadio =
+            document.getElementById("existingEmployee");
+
+        const newRadio =
+            document.getElementById("newEmployee");
+
+        const existingSection =
+            document.getElementById("existingEmployeeSection");
+
+        const newSection =
+            document.getElementById("newEmployeeSection");
+
+        function updateEmployeeMode() {
+
+            if (newRadio.checked) {
+
+                existingSection.style.display = "none";
+                newSection.style.display = "block";
+
+            } else {
+
+                existingSection.style.display = "block";
+                newSection.style.display = "none";
+
+            }
+
+        }
+
+        existingRadio.addEventListener(
+            "change",
+            updateEmployeeMode
+        );
+
+        newRadio.addEventListener(
+            "change",
+            updateEmployeeMode
+        );
+
+        // Initialize the correct section when the page loads.
+        updateEmployeeMode();
+
+    });
+
+</script>

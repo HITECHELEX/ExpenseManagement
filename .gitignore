@@ -361,3 +361,16 @@ MigrationBackup/
 
 # Fody - auto-generated XML schema
 FodyWeavers.xsd
+
+
+# Local configuration and secrets
+appsettings.Development.json
+
+# Runtime HRM documents and uploaded files
+/App_Data/HRMDocuments/
+/wwwroot/uploads/receipts/
+
+# Local database files
+*.sqlite
+*.sqlite3
+*.db

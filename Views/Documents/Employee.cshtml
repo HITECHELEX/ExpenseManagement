@@ -1,0 +1,247 @@
+﻿@model List<ExpenseManagement.Models.Document>
+
+@{
+    ViewData["Title"] = "Documents";
+}
+
+<div class="container-fluid">
+
+    <!-- Header -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+
+    <div>
+        <h2 class="mb-1">My Documents</h2>
+        <p class="text-muted mb-0">
+            Upload and manage your personal documents.
+        </p>
+    </div>
+
+</div>
+
+<!-- Upload Document -->
+<div class="card shadow-sm mb-4">
+
+    <div class="card-header bg-white">
+
+        <h5 class="mb-0">
+            <i class="fas fa-upload me-2"></i>
+            Upload Personal Document
+        </h5>
+
+    </div>
+
+    <div class="card-body">
+
+        <form asp-controller="Documents"
+              asp-action="UploadEmployee"
+              method="post"
+              enctype="multipart/form-data">
+
+            @Html.AntiForgeryToken()
+
+            <div class="row g-3">
+
+                <!-- Document Type -->
+                <div class="col-md-6">
+
+                    <label class="form-label">
+                        Document Type
+                    </label>
+
+                    <select name="documentType"
+                            class="form-select"
+                            required>
+
+                        <option value="">
+                            Select Document Type
+                        </option>
+
+                        <option value="Aadhaar Card">
+                            Aadhaar Card
+                        </option>
+
+                        <option value="PAN Card">
+                            PAN Card
+                        </option>
+
+                        <option value="Passport">
+                            Passport
+                        </option>
+
+                        <option value="Driving License">
+                            Driving License
+                        </option>
+
+                        <option value="Education Certificate">
+                            Education Certificate
+                        </option>
+
+                        <option value="Experience Letter">
+                            Experience Letter
+                        </option>
+
+                        <option value="Other">
+                            Other
+                        </option>
+
+                    </select>
+
+                </div>
+
+
+                <!-- Document Name -->
+                <div class="col-md-6">
+
+                    <label class="form-label">
+                        Document Name
+                    </label>
+
+                    <input type="text"
+                           name="documentName"
+                           class="form-control"
+                           maxlength="200"
+                           placeholder="Enter document name"
+                           required />
+
+                </div>
+
+
+                <!-- File -->
+                <div class="col-12">
+
+                    <label class="form-label">
+                        Select File
+                    </label>
+
+                    <input type="file"
+                           name="file"
+                           class="form-control"
+                           accept=".pdf,.jpg,.jpeg,.png"
+                           required />
+
+                    <small class="text-muted">
+                        Accepted formats: PDF, JPG, JPEG, PNG.
+                        Maximum size: 5 MB.
+                    </small>
+
+                </div>
+
+
+                <!-- Submit -->
+                <div class="col-12">
+
+                    <button type="submit"
+                            class="btn btn-primary">
+
+                        <i class="fas fa-upload me-1"></i>
+                        Upload Document
+
+                    </button>
+
+                </div>
+
+            </div>
+
+        </form>
+
+    </div>
+
+</div>
+
+
+    <!-- Documents -->
+    <div class="card shadow-sm">
+
+        <div class="card-header bg-white">
+            <h5 class="mb-0">
+                <i class="fas fa-folder-open me-2"></i>
+                My Documents
+            </h5>
+        </div>
+
+        <div class="card-body">
+
+            @if (Model != null && Model.Any())
+            {
+                <div class="table-responsive">
+
+                    <table class="table table-hover align-middle mb-0">
+
+                        <thead>
+                            <tr>
+                                <th>Document</th>
+                                <th>Category</th>
+                                <th>Type</th>
+                                <th>Status</th>
+                                <th>Uploaded On</th>
+                                <th class="text-end">Action</th>
+                            </tr>
+                        </thead>
+
+                        <tbody>
+
+                            @foreach (var document in Model)
+                            {
+                                <tr>
+
+                                    <td>
+                                        <strong>
+                                            @document.DocumentName
+                                        </strong>
+                                    </td>
+
+                                    <td>
+                                        @(document.DocumentCategory ?? "-")
+                                    </td>
+
+                                    <td>
+                                        @(document.DocumentType ?? "-")
+                                    </td>
+
+                                    <td>
+                                        @(document.DocumentStatus ?? "-")
+                                    </td>
+
+                                    <td>
+                                        @(document.CreatedAt.ToLocalTime().ToString("dd MMM yyyy, hh:mm tt"))
+                                    </td>
+
+                                    <td class="text-end">
+                                       <a asp-action="ViewDocument"
+                                       asp-route-id="@document.Id"
+                                       target="_blank"
+                                       class="btn btn-sm btn-outline-secondary"
+                                       title="View Document">
+                                        <i class="fas fa-eye"></i>
+                                    </a>
+                                    </td>
+
+                                </tr>
+                            }
+
+                        </tbody>
+
+                    </table>
+
+                </div>
+            }
+            else
+            {
+                <div class="text-center py-5 text-muted">
+
+                    <i class="fas fa-file-circle-xmark fa-3x mb-3"></i>
+
+                    <h5>No documents uploaded</h5>
+
+                    <p class="mb-0">
+                        Your uploaded personal documents will appear here.
+                    </p>
+
+                </div>
+            }
+
+        </div>
+
+    </div>
+
+</div>

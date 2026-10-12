@@ -1,0 +1,517 @@
+﻿@{
+    ViewData["Title"] = "Reports";
+}
+
+<div class="container-fluid py-4">
+
+    <!-- ========================================================= -->
+    <!-- PAGE HEADER -->
+    <!-- ========================================================= -->
+
+    <div class="d-flex justify-content-between align-items-center mb-4">
+
+        <div>
+            <h2 class="fw-bold mb-1">
+                <i class="bi bi-file-earmark-bar-graph me-2"></i>
+                Reports
+            </h2>
+
+            <p class="text-muted mb-0">
+                Generate and download HRM reports.
+            </p>
+        </div>
+
+    </div>
+
+    @if (User.IsInRole("Management"))
+    {
+        <div class="card border-0 shadow-sm mb-4">
+            <div class="card-body">
+
+                <div class="row align-items-end">
+
+                    <div class="col-md-6">
+
+                        <label class="form-label fw-semibold">
+                            Select Company
+                        </label>
+
+                        <form asp-controller="Reports"
+                              asp-action="Index"
+                              method="get">
+
+                            <div class="input-group">
+
+                                <select name="companyId"
+                                        class="form-select"
+                                        onchange="this.form.submit()">
+
+                                    @foreach (var company in ViewBag.Companies)
+                                    {
+                                        <option value="@company.Id"
+                                                selected="@(company.Id == (int)ViewBag.SelectedCompanyId)">
+                                            @company.Name
+                                        </option>
+                                    }
+
+                                </select>
+
+                            </div>
+
+                        </form>
+
+                    </div>
+
+                    <div class="col-md-6 mt-3 mt-md-0">
+
+                        <div class="text-muted small">
+                            Currently viewing reports for
+                        </div>
+
+                        <div class="fw-semibold">
+                            @ViewBag.SelectedCompanyName
+                        </div>
+
+                    </div>
+
+                </div>
+
+            </div>
+        </div>
+    }
+    else if (User.IsInRole("HR"))
+    {
+        <div class="card border-0 shadow-sm mb-4">
+            <div class="card-body">
+
+                <div class="text-muted small">
+                    Company
+                </div>
+
+                <div class="fw-semibold">
+                    @ViewBag.SelectedCompanyName
+                </div>
+
+            </div>
+        </div>
+    }
+
+
+    <!-- ========================================================= -->
+    <!-- REPORT CATEGORIES -->
+    <!-- ========================================================= -->
+
+    <div class="row g-4">
+
+
+        <!-- ===================================================== -->
+        <!-- EMPLOYEE REPORTS -->
+        <!-- ===================================================== -->
+
+        <div class="col-xl-4 col-lg-6 col-md-6">
+
+            <div class="card h-100 border-0 shadow-sm report-card">
+
+                <div class="card-body p-4">
+
+                    <div class="d-flex align-items-center mb-3">
+
+                        <div class="report-icon bg-primary-subtle text-primary">
+                            <i class="bi bi-people-fill"></i>
+                        </div>
+
+                        <div class="ms-3">
+                            <h5 class="fw-bold mb-1">
+                                Employee Reports
+                            </h5>
+
+                            <small class="text-muted">
+                                Employee information and records
+                            </small>
+                        </div>
+
+                    </div>
+
+                    <p class="text-muted small">
+                        Generate employee-related reports including
+                        employee master data and employee details.
+                    </p>
+
+                    <button type="button"
+                            class="btn btn-outline-primary w-100"
+                            disabled>
+                        <i class="bi bi-arrow-right-circle me-1"></i>
+                        Coming Soon
+                    </button>
+
+                </div>
+
+            </div>
+
+        </div>
+
+
+        <!-- ===================================================== -->
+        <!-- ATTENDANCE REPORTS -->
+        <!-- ===================================================== -->
+
+        <div class="col-xl-4 col-lg-6 col-md-6">
+
+            <div class="card h-100 border-0 shadow-sm report-card">
+
+                <div class="card-body p-4">
+
+                    <div class="d-flex align-items-center mb-3">
+
+                        <div class="report-icon bg-success-subtle text-success">
+                            <i class="fas fa-calendar-check"></i>
+                        </div>
+
+                        <div class="ms-3">
+                            <h5 class="fw-bold mb-1">
+                                Attendance Reports
+                            </h5>
+
+                            <small class="text-muted">
+                                Attendance and punch records
+                            </small>
+                        </div>
+
+                    </div>
+
+                    <p class="text-muted small">
+                        Generate daily, weekly and monthly attendance
+                        reports for employees.
+                    </p>
+
+                    <a asp-controller="Reports"
+                       asp-action="AttendanceReport"
+                       asp-route-companyId="@ViewBag.SelectedCompanyId"
+                       class="btn btn-outline-success w-100">
+
+                        <i class="fas fa-arrow-right me-1"></i>
+                        Open Report
+
+                    </a>
+
+                </div>
+
+            </div>
+
+        </div>
+
+
+        <!-- ===================================================== -->
+        <!-- LEAVE REPORTS -->
+        <!-- ===================================================== -->
+
+        <div class="col-xl-4 col-lg-6 col-md-6">
+
+            <div class="card h-100 border-0 shadow-sm report-card">
+
+                <div class="card-body p-4">
+
+                    <div class="d-flex align-items-center mb-3">
+
+                        <div class="report-icon bg-warning-subtle text-warning">
+                            <i class="bi bi-calendar2-week-fill"></i>
+                        </div>
+
+                        <div class="ms-3">
+                            <h5 class="fw-bold mb-1">
+                                Leave Reports
+                            </h5>
+
+                            <small class="text-muted">
+                                Leave records and summaries
+                            </small>
+                        </div>
+
+                    </div>
+
+                    <p class="text-muted small">
+                        Generate employee leave summaries and leave
+                        history reports.
+                    </p>
+
+                    <button type="button"
+                            class="btn btn-outline-warning w-100"
+                            disabled>
+                        <i class="bi bi-arrow-right-circle me-1"></i>
+                        Coming Soon
+                    </button>
+
+                </div>
+
+            </div>
+
+        </div>
+
+
+        <!-- ===================================================== -->
+        <!-- PAYROLL REPORTS -->
+        <!-- ===================================================== -->
+
+        <div class="col-xl-4 col-lg-6 col-md-6">
+
+            <div class="card h-100 border-0 shadow-sm report-card">
+
+                <div class="card-body p-4">
+
+                    <div class="d-flex align-items-center mb-3">
+
+                        <div class="report-icon bg-danger-subtle text-danger">
+                            <i class="bi bi-cash-stack"></i>
+                        </div>
+
+                        <div class="ms-3">
+                            <h5 class="fw-bold mb-1">
+                                Payroll Reports
+                            </h5>
+
+                            <small class="text-muted">
+                                Payroll and salary information
+                            </small>
+                        </div>
+
+                    </div>
+
+                    <p class="text-muted small">
+                        Generate monthly payroll, salary and employee
+                        payroll reports.
+                    </p>
+
+                    <button type="button"
+                            class="btn btn-outline-danger w-100"
+                            disabled>
+                        <i class="bi bi-arrow-right-circle me-1"></i>
+                        Coming Soon
+                    </button>
+
+                </div>
+
+            </div>
+
+        </div>
+
+
+        <!-- ===================================================== -->
+        <!-- ASSET REPORTS -->
+        <!-- ===================================================== -->
+
+        <div class="col-xl-4 col-lg-6 col-md-6">
+
+            <div class="card h-100 border-0 shadow-sm report-card">
+
+                <div class="card-body p-4">
+
+                    <div class="d-flex align-items-center mb-3">
+
+                        <div class="report-icon bg-info-subtle text-info">
+                            <i class="bi bi-laptop-fill"></i>
+                        </div>
+
+                        <div class="ms-3">
+                            <h5 class="fw-bold mb-1">
+                                Asset Reports
+                            </h5>
+
+                            <small class="text-muted">
+                                Company assets and allocation
+                            </small>
+                        </div>
+
+                    </div>
+
+                    <p class="text-muted small">
+                        Generate asset registers, employee asset reports
+                        and asset history.
+                    </p>
+
+                    <button type="button"
+                            class="btn btn-outline-info w-100"
+                            disabled>
+                        <i class="bi bi-arrow-right-circle me-1"></i>
+                        Coming Soon
+                    </button>
+
+                </div>
+
+            </div>
+
+        </div>
+
+
+        <!-- ===================================================== -->
+        <!-- PERFORMANCE REPORTS -->
+        <!-- ===================================================== -->
+
+        <div class="col-xl-4 col-lg-6 col-md-6">
+
+            <div class="card h-100 border-0 shadow-sm report-card">
+
+                <div class="card-body p-4">
+
+                    <div class="d-flex align-items-center mb-3">
+
+                        <div class="report-icon bg-secondary-subtle text-secondary">
+                            <i class="bi bi-graph-up-arrow"></i>
+                        </div>
+
+                        <div class="ms-3">
+                            <h5 class="fw-bold mb-1">
+                                Performance Reports
+                            </h5>
+
+                            <small class="text-muted">
+                                Employee performance information
+                            </small>
+                        </div>
+
+                    </div>
+
+                    <p class="text-muted small">
+                        Generate employee performance summaries and
+                        performance history.
+                    </p>
+
+                    <button type="button"
+                            class="btn btn-outline-secondary w-100"
+                            disabled>
+                        <i class="bi bi-arrow-right-circle me-1"></i>
+                        Coming Soon
+                    </button>
+
+                </div>
+
+            </div>
+
+        </div>
+
+
+        <!-- ===================================================== -->
+        <!-- ONBOARDING REPORTS -->
+        <!-- ===================================================== -->
+
+        <div class="col-xl-4 col-lg-6 col-md-6">
+
+            <div class="card h-100 border-0 shadow-sm report-card">
+
+                <div class="card-body p-4">
+
+                    <div class="d-flex align-items-center mb-3">
+
+                        <div class="report-icon bg-dark-subtle text-dark">
+                            <i class="bi bi-person-plus-fill"></i>
+                        </div>
+
+                        <div class="ms-3">
+                            <h5 class="fw-bold mb-1">
+                                Onboarding Reports
+                            </h5>
+
+                            <small class="text-muted">
+                                Employee onboarding progress
+                            </small>
+                        </div>
+
+                    </div>
+
+                    <p class="text-muted small">
+                        Generate onboarding status and employee
+                        onboarding completion reports.
+                    </p>
+
+                    <button type="button"
+                            class="btn btn-outline-dark w-100"
+                            disabled>
+                        <i class="bi bi-arrow-right-circle me-1"></i>
+                        Coming Soon
+                    </button>
+
+                </div>
+
+            </div>
+
+        </div>
+
+
+        <!-- ===================================================== -->
+        <!-- OTHER REPORTS -->
+        <!-- ===================================================== -->
+
+        <div class="col-xl-4 col-lg-6 col-md-6">
+
+            <div class="card h-100 border-0 shadow-sm report-card">
+
+                <div class="card-body p-4">
+
+                    <div class="d-flex align-items-center mb-3">
+
+                        <div class="report-icon bg-secondary-subtle text-secondary">
+                            <i class="bi bi-file-earmark-text-fill"></i>
+                        </div>
+
+                        <div class="ms-3">
+                            <h5 class="fw-bold mb-1">
+                                Other Reports
+                            </h5>
+
+                            <small class="text-muted">
+                                Additional HRM reports
+                            </small>
+                        </div>
+
+                    </div>
+
+                    <p class="text-muted small">
+                        Additional reports can be added here as the
+                        HRM system expands.
+                    </p>
+
+                    <button type="button"
+                            class="btn btn-outline-secondary w-100"
+                            disabled>
+                        <i class="bi bi-arrow-right-circle me-1"></i>
+                        Coming Soon
+                    </button>
+
+                </div>
+
+            </div>
+
+        </div>
+
+    </div>
+
+</div>
+
+
+<style>
+
+    .report-card {
+        border-radius: 16px;
+        transition: all 0.2s ease-in-out;
+    }
+
+        .report-card:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 10px 25px rgba(0,0,0,0.08) !important;
+        }
+
+    .report-icon {
+        width: 52px;
+        height: 52px;
+        border-radius: 14px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 23px;
+        flex-shrink: 0;
+    }
+
+    .report-card p {
+        min-height: 48px;
+    }
+
+</style>

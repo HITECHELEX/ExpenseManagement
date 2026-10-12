@@ -1,0 +1,468 @@
+﻿@model ExpenseManagement.Models.Employee
+
+@{
+    ViewData["Title"] = "My Profile";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+
+<div class="page-content">
+
+    <!-- Header -->
+
+    <div class="card border-0 mb-4"
+         style="border-radius:14px;
+        background:linear-gradient(135deg,#1e3a8a,#2563eb);
+        color:white;">
+
+        <div class="card-body p-4">
+
+            <h4 class="fw-bold mb-1">
+                My Profile
+            </h4>
+
+            <p class="mb-0" style="opacity:.85;">
+                View your personal and employment information.
+            </p>
+
+        </div>
+
+    </div>
+
+
+    <!-- Basic Information -->
+
+    <div class="card border-0 shadow-sm mb-4">
+
+        <div class="card-header bg-white fw-semibold">
+            Basic Information
+        </div>
+
+        <div class="card-body">
+
+            <div class="row g-4">
+
+                <div class="col-md-4">
+                    <div class="text-muted small">
+                        Full Name
+                    </div>
+                    <div class="fw-semibold mt-1">
+                        @Model.User.FullName
+                    </div>
+                </div>
+
+                <div class="col-md-4">
+                    <div class="text-muted small">
+                        Employee Code
+                    </div>
+                    <div class="fw-semibold mt-1">
+                        @Model.EmployeeCode
+                    </div>
+                </div>
+
+                <div class="col-md-4">
+                    <div class="text-muted small">
+                        Email
+                    </div>
+                    <div class="fw-semibold mt-1">
+                        @Model.User.Email
+                    </div>
+                </div>
+
+                <div class="col-md-4">
+                    <div class="text-muted small">
+                        Department
+                    </div>
+                    <div class="fw-semibold mt-1">
+                        @(Model.User.Department ?? "Not assigned")
+                    </div>
+                </div>
+
+                <div class="col-md-4">
+                    <div class="text-muted small">
+                        Designation
+                    </div>
+                    <div class="fw-semibold mt-1">
+                        @(Model.Designation ?? "Not assigned")
+                    </div>
+                </div>
+
+                <div class="col-md-4">
+                    <div class="text-muted small">
+                        Company
+                    </div>
+                    <div class="fw-semibold mt-1">
+                        @(Model.User.Company?.Name ?? "Not assigned")
+                    </div>
+                </div>
+
+                <div class="col-md-4">
+                    <div class="text-muted small">
+                        Joining Date
+                    </div>
+                    <div class="fw-semibold mt-1">
+                        @(Model.JoiningDate?.ToString("dd MMM yyyy") ?? "Not available")
+                    </div>
+                </div>
+
+                <div class="col-md-4">
+                    <div class="text-muted small">
+                        Employment Type
+                    </div>
+                    <div class="fw-semibold mt-1">
+                        @(Model.EmploymentType ?? "Not assigned")
+                    </div>
+                </div>
+
+                <div class="col-md-4">
+                    <div class="text-muted small">
+                        Employment Status
+                    </div>
+                    <div class="fw-semibold mt-1">
+                        @(Model.EmploymentStatus ?? "Not assigned")
+                    </div>
+                </div>
+
+                <div class="col-md-4">
+                    <div class="text-muted small">
+                        Reporting Manager
+                    </div>
+                    <div class="fw-semibold mt-1">
+                        @(Model.ReportingManager?.User?.FullName ?? "Not assigned")
+                    </div>
+                </div>
+
+            </div>
+
+        </div>
+
+    </div>
+
+
+    <!-- Personal Information -->
+
+    <div class="card border-0 shadow-sm mb-4">
+
+        <div class="card-header bg-white fw-semibold">
+            Personal Information
+        </div>
+
+        <div class="card-body">
+
+            <div class="row g-4">
+
+                <div class="col-md-4">
+                    <div class="text-muted small">
+                        Date of Birth
+                    </div>
+                    <div class="fw-semibold mt-1">
+                        @(Model.DateOfBirth?.ToString("dd MMM yyyy") ?? "Not available")
+                    </div>
+                </div>
+
+                <div class="col-md-4">
+                    <div class="text-muted small">
+                        Gender
+                    </div>
+                    <div class="fw-semibold mt-1">
+                        @(Model.Gender ?? "Not specified")
+                    </div>
+                </div>
+
+                <div class="col-md-4">
+                    <div class="text-muted small">
+                        Phone
+                    </div>
+                    <div class="fw-semibold mt-1">
+                        @(Model.Phone ?? "Not available")
+                    </div>
+                </div>
+
+                <div class="col-md-4">
+                    <div class="text-muted small">
+                        Alternate Phone
+                    </div>
+                    <div class="fw-semibold mt-1">
+                        @(Model.AlternatePhone ?? "Not available")
+                    </div>
+                </div>
+
+                <div class="col-md-4">
+                    <div class="text-muted small">
+                        Personal Email
+                    </div>
+                    <div class="fw-semibold mt-1">
+                        @(Model.PersonalEmail ?? "Not available")
+                    </div>
+                </div>
+                <div class="col-md-4">
+    <div class="text-muted small">
+        Aadhaar Number
+    </div>
+    <div class="fw-semibold mt-1">
+        @(string.IsNullOrWhiteSpace(Model.AadhaarNumber)
+            ? "Not available"
+            : Model.AadhaarNumber)
+    </div>
+</div>
+
+<div class="col-md-4">
+    <div class="text-muted small">
+        PAN Number
+    </div>
+    <div class="fw-semibold mt-1">
+        @(string.IsNullOrWhiteSpace(Model.PANNumber)
+            ? "Not available"
+            : Model.PANNumber)
+    </div>
+</div>
+
+<div class="col-md-12">
+
+    <div class="text-muted small">
+        Medical History
+    </div>
+
+    <div class="fw-semibold mt-1"
+         style="white-space: pre-line;">
+        @(string.IsNullOrWhiteSpace(Model.MedicalHistory)
+            ? "Not available"
+            : Model.MedicalHistory)
+    </div>
+
+</div>
+            </div>
+
+        </div>
+
+    </div>
+
+    <!-- Employee Category -->
+
+<div class="card border-0 shadow-sm mb-4">
+
+    <div class="card-header bg-white fw-semibold">
+        Employee Category
+    </div>
+
+    <div class="card-body">
+
+        <div class="row g-4">
+
+            <div class="col-md-4">
+
+                <div class="text-muted small">
+                    IDBI
+                </div>
+
+                <div class="fw-semibold mt-1">
+                    @(Model.IsIDBI ? "Yes" : "No")
+                </div>
+
+            </div>
+
+
+            <div class="col-md-4">
+
+                <div class="text-muted small">
+                    Non-IDBI
+                </div>
+
+                <div class="fw-semibold mt-1">
+                    @(Model.IsNonIDBI ? "Yes" : "No")
+                </div>
+
+            </div>
+
+
+            <div class="col-md-4">
+
+                <div class="text-muted small">
+                    On Site
+                </div>
+
+                <div class="fw-semibold mt-1">
+                    @(Model.IsOnSite ? "Yes" : "No")
+                </div>
+
+            </div>
+
+        </div>
+
+    </div>
+
+</div>
+
+<!-- Bank Details -->
+
+<div class="card border-0 shadow-sm mb-4">
+
+    <div class="card-header bg-white fw-semibold">
+        Bank Details
+    </div>
+
+    <div class="card-body">
+
+        <div class="row g-4">
+
+            <div class="col-md-4">
+                <div class="text-muted small">
+                    Bank Name
+                </div>
+                <div class="fw-semibold mt-1">
+                    @(string.IsNullOrWhiteSpace(Model.BankName)
+                        ? "Not available"
+                        : Model.BankName)
+                </div>
+            </div>
+
+            <div class="col-md-4">
+                <div class="text-muted small">
+                    Bank Branch
+                </div>
+                <div class="fw-semibold mt-1">
+                    @(string.IsNullOrWhiteSpace(Model.BankBranch)
+                        ? "Not available"
+                        : Model.BankBranch)
+                </div>
+            </div>
+
+            <div class="col-md-4">
+                <div class="text-muted small">
+                    Account Number
+                </div>
+                <div class="fw-semibold mt-1">
+                    @(string.IsNullOrWhiteSpace(Model.BankAccountNumber)
+                        ? "Not available"
+                        : Model.BankAccountNumber)
+                </div>
+            </div>
+
+            <div class="col-md-4">
+                <div class="text-muted small">
+                    IFSC Code
+                </div>
+                <div class="fw-semibold mt-1">
+                    @(string.IsNullOrWhiteSpace(Model.BankIFSCCode)
+                        ? "Not available"
+                        : Model.BankIFSCCode)
+                </div>
+            </div>
+
+            <div class="col-md-4">
+                <div class="text-muted small">
+                    Account Holder Name
+                </div>
+                <div class="fw-semibold mt-1">
+                    @(string.IsNullOrWhiteSpace(Model.BankAccountHolderName)
+                        ? "Not available"
+                        : Model.BankAccountHolderName)
+                </div>
+            </div>
+
+        </div>
+
+    </div>
+
+</div>
+
+    <!-- Address -->
+
+    <div class="card border-0 shadow-sm mb-4">
+
+        <div class="card-header bg-white fw-semibold">
+            Address Information
+        </div>
+
+        <div class="card-body">
+
+            <div class="row g-4">
+
+                <div class="col-md-6">
+                    <div class="text-muted small">
+                        Present Address
+                    </div>
+                    <div class="fw-semibold mt-1">
+                        @(Model.PresentAddress ?? "Not available")
+                    </div>
+                </div>
+
+                <div class="col-md-6">
+                    <div class="text-muted small">
+                        Aadhaar Address
+                    </div>
+                    <div class="fw-semibold mt-1">
+                        @(Model.AadhaarAddress ?? "Not available")
+                    </div>
+                </div>
+
+                <div class="col-md-4">
+                    <div class="text-muted small">
+                        City
+                    </div>
+                    <div class="fw-semibold mt-1">
+                        @(Model.City ?? "Not available")
+                    </div>
+                </div>
+
+                <div class="col-md-4">
+                    <div class="text-muted small">
+                        State
+                    </div>
+                    <div class="fw-semibold mt-1">
+                        @(Model.State ?? "Not available")
+                    </div>
+                </div>
+
+                <div class="col-md-4">
+                    <div class="text-muted small">
+                        Pincode
+                    </div>
+                    <div class="fw-semibold mt-1">
+                        @(Model.Pincode ?? "Not available")
+                    </div>
+                </div>
+
+            </div>
+
+        </div>
+
+    </div>
+
+
+    <!-- Emergency Contact -->
+
+    <div class="card border-0 shadow-sm mb-4">
+
+        <div class="card-header bg-white fw-semibold">
+            Emergency Contact
+        </div>
+
+        <div class="card-body">
+
+            <div class="row g-4">
+
+                <div class="col-md-6">
+                    <div class="text-muted small">
+                        Contact Name
+                    </div>
+                    <div class="fw-semibold mt-1">
+                        @(Model.EmergencyContactName ?? "Not available")
+                    </div>
+                </div>
+
+                <div class="col-md-6">
+                    <div class="text-muted small">
+                        Contact Phone
+                    </div>
+                    <div class="fw-semibold mt-1">
+                        @(Model.EmergencyContactPhone ?? "Not available")
+                    </div>
+                </div>
+
+            </div>
+
+        </div>
+
+    </div>
+
+</div>

@@ -55,8 +55,9 @@
                     <label class="form-label">Amount (₹) <span class="text-danger">*</span></label>
                     <div class="input-group">
                         <span class="input-group-text">₹</span>
-                        <input type="number" name="Amount" class="form-control" placeholder="0.00"
-                               step="0.01" min="0.01" required id="amtInput" />
+                        <input type="number" name="Amount" class="form-control no-spinner" placeholder="0.00"
+                               step="any" min="0.01" required id="amtInput"
+                               style="-webkit-appearance:none;-moz-appearance:textfield;" />
                     </div>
                     @if (!isOverspent)
                     {
@@ -79,7 +80,7 @@
 
                 <div class="col-md-6">
                     <label class="form-label">Category <span class="text-danger">*</span></label>
-                    <select name="Category" class="form-select" required>
+                    <select name="Category" id="categorySelect" class="form-select" required>
                         <option value="">Select category</option>
                         <option>Travel</option>
                         <option>Accommodation</option>
@@ -90,10 +91,23 @@
                         <option>Training</option>
                         <option>Medical</option>
                         <option>Miscellaneous</option>
+                        <option>Tax Invoice</option>
+                        <option>Others</option>
                     </select>
+                    <!-- Guideline hint popup -->
+                    <div id="categoryHint" style="display:none;margin-top:8px;border-radius:10px;border:1px solid #bfdbfe;background:#eff6ff;padding:10px 13px;font-size:.82rem;animation:hintIn .18s ease">
+                        <div class="d-flex align-items-center gap-2 mb-1">
+                            <i class="fas fa-book-open" style="color:#2563eb;font-size:.85rem"></i>
+                            <span class="fw-semibold" style="color:#1e40af" id="hintTitle"></span>
+                            <a href="/Employee/ExpenseGuideline" target="_blank" style="margin-left:auto;font-size:.75rem;color:#2563eb;text-decoration:none;white-space:nowrap">
+                                Full policy <i class="fas fa-external-link-alt" style="font-size:.65rem"></i>
+                            </a>
+                        </div>
+                        <div id="hintBody" style="color:#1e3a8a;line-height:1.7"></div>
+                    </div>
                 </div>
                 <div class="col-md-6">
-                    <label class="form-label">Description</label>
+                    <label class="form-label">Description <span class="text-muted fw-normal">(optional)</span></label>
                     <input type="text" name="Description" class="form-control" placeholder="Brief description (optional)" />
                 </div>
 
@@ -126,35 +140,63 @@
                     </div>
                 </div>
 
-                <!-- Bill Photo Upload -->
+                <!-- Bill / Receipt Photos (max 3) -->
                 <div class="col-12">
-                    <label class="form-label" id="receiptLabel">
+                    <label class="form-label fw-semibold">
                         Bill / Receipt Photo
                         <span id="receiptRequired" class="d-none text-danger">*</span>
                         <span id="receiptOptional" class="text-muted fw-normal" style="font-size:.8rem">(optional for cash)</span>
                     </label>
-                    <div class="bill-upload-zone" id="uploadZone" onclick="document.getElementById('billFile').click()">
-                        <i class="fas fa-camera d-block"></i>
-                        <p class="mb-1 fw-semibold">Upload Bill Photo or PDF</p>
-                        <p class="text-muted mb-0" style="font-size:.82rem">Click or drag & drop · JPG, PNG, PDF · Max 10MB</p>
-                        <p class="text-muted mt-1" style="font-size:.78rem"><i class="fas fa-mobile-alt me-1"></i>Mobile: tap to open camera or gallery</p>
+                    <div style="font-size:.78rem;color:#64748b;margin-bottom:8px">
+                        <i class="fas fa-info-circle me-1 text-primary"></i>
+                        You can upload up to <strong>3 photos</strong>. UPI payments require at least 1.
                     </div>
-                    <input type="file" name="Receipt" id="billFile" class="d-none" accept="image/*,.pdf" capture="environment" />
-                    <div id="previewContainer" class="text-center mt-2" style="display:none!important">
-                        <img id="billPreview" class="bill-preview d-none" />
-                        <div id="pdfPreview" class="d-none">
-                            <i class="fas fa-file-pdf fa-3x text-danger"></i>
-                            <p id="pdfName" class="mt-2 mb-0"></p>
-                        </div>
-                        <button type="button" class="btn btn-sm btn-outline-danger mt-2" onclick="clearFile()">
-                            <i class="fas fa-times me-1"></i>Remove
-                        </button>
+
+                    <!-- 3 upload slots -->
+                    <div class="d-flex gap-2 flex-wrap">
+                        @for (int slot = 1; slot <= 3; slot++)
+                        {
+                            string slotId    = slot == 1 ? "billFile"  : $"billFile{slot}";
+                            string inputName = slot == 1 ? "Receipt"   : $"Receipt{slot}";
+                            string previewId = $"prev{slot}";
+                            string zoneId    = $"zone{slot}";
+                            string label     = slot == 1 ? "Photo 1" : $"Photo {slot} (optional)";
+                            <div style="flex:1;min-width:120px;max-width:200px">
+                                <div id="@zoneId"
+                                     onclick="document.getElementById('@slotId').click()"
+                                     style="border:2px dashed #cbd5e1;border-radius:12px;padding:14px 8px;text-align:center;cursor:pointer;background:#f8fafc;transition:.2s;min-height:110px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px">
+                                    <div class="d-flex gap-2 align-items-center justify-content-center">
+                                        <i class="fas fa-camera" style="font-size:1.2rem;color:#94a3b8"></i>
+                                        <span style="color:#cbd5e1;font-size:.75rem">|</span>
+                                        <i class="fas fa-file-pdf" style="font-size:1.1rem;color:#fca5a5"></i>
+                                    </div>
+                                    <div style="font-size:.72rem;color:#64748b;margin-top:2px;font-weight:600">@label</div>
+                                    <div style="font-size:.62rem;color:#94a3b8">Photo or PDF</div>
+                                </div>
+                                <input type="file" name="@inputName" id="@slotId" class="d-none"
+                                       accept="image/*,.pdf"
+                                       onchange="handleSlot(@slot, this)" />
+                                <div id="@previewId" class="d-none mt-1 text-center">
+                                    <img id="@(previewId)img" style="max-height:70px;max-width:100%;border-radius:8px;border:1px solid #e2e8f0" class="d-none" />
+                                    <div id="@(previewId)pdf" class="d-none">
+                                        <i class="fas fa-file-pdf text-danger" style="font-size:1.5rem"></i>
+                                        <div id="@(previewId)name" style="font-size:.68rem;color:#64748b;word-break:break-all"></div>
+                                    </div>
+                                    <button type="button" onclick="clearSlot(@slot)"
+                                            class="btn btn-sm btn-outline-danger mt-1"
+                                            style="font-size:.7rem;padding:2px 8px">
+                                        <i class="fas fa-times"></i> Remove
+                                    </button>
+                                </div>
+                            </div>
+                        }
                     </div>
                 </div>
             </div>
 
             <div class="d-flex gap-2 mt-4">
-                <button type="submit" class="btn btn-primary flex-fill" id="submitBtn">
+                <button type="button" class="btn btn-primary flex-fill" id="submitBtn"
+                        onclick="submitExpense(this)">
                     <i class="fas fa-plus me-2"></i>Add Expense
                 </button>
                 <a href="/Employee/ReportDetail/@report?.Id" class="btn btn-outline-secondary">Cancel</a>
@@ -164,7 +206,156 @@
 </div>
 
 @section Scripts {
+<style>
+@@keyframes hintIn {
+    from { opacity: 0; transform: translateY(-5px); }
+    to   { opacity: 1; transform: translateY(0);    }
+}
+/* Hide up/down spinner arrows on number inputs */
+input[type=number].no-spinner::-webkit-inner-spin-button,
+input[type=number].no-spinner::-webkit-outer-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+}
+input[type=number].no-spinner {
+    -moz-appearance: textfield;
+}
+</style>
 <script>
+// ── Category guideline hints (sourced from Expense Guideline policy) ──
+const categoryHints = {
+    'Travel': {
+        title: 'Travel Limits',
+        color: { bg: '#fffbeb', border: '#fcd34d', text: '#78350f', titleColor: '#92400e', icon: 'fa-car', iconColor: '#f59e0b' },
+        rows: [
+            { icon: 'fa-car',        color: '#f59e0b', text: '<strong>₹5 / km</strong> — Four Wheeler <span style="color:#b45309">(prior supervisor permission required)</span>' },
+            { icon: 'fa-motorcycle', color: '#0ea5e9', text: '<strong>₹4 / km</strong> — Two Wheeler (no prior permission needed)' },
+            { icon: 'fa-times-circle', color: '#ef4444', text: 'Home ↔ Office commute is <strong>not claimable</strong>' },
+            { icon: 'fa-paperclip',  color: '#6b7280', text: 'Attach <strong>fuel bills</strong> + distance claim as proof' },
+        ]
+    },
+    'Accommodation': {
+        title: 'Accommodation Limits',
+        color: { bg: '#eff6ff', border: '#bfdbfe', text: '#1e3a8a', titleColor: '#1e40af', icon: 'fa-hotel', iconColor: '#2563eb' },
+        rows: [
+            { icon: 'fa-city',     color: '#2563eb', text: '<strong>₹1,200 / night</strong> — Metro cities' },
+            { icon: 'fa-building', color: '#6b7280', text: '<strong>₹1,000 / night</strong> — Other cities' },
+            { icon: 'fa-paperclip', color: '#6b7280', text: 'Attach <strong>booking confirmation</strong> as proof' },
+        ]
+    },
+    'Food & Meals': {
+        title: 'Food & Meal Limits',
+        color: { bg: '#f0fdf4', border: '#86efac', text: '#14532d', titleColor: '#166534', icon: 'fa-utensils', iconColor: '#16a34a' },
+        rows: [
+            { icon: 'fa-coffee',   color: '#f59e0b', text: '<strong>₹100 / day</strong> — Breakfast (before 9 AM)' },
+            { icon: 'fa-utensils', color: '#16a34a', text: '<strong>₹250 / day</strong> — Lunch or Dinner' },
+            { icon: 'fa-check-circle', color: '#16a34a', text: 'Applies to <strong>outdoor / site visits only</strong>' },
+            { icon: 'fa-times-circle', color: '#ef4444', text: 'Water & snacks during local visits are <strong>not claimable</strong>' },
+        ]
+    },
+    'Communication': {
+        title: 'Communication',
+        color: { bg: '#f0f9ff', border: '#7dd3fc', text: '#0c4a6e', titleColor: '#0369a1', icon: 'fa-phone', iconColor: '#0ea5e9' },
+        rows: [
+            { icon: 'fa-info-circle', color: '#0ea5e9', text: 'No fixed per-claim limit — keep within your overall budget' },
+            { icon: 'fa-paperclip',   color: '#6b7280', text: 'Attach phone / internet <strong>bills as proof</strong>' },
+        ]
+    },
+    'Office Supplies': {
+        title: 'Office Supplies',
+        color: { bg: '#faf5ff', border: '#d8b4fe', text: '#3b0764', titleColor: '#6d28d9', icon: 'fa-box', iconColor: '#7c3aed' },
+        rows: [
+            { icon: 'fa-info-circle', color: '#7c3aed', text: 'No fixed per-claim limit — keep within your overall budget' },
+            { icon: 'fa-paperclip',   color: '#6b7280', text: 'Attach <strong>purchase receipt</strong> as proof' },
+        ]
+    },
+    'Client Entertainment': {
+        title: 'Client Entertainment',
+        color: { bg: '#fff7ed', border: '#fdba74', text: '#7c2d12', titleColor: '#c2410c', icon: 'fa-handshake', iconColor: '#ea580c' },
+        rows: [
+            { icon: 'fa-info-circle',  color: '#ea580c', text: 'No fixed per-claim limit — keep within your overall budget' },
+            { icon: 'fa-check-circle', color: '#16a34a', text: 'Must be a <strong>genuine business-related</strong> expense' },
+            { icon: 'fa-paperclip',    color: '#6b7280', text: 'Attach <strong>bill / receipt</strong> as proof' },
+        ]
+    },
+    'Training': {
+        title: 'Training',
+        color: { bg: '#ecfdf5', border: '#6ee7b7', text: '#064e3b', titleColor: '#047857', icon: 'fa-graduation-cap', iconColor: '#059669' },
+        rows: [
+            { icon: 'fa-info-circle', color: '#059669', text: 'No fixed per-claim limit — keep within your overall budget' },
+            { icon: 'fa-paperclip',   color: '#6b7280', text: 'Attach <strong>enrollment confirmation</strong> or fee receipt' },
+        ]
+    },
+    'Medical': {
+        title: 'Medical',
+        color: { bg: '#fff1f2', border: '#fda4af', text: '#881337', titleColor: '#be123c', icon: 'fa-heartbeat', iconColor: '#e11d48' },
+        rows: [
+            { icon: 'fa-info-circle',  color: '#e11d48', text: 'No fixed per-claim limit — keep within your overall budget' },
+            { icon: 'fa-check-circle', color: '#16a34a', text: 'Must be a <strong>work-related</strong> medical expense' },
+            { icon: 'fa-paperclip',    color: '#6b7280', text: 'Attach <strong>prescription + medical bills</strong> as proof' },
+        ]
+    },
+    'Miscellaneous': {
+        title: 'Miscellaneous',
+        color: { bg: '#f8fafc', border: '#cbd5e1', text: '#1e293b', titleColor: '#334155', icon: 'fa-ellipsis-h', iconColor: '#64748b' },
+        rows: [
+            { icon: 'fa-check-circle',  color: '#16a34a', text: 'Expense must be clearly <strong>work-related</strong>' },
+            { icon: 'fa-times-circle',  color: '#ef4444', text: '<strong>Personal expenses</strong> are not reimbursable' },
+            { icon: 'fa-times-circle',  color: '#ef4444', text: 'Water & snacks during local visits are <strong>not claimable</strong>' },
+            { icon: 'fa-paperclip',     color: '#6b7280', text: 'Attach a valid <strong>bill / receipt</strong> as proof' },
+        ]
+    },
+    'Tax Invoice': {
+        title: 'Tax Invoice',
+        color: { bg: '#fefce8', border: '#fde68a', text: '#713f12', titleColor: '#92400e', icon: 'fa-file-invoice', iconColor: '#d97706' },
+        rows: [
+            { icon: 'fa-info-circle',  color: '#d97706', text: 'For GST / tax-related business expenses' },
+            { icon: 'fa-check-circle', color: '#16a34a', text: 'Attach the <strong>original tax invoice</strong> with GSTIN details' },
+            { icon: 'fa-paperclip',    color: '#6b7280', text: 'Invoice must be in the <strong>company\'s name</strong>' },
+        ]
+    },
+    'Others': {
+        title: 'Others',
+        color: { bg: '#f8fafc', border: '#cbd5e1', text: '#1e293b', titleColor: '#334155', icon: 'fa-question-circle', iconColor: '#64748b' },
+        rows: [
+            { icon: 'fa-check-circle', color: '#16a34a', text: 'Expense must be clearly <strong>work-related</strong>' },
+            { icon: 'fa-info-circle',  color: '#64748b', text: 'Provide a clear <strong>description</strong> of the expense' },
+            { icon: 'fa-paperclip',    color: '#6b7280', text: 'Attach a valid <strong>bill / receipt</strong> as proof' },
+        ]
+    }
+};
+
+const categorySelect = document.getElementById('categorySelect');
+const categoryHint   = document.getElementById('categoryHint');
+const hintTitle      = document.getElementById('hintTitle');
+const hintBody       = document.getElementById('hintBody');
+
+categorySelect.addEventListener('change', function () {
+    const hint = categoryHints[this.value];
+    if (!hint) { categoryHint.style.display = 'none'; return; }
+
+    const c = hint.color;
+    categoryHint.style.background   = c.bg;
+    categoryHint.style.borderColor  = c.border;
+    categoryHint.style.color        = c.text;
+
+    hintTitle.innerHTML = `<i class="fas ${c.icon}" style="color:${c.iconColor}"></i> ${hint.title}`;
+    hintTitle.style.color = c.titleColor;
+
+    hintBody.innerHTML = hint.rows.map(r =>
+        `<div class="d-flex align-items-start gap-2">
+            <i class="fas ${r.icon} mt-1 flex-shrink-0" style="color:${r.color};font-size:.78rem"></i>
+            <span>${r.text}</span>
+        </div>`
+    ).join('');
+
+    // Re-trigger animation
+    categoryHint.style.animation = 'none';
+    categoryHint.offsetHeight; // reflow
+    categoryHint.style.animation = 'hintIn .18s ease';
+    categoryHint.style.display = 'block';
+});
+
 const currentBalance = @remaining;
 const amtInput = document.getElementById('amtInput');
 const overspendWarn = document.getElementById('overspendWarn');
@@ -184,81 +375,98 @@ amtInput.addEventListener('input', function() {
 
 // ── Payment Method toggle ──
 function onPaymentChange() {
-    const isCash = document.getElementById('pmCash').checked;
-    const billFile = document.getElementById('billFile');
+    const isCash   = document.getElementById('pmCash').checked;
     const lblCash  = document.getElementById('lbl-cash');
     const lblUpi   = document.getElementById('lbl-upi');
     const reqSpan  = document.getElementById('receiptRequired');
     const optSpan  = document.getElementById('receiptOptional');
-    const zone     = document.getElementById('uploadZone');
+    const zone1    = document.getElementById('zone1');
 
     if (isCash) {
-        billFile.removeAttribute('required');
-        lblCash.style.borderColor = '#2563eb';
-        lblCash.style.background  = '#eff6ff';
-        lblUpi.style.borderColor  = '';
-        lblUpi.style.background   = '';
+        document.getElementById('billFile').removeAttribute('required');
+        lblCash.style.borderColor = '#2563eb'; lblCash.style.background = '#eff6ff';
+        lblUpi.style.borderColor  = '';        lblUpi.style.background  = '';
         reqSpan.classList.add('d-none');
         optSpan.classList.remove('d-none');
-        zone.style.borderColor = '';
-        zone.style.borderStyle = 'dashed';
-        zone.querySelector('p').textContent = 'Upload Bill Photo or PDF (optional)';
+        if (zone1) zone1.style.borderColor = '';
     } else {
-        billFile.setAttribute('required', 'required');
-        lblUpi.style.borderColor = '#2563eb';
-        lblUpi.style.background  = '#eff6ff';
-        lblCash.style.borderColor = '';
-        lblCash.style.background  = '';
+        document.getElementById('billFile').setAttribute('required', 'required');
+        lblUpi.style.borderColor  = '#2563eb'; lblUpi.style.background  = '#eff6ff';
+        lblCash.style.borderColor = '';        lblCash.style.background = '';
         reqSpan.classList.remove('d-none');
         optSpan.classList.add('d-none');
-        zone.style.borderColor = '#f59e0b';
-        zone.style.borderStyle = 'dashed';
-        zone.querySelector('p').textContent = 'Upload Bill Photo or PDF (required for UPI)';
+        if (zone1) zone1.style.borderColor = '#f59e0b';
     }
 }
-// Init on load
 onPaymentChange();
 
-const billFile = document.getElementById('billFile');
-const uploadZone = document.getElementById('uploadZone');
-const previewContainer = document.getElementById('previewContainer');
-const billPreview = document.getElementById('billPreview');
-const pdfPreview = document.getElementById('pdfPreview');
-const pdfName = document.getElementById('pdfName');
-
-billFile.addEventListener('change', function() {
-    const file = this.files[0];
+// ── Multi-slot receipt upload ──
+function handleSlot(slot, input) {
+    const file = input.files[0];
     if (!file) return;
-    previewContainer.style.display = 'block';
+    const zoneId   = 'zone'   + slot;
+    const prevId   = 'prev'   + slot;
+    const imgId    = 'prev'   + slot + 'img';
+    const pdfId    = 'prev'   + slot + 'pdf';
+    const nameId   = 'prev'   + slot + 'name';
+    const zone     = document.getElementById(zoneId);
+    const prev     = document.getElementById(prevId);
+    const imgEl    = document.getElementById(imgId);
+    const pdfEl    = document.getElementById(pdfId);
+    const nameEl   = document.getElementById(nameId);
+
+    prev.classList.remove('d-none');
+    zone.style.borderColor = '#2563eb';
+    zone.style.background  = '#eff6ff';
+
     if (file.type === 'application/pdf') {
-        billPreview.classList.add('d-none');
-        pdfPreview.classList.remove('d-none');
-        pdfName.textContent = file.name;
+        imgEl.classList.add('d-none');
+        pdfEl.classList.remove('d-none');
+        if (nameEl) nameEl.textContent = file.name;
     } else {
-        pdfPreview.classList.add('d-none');
-        billPreview.classList.remove('d-none');
+        pdfEl.classList.add('d-none');
+        imgEl.classList.remove('d-none');
         const reader = new FileReader();
-        reader.onload = e => billPreview.src = e.target.result;
+        reader.onload = e => { imgEl.src = e.target.result; };
         reader.readAsDataURL(file);
     }
-    uploadZone.style.borderColor = '#2563eb';
-});
+}
 
-uploadZone.addEventListener('dragover', e => { e.preventDefault(); uploadZone.classList.add('dragover'); });
-uploadZone.addEventListener('dragleave', () => uploadZone.classList.remove('dragover'));
-uploadZone.addEventListener('drop', e => {
-    e.preventDefault(); uploadZone.classList.remove('dragover');
-    const dt = new DataTransfer();
-    dt.items.add(e.dataTransfer.files[0]);
-    billFile.files = dt.files;
-    billFile.dispatchEvent(new Event('change'));
-});
+// ── Form submit with UPI receipt validation ──
+function submitExpense(btn) {
+    const form = document.getElementById('expenseForm');
+    const isUpi = document.getElementById('pmUpi').checked;
+    const receipt1 = document.getElementById('billFile');
 
-function clearFile() {
-    billFile.value = '';
-    previewContainer.style.display = 'none';
-    billPreview.src = '';
-    uploadZone.style.borderColor = document.getElementById('pmUpi').checked ? '#f59e0b' : '';
+    if (isUpi && receipt1.files.length === 0) {
+        receipt1.setCustomValidity('Please upload a receipt photo for UPI / Online payments.');
+        form.reportValidity();
+        receipt1.setCustomValidity('');
+        return;
+    }
+    if (!form.checkValidity()) {
+        form.reportValidity();
+        return;
+    }
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Adding...';
+    form.submit();
+}
+
+function clearSlot(slot) {
+    const inputId  = slot === 1 ? 'billFile' : 'billFile' + slot;
+    const zoneId   = 'zone'  + slot;
+    const prevId   = 'prev'  + slot;
+    const imgId    = 'prev'  + slot + 'img';
+    const pdfId    = 'prev'  + slot + 'pdf';
+    document.getElementById(inputId).value = '';
+    document.getElementById(prevId).classList.add('d-none');
+    const imgEl = document.getElementById(imgId);
+    if (imgEl) imgEl.src = '';
+    const pdfEl = document.getElementById(pdfId);
+    if (pdfEl) pdfEl.classList.add('d-none');
+    const zone = document.getElementById(zoneId);
+    if (zone) { zone.style.borderColor = ''; zone.style.background = '#f8fafc'; }
 }
 </script>
 }

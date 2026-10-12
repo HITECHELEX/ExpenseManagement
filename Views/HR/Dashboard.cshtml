@@ -1,0 +1,241 @@
+﻿@using ExpenseManagement.Models
+
+@{
+    Layout = "~/Views/Shared/_Layout.cshtml";
+
+    var hrProfile = ViewBag.HRProfile as string ?? "";
+    var employeeCount = ViewBag.EmployeeCount ?? 0;
+    var companyName = ViewBag.CompanyName as string ?? "";
+
+    ViewData["Title"] = "HR Dashboard";
+}
+<div class="page-content">
+
+    <!-- Welcome -->
+    <div class="card border-0 mb-4"
+         style="border-radius:14px;background:linear-gradient(135deg,#1e3a8a,#2563eb);color:white;">
+
+        <div class="card-body p-4">
+
+            <h4 class="fw-bold mb-1">
+                Welcome, @hrProfile
+            </h4>
+
+            <p class="mb-0" style="opacity:.8;">
+                Manage HR activities and employee information for
+                @companyName.
+            </p>
+
+        </div>
+
+    </div>
+
+
+    <!-- Statistics -->
+    <div class="row g-3 mb-4">
+
+        <div class="col-md-3">
+
+            <div class="card border-0 shadow-sm h-100">
+
+                <div class="card-body">
+
+                    <div class="text-muted small mb-2">
+                        Total Employees
+                    </div>
+
+                    <div class="fs-3 fw-bold">
+                        @employeeCount
+                    </div>
+
+                </div>
+
+            </div>
+
+        </div>
+
+
+        <div class="col-md-3">
+
+            <div class="card border-0 shadow-sm h-100">
+
+                <div class="card-body">
+
+                    <div class="text-muted small mb-2">
+                        Present Today
+                    </div>
+
+                    <div class="fs-3 fw-bold">
+                        —
+                    </div>
+
+                </div>
+
+            </div>
+
+        </div>
+
+
+        <div class="col-md-3">
+
+            <div class="card border-0 shadow-sm h-100">
+
+                <div class="card-body">
+
+                    <div class="text-muted small mb-2">
+                        On Leave
+                    </div>
+
+                    <div class="fs-3 fw-bold">
+                        —
+                    </div>
+
+                </div>
+
+            </div>
+
+        </div>
+
+
+        <div class="col-md-3">
+
+            <div class="card border-0 shadow-sm h-100">
+
+                <div class="card-body">
+
+                    <div class="text-muted small mb-2">
+                        Pending Requests
+                    </div>
+
+                    <div class="fs-3 fw-bold">
+                        —
+                    </div>
+
+                </div>
+
+            </div>
+
+        </div>
+
+    </div>
+
+
+    <!-- HR Activities -->
+    <div class="card border-0 shadow-sm">
+
+        <div class="card-header bg-white fw-semibold">
+            HR Activities
+        </div>
+
+        <div class="card-body">
+
+            <div class="row g-3">
+
+                <div class="col-md-4">
+
+                    <div class="border rounded p-3">
+
+                        <i class="fas fa-users text-primary me-2"></i>
+
+                        <strong>Employees</strong>
+
+                        <div class="small text-muted mt-1">
+                            Manage employee information
+                        </div>
+
+                    </div>
+
+                </div>
+
+
+                <div class="col-md-4">
+
+                    <div class="border rounded p-3">
+
+                        <i class="fas fa-calendar-check text-success me-2"></i>
+
+                        <strong>Attendance</strong>
+
+                        <div class="small text-muted mt-1">
+                            Manage employee attendance
+                        </div>
+
+                    </div>
+
+                </div>
+
+
+                <div class="col-md-4">
+
+                    <div class="border rounded p-3">
+
+                        <i class="fas fa-calendar-minus text-warning me-2"></i>
+
+                        <strong>Leave Management</strong>
+
+                        <div class="small text-muted mt-1">
+                            Manage employee leave
+                        </div>
+
+                    </div>
+
+                </div>
+
+
+                <div class="col-md-4">
+
+                    <div class="border rounded p-3">
+
+                        <i class="fas fa-money-check-dollar text-primary me-2"></i>
+
+                        <strong>Payroll</strong>
+
+                        <div class="small text-muted mt-1">
+                            Manage payroll information
+                        </div>
+
+                    </div>
+
+                </div>
+
+
+                <div class="col-md-4">
+
+                    <div class="border rounded p-3">
+
+                        <i class="fas fa-chart-line text-info me-2"></i>
+
+                        <strong>Performance</strong>
+
+                        <div class="small text-muted mt-1">
+                            Employee performance
+                        </div>
+
+                    </div>
+
+                </div>
+
+
+                <div class="col-md-4">
+
+                    <div class="border rounded p-3">
+
+                        <i class="fas fa-chart-column text-danger me-2"></i>
+
+                        <strong>Reports</strong>
+
+                        <div class="small text-muted mt-1">
+                            HR reports and analytics
+                        </div>
+
+                    </div>
+
+                </div>
+
+            </div>
+
+        </div>
+
+    </div>
+
+</div>

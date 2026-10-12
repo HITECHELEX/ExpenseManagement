@@ -1,0 +1,757 @@
+﻿@model List<ExpenseManagement.Models.Document>
+
+@{
+    ViewData["Title"] = "HR Documents";
+
+    var employees =
+        ViewBag.Employees
+        as List<ExpenseManagement.Models.Employee>
+        ?? new List<ExpenseManagement.Models.Employee>();
+
+     var templates =
+        ViewBag.Templates
+        as List<ExpenseManagement.Models.Document>
+        ?? new List<ExpenseManagement.Models.Document>();
+}
+
+<div class="container-fluid py-4">
+
+    <!-- PAGE HEADER -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+
+        <div>
+            <h2 class="fw-bold mb-1">
+                HR Documents
+            </h2>
+
+            <p class="text-muted mb-0">
+                Manage employee documents and HR-generated documents.
+            </p>
+        </div>
+
+    </div>
+
+
+    <!-- SUCCESS / ERROR MESSAGES -->
+
+    @if (TempData["Success"] != null)
+    {
+        <div class="alert alert-success">
+            @TempData["Success"]
+        </div>
+    }
+
+    @if (TempData["Error"] != null)
+    {
+        <div class="alert alert-danger">
+            @TempData["Error"]
+        </div>
+    }
+
+
+    <!-- EMPLOYEE DOCUMENTS -->
+
+    <div class="card shadow-sm border-0 mb-4">
+
+        <div class="card-header bg-white py-3
+                    d-flex justify-content-between
+                    align-items-center">
+
+            <h5 class="mb-0 fw-bold">
+                Employee Documents
+            </h5>
+
+            <span class="text-muted small">
+                @Model.Count document(s)
+            </span>
+
+        </div>
+
+
+        <div class="card-body p-0">
+
+            @if (!Model.Any())
+            {
+                <div class="text-center text-muted py-5">
+
+                    <i class="fas fa-folder-open fa-2x mb-3"></i>
+
+                    <p class="mb-0">
+                        No employee documents have been uploaded yet.
+                    </p>
+
+                </div>
+            }
+            else
+            {
+                <div class="table-responsive">
+
+                    <table class="table table-hover
+                                  align-middle mb-0">
+
+                        <thead class="table-light">
+
+                            <tr>
+
+                                <th>
+                                    Employee
+                                </th>
+
+                                <th>
+                                    Employee Code
+                                </th>
+
+                                <th>
+                                    Document
+                                </th>
+
+                                <th>
+                                    Category
+                                </th>
+
+                                <th>
+                                    Type
+                                </th>
+
+                                <th>
+                                    Status
+                                </th>
+
+                                <th>
+                                    Uploaded On
+                                </th>
+
+                                <th>
+                                    Action
+                                </th>
+
+                            </tr>
+
+                        </thead>
+
+
+                        <tbody>
+
+                            @foreach (var document in Model
+                                .Where(d => d.DocumentKind == "Employee")
+                                .OrderByDescending(d => d.CreatedAt))
+                            {
+                                <tr>
+
+                                    <td>
+                                        <span class="fw-semibold">
+                                            @(document.Employee?.User?.FullName
+                                                ?? "Unknown Employee")
+                                        </span>
+                                    </td>
+
+
+                                    <td>
+                                        @(document.Employee?.EmployeeCode ?? "-")
+                                    </td>
+
+
+                                    <td>
+                                        @document.DocumentName
+                                    </td>
+
+
+                                    <td>
+                                        @(document.DocumentCategory ?? "-")
+                                    </td>
+
+
+                                    <td>
+                                        @(document.DocumentType ?? "-")
+                                    </td>
+
+
+                                    <td>
+
+                                        @if (document.DocumentStatus == "Uploaded")
+                                        {
+                                            <span class="badge bg-success">
+                                                Uploaded
+                                            </span>
+                                        }
+                                        else
+                                        {
+                                            <span class="badge bg-secondary">
+                                                @(document.DocumentStatus ?? "-")
+                                            </span>
+                                        }
+
+                                    </td>
+
+
+                                    <td>
+                                        @(document.CreatedAt.ToLocalTime().ToString("dd MMM yyyy, hh:mm tt"))
+                                    </td>
+
+
+                                    <td>
+
+                                        <a asp-action="ViewDocument"
+                                           asp-route-id="@document.Id"
+                                           target="_blank"
+                                           class="btn btn-sm
+                                                  btn-outline-primary"
+                                           title="View Document">
+
+                                            <i class="fas fa-eye"></i>
+
+                                        </a>
+
+                                    </td>
+
+                                </tr>
+                            }
+
+                        </tbody>
+
+                    </table>
+
+                </div>
+            }
+
+        </div>
+
+    </div>
+
+
+    <!-- UPLOAD DOCUMENT FOR EMPLOYEE -->
+
+    <div class="card shadow-sm border-0 mb-4">
+
+        <div class="card-header bg-white py-3">
+
+            <h5 class="mb-0 fw-bold">
+
+                <i class="fas fa-upload me-2"></i>
+
+                Upload Document for Employee
+
+            </h5>
+
+        </div>
+
+
+        <div class="card-body">
+
+            <form asp-action="UploadHR"
+      method="post"
+      enctype="multipart/form-data">
+
+    @Html.AntiForgeryToken()
+
+    <div class="row g-3">
+
+        <!-- EMPLOYEE -->
+
+        <div class="col-md-6">
+
+            <label class="form-label fw-semibold">
+                Employee
+            </label>
+
+            <select name="employeeId"
+                    class="form-select"
+                    required>
+
+                <option value="">
+                    Select Employee
+                </option>
+
+                @foreach (var employee in employees)
+                {
+                    <option value="@employee.Id">
+
+                        @employee.User?.FullName
+                        -
+                        @employee.EmployeeCode
+
+                    </option>
+                }
+
+            </select>
+
+        </div>
+
+
+        <!-- DOCUMENT TYPE -->
+
+        <div class="col-md-6">
+
+            <label class="form-label fw-semibold">
+                Document Type
+            </label>
+
+            <select name="documentType"
+                    class="form-select"
+                    required>
+
+                <option value="">
+                    Select Document Type
+                </option>
+
+                <option>
+                    Aadhaar Card
+                </option>
+
+                <option>
+                    PAN Card
+                </option>
+
+                <option>
+                    Passport
+                </option>
+
+                <option>
+                    Driving License
+                </option>
+
+                <option>
+                    Education Certificate
+                </option>
+
+                <option>
+                    Experience Letter
+                </option>
+
+                <option>
+                    Offer Letter
+                </option>
+
+                <option>
+                    Appointment Letter
+                </option>
+
+                <option>
+                    Other
+                </option>
+
+            </select>
+
+        </div>
+
+
+        <!-- DOCUMENT NAME -->
+
+        <div class="col-md-6">
+
+            <label class="form-label fw-semibold">
+                Document Name
+            </label>
+
+            <input type="text"
+                   name="documentName"
+                   class="form-control"
+                   placeholder="Enter document name"
+                   maxlength="200"
+                   required />
+
+        </div>
+
+
+        <!-- FILE -->
+
+        <div class="col-md-6">
+
+            <label class="form-label fw-semibold">
+                Select File
+            </label>
+
+            <input type="file"
+                   name="file"
+                   class="form-control"
+                   accept=".pdf,.jpg,.jpeg,.png"
+                   required />
+
+            <small class="text-muted">
+                Accepted formats: PDF, JPG, JPEG, PNG.
+                Maximum size: 5 MB.
+            </small>
+
+        </div>
+
+    </div>
+
+
+    <div class="mt-4">
+
+        <button type="submit"
+                class="btn btn-primary">
+
+            <i class="fas fa-upload me-1"></i>
+
+            Upload Document
+
+        </button>
+
+    </div>
+
+</form>
+
+        </div>
+
+    </div>
+
+
+    <!-- HR DOCUMENT TEMPLATES -->
+
+<!-- HR DOCUMENT TEMPLATES -->
+
+<div class="card shadow-sm border-0 mb-4">
+
+    <div class="card-header bg-white py-3">
+
+        <div class="d-flex justify-content-between align-items-center">
+
+            <div>
+
+                <h5 class="mb-1 fw-bold">
+                    <i class="fas fa-file-lines me-2"></i>
+                    HR Document Templates
+                </h5>
+
+                <small class="text-muted">
+                    Upload and manage the master formats used for HR documents.
+                </small>
+
+            </div>
+
+        </div>
+
+    </div>
+
+
+    <div class="card-body">
+
+
+        <!-- ADD TEMPLATE -->
+
+        <div class="border rounded p-4 mb-4">
+
+            <h6 class="fw-bold mb-3">
+                Add Template
+            </h6>
+
+
+            <form asp-action="AddTemplate"
+                  method="post"
+                  enctype="multipart/form-data">
+
+                @Html.AntiForgeryToken()
+
+
+                <div class="row g-3">
+
+
+                    <!-- TEMPLATE TYPE -->
+
+                    <div class="col-md-6">
+
+                        <label class="form-label fw-semibold">
+                            Document Type
+                        </label>
+
+                        <select name="templateType"
+                                class="form-select"
+                                required>
+
+                            <option value="">
+                                Select Document Type
+                            </option>
+
+                            <option>
+                                Offer Letter
+                            </option>
+
+                            <option>
+                                Appointment Letter
+                            </option>
+
+                            <option>
+                                Salary Slip
+                            </option>
+
+                            <option>
+                                Monthly Attendance Summary
+                            </option>
+
+                            <option>
+                                Payroll Report
+                            </option>
+
+                            <option>
+                                Bank Letter
+                            </option>
+
+                            <option>
+                                On-Site Payroll
+                            </option>
+
+                            <option>
+                                Other
+                            </option>
+
+                        </select>
+
+                    </div>
+
+
+                    <!-- TEMPLATE CODE -->
+
+                    <div class="col-md-6">
+
+                        <label class="form-label fw-semibold">
+                            Template Code
+                        </label>
+
+                        <input type="text"
+                               name="templateCode"
+                               class="form-control"
+                               maxlength="100"
+                               placeholder="Example: SALARY_SLIP"
+                               required />
+
+                        <small class="text-muted">
+                            Use the same code when replacing this template later.
+                        </small>
+
+                    </div>
+
+
+                    <!-- TEMPLATE NAME -->
+
+                    <div class="col-md-6">
+
+                        <label class="form-label fw-semibold">
+                            Template Name
+                        </label>
+
+                        <input type="text"
+                               name="templateName"
+                               class="form-control"
+                               maxlength="200"
+                               placeholder="Example: Standard Salary Slip"
+                               required />
+
+                    </div>
+
+
+                    <!-- TEMPLATE FILE -->
+
+                    <div class="col-md-6">
+
+                        <label class="form-label fw-semibold">
+                            Template File
+                        </label>
+
+                        <input type="file"
+                               name="templateFile"
+                               class="form-control"
+                               accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx"
+                               required />
+
+                        <small class="text-muted">
+                            PDF, DOC, DOCX, XLS, XLSX, PPT or PPTX.
+                            Maximum size: 10 MB.
+                        </small>
+
+                    </div>
+
+                </div>
+
+
+                <div class="mt-4">
+
+                    <button type="submit"
+                            class="btn btn-primary">
+
+                        <i class="fas fa-upload me-1"></i>
+
+                        Upload Template
+
+                    </button>
+
+                </div>
+
+            </form>
+
+        </div>
+
+
+        <!-- CONFIGURED TEMPLATES -->
+
+        <h6 class="fw-bold mb-3">
+            Configured Templates
+        </h6>
+
+
+        @if (!templates.Any())
+        {
+            <div class="text-center text-muted py-4">
+
+                <i class="fas fa-file-circle-xmark fa-2x mb-3"></i>
+
+                <p class="mb-0">
+                    No HR document templates configured yet.
+                </p>
+
+            </div>
+        }
+        else
+        {
+            <div class="table-responsive">
+
+                <table class="table table-hover align-middle mb-0">
+
+                    <thead class="table-light">
+
+                        <tr>
+
+                            <th>
+                                Template Name
+                            </th>
+
+                            <th>
+                                Document Type
+                            </th>
+
+                            <th>
+                                Template Code
+                            </th>
+
+                            <th>
+                                Version
+                            </th>
+
+                            <th>
+                                Status
+                            </th>
+
+                            <th>
+                                File
+                            </th>
+
+                            <th>
+                                Uploaded On
+                            </th>
+
+                            <th>
+                                Action
+                            </th>
+
+                        </tr>
+
+                    </thead>
+
+
+                    <tbody>
+
+                        @foreach (var template in templates
+                            .OrderBy(t => t.TemplateCode)
+                            .ThenByDescending(t => t.TemplateVersion))
+                        {
+                            <tr>
+
+                                <td>
+                                    <span class="fw-semibold">
+                                        @template.DocumentName
+                                    </span>
+                                </td>
+
+
+                                <td>
+                                    @template.DocumentType
+                                </td>
+
+
+                                <td>
+                                    <code>
+                                        @template.TemplateCode
+                                    </code>
+                                </td>
+
+
+                                <td>
+                                    v@(template.TemplateVersion ?? 1)
+                                </td>
+
+
+                                <td>
+
+                                    @if (template.DocumentStatus == "Active")
+                                    {
+                                        <span class="badge bg-success">
+                                            Active
+                                        </span>
+                                    }
+                                    else
+                                    {
+                                        <span class="badge bg-secondary">
+                                            Archived
+                                        </span>
+                                    }
+
+                                </td>
+
+
+                                <td>
+                                    @(template.FileName ?? "-")
+                                </td>
+
+
+                                <td>
+                                    @(template.CreatedAt
+                                        .ToLocalTime()
+                                        .ToString("dd MMM yyyy, hh:mm tt"))
+                                </td>
+
+
+                               <td>
+
+    <div class="d-flex gap-2">
+
+        <a asp-action="OpenTemplate"
+           asp-route-id="@template.Id"
+           target="_blank"
+           class="btn btn-sm btn-outline-primary"
+           title="Open Template">
+
+            <i class="fas fa-eye me-1"></i>
+            Open
+
+        </a>
+
+
+        <a asp-action="DownloadTemplate"
+           asp-route-id="@template.Id"
+           class="btn btn-sm btn-outline-secondary"
+           title="Download Template">
+
+            <i class="fas fa-download me-1"></i>
+            Download
+
+        </a>
+
+    </div>
+
+</td>
+
+                            </tr>
+                        }
+
+                    </tbody>
+
+                </table>
+
+            </div>
+        }
+
+    </div>
+
+</div>
+
+</div>

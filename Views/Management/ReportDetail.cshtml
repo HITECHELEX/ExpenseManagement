@@ -48,7 +48,7 @@
 {
     <div class="alert alert-info mb-3">
         <strong><i class="fas fa-comment me-2"></i>Account Team Notes:</strong> @Model.AccountTeamNotes
-        <small class="d-block text-muted mt-1">Reviewed by @Model.AccountTeamVerifiedBy?.FullName on @Model.AccountTeamVerifiedOn?.ToString("dd MMM yyyy")</small>
+        <small class="d-block text-muted mt-1">Reviewed by @(!string.IsNullOrEmpty(Model.AccountTeamProfileName) ? Model.AccountTeamProfileName : (Model.AccountTeamVerifiedBy?.FullName ?? "Account Team")) on @Model.AccountTeamVerifiedOn?.ToIst().ToString("dd MMM yyyy")</small>
     </div>
 }
 
@@ -59,14 +59,14 @@
         <table class="table table-hover mb-0">
             <thead>
                 <tr>
-                    <th>Date</th><th>Title</th><th class="d-mobile-none">Category</th><th>Payment Mode</th><th>Amount</th><th>Bill</th>
+                    <th>Date</th><th>Title</th><th class="d-mobile-none">Category</th><th>Payment Mode</th><th>Amount</th><th>Bill</th><th class="d-mobile-none">Remark</th>
                 </tr>
             </thead>
             <tbody>
                 @foreach (var c in Model.ExpenseClaims.OrderBy(x => x.ExpenseDate))
                 {
-                    <tr>
-                        <td>@c.ExpenseDate.ToString("dd MMM yy")</td>
+                    <tr class="@(!string.IsNullOrEmpty(c.AccountTeamRemarks) ? "table-warning" : "")">
+                        <td>@c.ExpenseDate.ToIst().ToString("dd MMM yy")</td>
                         <td>
                             <div class="fw-semibold">@c.Title</div>
                             <small class="text-muted d-md-none">@c.Category</small>
@@ -91,15 +91,54 @@
                         </td>
                         <td class="fw-semibold">₹@c.Amount.ToString("N2")</td>
                         <td>
-                            @if (!string.IsNullOrEmpty(c.ReceiptPath))
+                            @{
+                                var mSlots = new[] { c.ReceiptPath, c.Receipt2Path, c.Receipt3Path }
+                                                .Where(p => !string.IsNullOrEmpty(p)).ToList();
+                                int mCount = mSlots.Count;
+                            }
+                            @if (mCount > 0)
                             {
-                                var ext2 = System.IO.Path.GetExtension(c.ReceiptPath).ToLower();
-                                if (ext2 == ".pdf")
-                                { <a href="@c.ReceiptPath" target="_blank" class="btn btn-sm btn-outline-danger py-1"><i class="fas fa-file-pdf"></i></a> }
-                                else
-                                { <a href="@c.ReceiptPath" target="_blank"><img src="@c.ReceiptPath" style="height:36px;width:36px;object-fit:cover;border-radius:6px;border:1px solid #e2e8f0" /></a> }
+                                var mfp   = mSlots[0];
+                                var mfUrl = $"/Receipt/View?key={Uri.EscapeDataString(mfp)}";
+                                var mfExt = System.IO.Path.GetExtension(mfp).ToLower();
+                                var muJs  = "[" + string.Join(",", mSlots.Select(p => $"'{System.Uri.EscapeDataString(p)}'")) + "]";
+                                var meJs  = "[" + string.Join(",", mSlots.Select(p => $"'{System.IO.Path.GetExtension(p).ToLower()}'")) + "]";
+                                var mlJs  = "[" + string.Join(",", new[]{"Photo 1","Photo 2","Photo 3"}.Take(mCount).Select(n => $"'{n}'")) + "]";
+                                <div onclick="openReceiptViewer(@Html.Raw(muJs),@Html.Raw(meJs),@Html.Raw(mlJs))"
+                                     title="Click to view receipt@(mCount > 1 ? "s" : "")"
+                                     style="cursor:pointer;display:inline-flex;flex-direction:column;align-items:center;gap:2px">
+                                    <div style="position:relative">
+                                        @if (mfExt == ".pdf")
+                                        {
+                                            <div style="height:46px;width:46px;border-radius:10px;background:#fee2e2;border:2px solid #fca5a5;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 8px rgba(0,0,0,.12)">
+                                                <i class="fas fa-file-pdf text-danger" style="font-size:1.3rem"></i>
+                                            </div>
+                                        }
+                                        else
+                                        {
+                                            <img src="@mfUrl" style="height:46px;width:46px;object-fit:cover;border-radius:10px;border:2px solid #bfdbfe;box-shadow:0 2px 8px rgba(0,0,0,.15)" />
+                                        }
+                                        @if (mCount > 1)
+                                        {
+                                            <span style="position:absolute;top:-7px;right:-7px;background:#2563eb;color:#fff;border-radius:10px;font-size:.6rem;padding:2px 5px;font-weight:700;border:2px solid #fff;line-height:1.3">+@(mCount-1)</span>
+                                        }
+                                    </div>
+                                    <span style="font-size:.62rem;color:#2563eb;font-weight:600">
+                                        @(mCount > 1 ? $"{mCount} photos" : "View")
+                                    </span>
+                                </div>
                             }
                             else { <span class="text-muted">–</span> }
+                        </td>
+                        <td class="d-mobile-none">
+                            @if (!string.IsNullOrEmpty(c.AccountTeamRemarks))
+                            {
+                                <span style="font-size:.82rem;color:#92400e">@c.AccountTeamRemarks</span>
+                            }
+                            else
+                            {
+                                <span class="text-muted">–</span>
+                            }
                         </td>
                     </tr>
                 }
@@ -108,7 +147,7 @@
                 <tr class="table-light fw-bold">
                     <td colspan="4">Total</td>
                     <td>₹@Model.ExpenseClaims.Sum(c => c.Amount).ToString("N2")</td>
-                    <td></td>
+                    <td colspan="2"></td>
                 </tr>
             </tfoot>
         </table>
@@ -149,9 +188,105 @@
 }
 else
 {
-    <div class="alert @(Model.Status == ReportStatus.ApprovedByManagement ? "alert-success" : "alert-danger")">
-        <strong>Decision:</strong> @(Model.Status == ReportStatus.ApprovedByManagement ? "Approved" : "Rejected")
-        on @Model.ManagementReviewedOn?.ToString("dd MMM yyyy") by @Model.ManagementReviewedBy?.FullName
-        @if (!string.IsNullOrEmpty(Model.ManagementFeedback)) { <div class="mt-1"><strong>Feedback:</strong> @Model.ManagementFeedback</div> }
+    bool isApproved = Model.Status == ReportStatus.ApprovedByManagement;
+    string reviewerName = !string.IsNullOrEmpty(Model.DirectorName) ? Model.DirectorName : (Model.ManagementReviewedBy?.FullName ?? "Management");
+    <div class="card" style="border:2px solid @(isApproved ? "#86efac" : "#fca5a5");border-radius:14px;overflow:hidden">
+        <div style="background:@(isApproved ? "#f0fdf4" : "#fef2f2");padding:14px 18px;border-bottom:1.5px solid @(isApproved ? "#86efac" : "#fca5a5")">
+            <div class="d-flex align-items-center gap-2">
+                <i class="fas @(isApproved ? "fa-check-circle text-success" : "fa-times-circle text-danger")" style="font-size:1.1rem"></i>
+                <span class="fw-bold" style="color:@(isApproved ? "#166534" : "#991b1b");font-size:.95rem">
+                    Report @(isApproved ? "Approved" : "Rejected")
+                </span>
+                <span style="margin-left:auto;font-size:.75rem;color:#64748b">
+                    <i class="fas fa-user me-1"></i>@reviewerName
+                    &nbsp;·&nbsp;
+                    <i class="fas fa-clock me-1"></i>@Model.ManagementReviewedOn?.ToIst().ToString("dd MMM yyyy, hh:mm tt")
+                </span>
+            </div>
+        </div>
+        <div class="p-3 d-flex flex-column gap-2">
+            @if (!string.IsNullOrEmpty(Model.ManagementFeedback))
+            {
+                <div style="background:#fff;border:1px solid #e2e8f0;border-radius:10px;padding:10px 14px">
+                    <div style="font-size:.68rem;text-transform:uppercase;letter-spacing:.5px;color:#64748b;margin-bottom:4px;font-weight:600">
+                        <i class="fas fa-comment me-1 text-primary"></i>Feedback Sent to Employee
+                    </div>
+                    <div style="font-size:.87rem;color:#1e293b">@Model.ManagementFeedback</div>
+                </div>
+            }
+            @if (!string.IsNullOrEmpty(Model.ManagementNotes))
+            {
+                <div style="background:#fefce8;border:1px solid #fde68a;border-radius:10px;padding:10px 14px">
+                    <div style="font-size:.68rem;text-transform:uppercase;letter-spacing:.5px;color:#92400e;margin-bottom:4px;font-weight:600">
+                        <i class="fas fa-lock me-1"></i>Internal Notes (Management Only)
+                    </div>
+                    <div style="font-size:.87rem;color:#78350f">@Model.ManagementNotes</div>
+                </div>
+            }
+            @if (string.IsNullOrEmpty(Model.ManagementFeedback) && string.IsNullOrEmpty(Model.ManagementNotes))
+            {
+                <div style="font-size:.82rem;color:#94a3b8;text-align:center;padding:4px">No notes or feedback were added.</div>
+            }
+        </div>
     </div>
+}
+
+<!-- ── Receipt Viewer Modal ── -->
+<div class="modal fade" id="receiptViewerModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered" style="max-width:500px">
+        <div class="modal-content" style="border-radius:18px;border:none;overflow:hidden;box-shadow:0 20px 60px rgba(0,0,0,.25)">
+            <div class="modal-header" style="background:linear-gradient(135deg,#1e293b,#0f172a);border:none;padding:14px 20px">
+                <div class="d-flex align-items-center gap-2">
+                    <i class="fas fa-images" style="color:#93c5fd;font-size:1rem"></i>
+                    <span class="fw-bold text-white" id="receiptViewerTitle" style="font-size:.95rem">Receipt Photos</span>
+                </div>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body p-3" id="receiptViewerBody" style="background:#f8fafc;max-height:75vh;overflow-y:auto"></div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+<script>
+function openReceiptViewer(keys, exts, labels) {
+    const urls = keys.map(k => '/Receipt/View?key=' + decodeURIComponent(k));
+    document.getElementById('receiptViewerTitle').textContent =
+        'Receipt Photo' + (urls.length > 1 ? 's (' + urls.length + ')' : '');
+    document.getElementById('receiptViewerBody').innerHTML = urls.map((url, i) => {
+        const isPdf = exts[i] === '.pdf';
+        const label = labels[i];
+        if (isPdf) {
+            return `<div class="mb-3 rounded-3 border overflow-hidden" style="background:#fff">
+                <div class="d-flex align-items-center gap-3 p-3">
+                    <div style="width:50px;height:50px;border-radius:10px;background:#fee2e2;display:flex;align-items:center;justify-content:center;flex-shrink:0">
+                        <i class="fas fa-file-pdf text-danger" style="font-size:1.4rem"></i>
+                    </div>
+                    <div>
+                        <div class="fw-semibold" style="font-size:.85rem;color:#1e293b">${label}</div>
+                        <div class="text-muted" style="font-size:.74rem">PDF Document</div>
+                    </div>
+                    <a href="${url}" target="_blank" class="btn btn-danger btn-sm ms-auto" style="border-radius:8px;font-size:.76rem">
+                        <i class="fas fa-external-link-alt me-1"></i>Open
+                    </a>
+                </div>
+            </div>`;
+        }
+        return `<div class="mb-3 rounded-3 border overflow-hidden" style="background:#fff">
+            <a href="${url}" target="_blank">
+                <img src="${url}" style="width:100%;max-height:280px;object-fit:contain;display:block;background:#f1f5f9" />
+            </a>
+            <div class="d-flex align-items-center justify-content-between px-3 py-2" style="border-top:1px solid #f1f5f9">
+                <span style="font-size:.8rem;font-weight:600;color:#334155">
+                    <i class="fas fa-image me-1 text-primary" style="font-size:.75rem"></i>${label}
+                </span>
+                <a href="${url}" target="_blank" class="btn btn-outline-primary btn-sm" style="border-radius:8px;font-size:.72rem">
+                    <i class="fas fa-expand-alt me-1"></i>Full Size
+                </a>
+            </div>
+        </div>`;
+    }).join('');
+    new bootstrap.Modal(document.getElementById('receiptViewerModal')).show();
+}
+</script>
 }

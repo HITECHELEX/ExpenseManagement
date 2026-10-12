@@ -1,0 +1,624 @@
+﻿@{
+    Layout = "~/Views/Shared/_Layout.cshtml";
+
+    ViewData["Title"] = "Management HRM Dashboard";
+
+    var selectedCompanyId = (int)(ViewBag.SelectedCompanyId ?? 1);
+    var selectedCompanyName = ViewBag.SelectedCompanyName as string ?? "";
+
+    var companies = ViewBag.Companies as IEnumerable<ExpenseManagement.Models.Company>
+                     ?? Enumerable.Empty<ExpenseManagement.Models.Company>();
+
+    var totalEmployees = (int)(ViewBag.TotalEmployees ?? 0);
+    var totalHR = (int)(ViewBag.TotalHR ?? 0);
+
+    var presentToday = ViewBag.PresentToday;
+    var onLeave = ViewBag.OnLeave;
+    var pendingRequests = ViewBag.PendingRequests;
+}
+
+
+
+
+<!-- =========================================
+     COMPANY SWITCHER
+     ========================================= -->
+
+<div class="card border-0 shadow-sm mb-4">
+
+    <div class="card-body p-3">
+
+        <div class="d-flex align-items-center flex-wrap gap-3">
+
+            <div class="me-2">
+
+                <div style="
+                    font-size:11px;
+                    font-weight:700;
+                    letter-spacing:1.2px;
+                    color:#64748b;
+                    text-transform:uppercase;">
+
+                    Viewing
+
+                </div>
+
+            </div>
+
+
+            <div class="d-flex flex-wrap gap-2">
+
+                @foreach (var company in companies)
+                {
+                    var isSelected = company.Id == selectedCompanyId;
+
+                    <a href="@Url.Action(
+                                               "Dashboard",
+                                               "HRMManagement",
+                                               new { companyId = company.Id })"
+                       class="text-decoration-none"
+                       style="
+                        display:flex;
+                        align-items:center;
+                        gap:8px;
+                        padding:9px 16px;
+                        border-radius:10px;
+                        border:1px solid @(isSelected ? "#2563eb" : "#cbd5e1");
+                        background:@(isSelected ? "#2563eb" : "#ffffff");
+                        color:@(isSelected ? "#ffffff" : "#475569");
+                        font-size:13px;
+                        font-weight:600;
+                        transition:all .2s ease;">
+
+                        <i class="fas fa-building"></i>
+
+                        @company.Name
+
+                    </a>
+                }
+
+            </div>
+
+        </div>
+
+    </div>
+
+</div>
+
+
+<!-- =========================================
+     CURRENT COMPANY
+     ========================================= -->
+
+<div class="mb-4">
+
+    <div class="d-flex align-items-center gap-2">
+
+        <i class="fas fa-building"
+           style="color:#2563eb;"></i>
+
+        <span class="fw-semibold">
+            @selectedCompanyName
+        </span>
+
+        <span class="badge"
+              style="
+            background:#eff6ff;
+            color:#2563eb;
+            font-size:11px;">
+
+            Selected Company
+
+        </span>
+
+    </div>
+
+</div>
+
+
+<!-- =========================================
+     KPI CARDS
+     ========================================= -->
+
+<div class="row g-3 mb-4">
+
+
+    <!-- Employees -->
+
+    <div class="col-xl-3 col-md-6">
+
+        <div class="card border-0 shadow-sm h-100">
+
+            <div class="card-body p-4">
+
+                <div class="d-flex justify-content-between">
+
+                    <div>
+
+                        <div class="text-muted small mb-2">
+                            Total Employees
+                        </div>
+
+                        <div class="fs-2 fw-bold">
+                            @totalEmployees
+                        </div>
+
+                    </div>
+
+                    <div style="
+                        width:46px;
+                        height:46px;
+                        border-radius:12px;
+                        background:#eff6ff;
+                        color:#2563eb;
+                        display:flex;
+                        align-items:center;
+                        justify-content:center;">
+
+                        <i class="fas fa-users"></i>
+
+                    </div>
+
+                </div>
+
+            </div>
+
+        </div>
+
+    </div>
+
+
+    <!-- HR -->
+
+    <div class="col-xl-3 col-md-6">
+
+        <div class="card border-0 shadow-sm h-100">
+
+            <div class="card-body p-4">
+
+                <div class="d-flex justify-content-between">
+
+                    <div>
+
+                        <div class="text-muted small mb-2">
+                            HR Personnel
+                        </div>
+
+                        <div class="fs-2 fw-bold">
+                            @totalHR
+                        </div>
+
+                    </div>
+
+                    <div style="
+                        width:46px;
+                        height:46px;
+                        border-radius:12px;
+                        background:#ecfdf5;
+                        color:#059669;
+                        display:flex;
+                        align-items:center;
+                        justify-content:center;">
+
+                        <i class="fas fa-user-tie"></i>
+
+                    </div>
+
+                </div>
+
+            </div>
+
+        </div>
+
+    </div>
+
+
+    <!-- Present -->
+
+    <div class="col-xl-3 col-md-6">
+
+        <div class="card border-0 shadow-sm h-100">
+
+            <div class="card-body p-4">
+
+                <div class="d-flex justify-content-between">
+
+                    <div>
+
+                        <div class="text-muted small mb-2">
+                            Present Today
+                        </div>
+
+                        <div class="fs-2 fw-bold">
+
+                            @if (presentToday == null)
+                            {
+                                <span>—</span>
+                            }
+                            else
+                            {
+                                @presentToday
+                            }
+
+                        </div>
+
+                    </div>
+
+                    <div style="
+                        width:46px;
+                        height:46px;
+                        border-radius:12px;
+                        background:#f0fdf4;
+                        color:#16a34a;
+                        display:flex;
+                        align-items:center;
+                        justify-content:center;">
+
+                        <i class="fas fa-calendar-check"></i>
+
+                    </div>
+
+                </div>
+
+            </div>
+
+        </div>
+
+    </div>
+
+
+    <!-- Leave -->
+
+    <div class="col-xl-3 col-md-6">
+
+        <div class="card border-0 shadow-sm h-100">
+
+            <div class="card-body p-4">
+
+                <div class="d-flex justify-content-between">
+
+                    <div>
+
+                        <div class="text-muted small mb-2">
+                            On Leave
+                        </div>
+
+                        <div class="fs-2 fw-bold">
+
+                            @if (onLeave == null)
+                            {
+                                <span>—</span>
+                            }
+                            else
+                            {
+                                @onLeave
+                            }
+
+                        </div>
+
+                    </div>
+
+                    <div style="
+                        width:46px;
+                        height:46px;
+                        border-radius:12px;
+                        background:#fff7ed;
+                        color:#ea580c;
+                        display:flex;
+                        align-items:center;
+                        justify-content:center;">
+
+                        <i class="fas fa-calendar-minus"></i>
+
+                    </div>
+
+                </div>
+
+            </div>
+
+        </div>
+
+    </div>
+
+</div>
+
+
+<!-- =========================================
+     WELCOME BANNER
+     ========================================= -->
+
+<div class="card border-0 mb-4"
+     style="
+    border-radius:14px;
+    background:linear-gradient(135deg,#1e3a8a,#2563eb);
+    color:white;">
+
+    <div class="card-body p-4">
+
+        <div class="d-flex align-items-center gap-3">
+
+            <div style="
+                width:52px;
+                height:52px;
+                border-radius:13px;
+                background:rgba(255,255,255,.15);
+                display:flex;
+                align-items:center;
+                justify-content:center;">
+
+                <i class="fas fa-chart-line fa-lg"></i>
+
+            </div>
+
+            <div>
+
+                <h4 class="fw-bold mb-1">
+                    Management Overview
+                </h4>
+
+                <div style="opacity:.85;">
+                    Viewing HRM information for
+                    <strong>@selectedCompanyName</strong>.
+                </div>
+
+            </div>
+
+        </div>
+
+    </div>
+
+</div>
+
+
+<!-- =========================================
+     HRM MANAGEMENT MODULES
+     ========================================= -->
+
+<div class="card border-0 shadow-sm">
+
+    <div class="card-header bg-white py-3">
+
+        <h5 class="mb-0">
+            HRM Overview
+        </h5>
+
+    </div>
+
+
+    <div class="card-body">
+
+        <div class="row g-3">
+
+
+            <!-- Employees -->
+
+            <div class="col-lg-4 col-md-6">
+
+                <a href="#"
+                   class="text-decoration-none text-dark">
+
+                    <div class="border rounded p-4 h-100">
+
+                        <div class="d-flex align-items-center gap-3">
+
+                            <i class="fas fa-users"
+                               style="
+                                color:#2563eb;
+                                font-size:22px;">
+                            </i>
+
+                            <div>
+
+                                <div class="fw-bold">
+                                    Employees
+                                </div>
+
+                                <div class="small text-muted">
+                                    View employee information
+                                </div>
+
+                            </div>
+
+                        </div>
+
+                    </div>
+
+                </a>
+
+            </div>
+
+
+            <!-- Attendance -->
+
+            <div class="col-lg-4 col-md-6">
+
+                <a href="#"
+                   class="text-decoration-none text-dark">
+
+                    <div class="border rounded p-4 h-100">
+
+                        <div class="d-flex align-items-center gap-3">
+
+                            <i class="fas fa-calendar-check"
+                               style="
+                                color:#059669;
+                                font-size:22px;">
+                            </i>
+
+                            <div>
+
+                                <div class="fw-bold">
+                                    Attendance
+                                </div>
+
+                                <div class="small text-muted">
+                                    View attendance information
+                                </div>
+
+                            </div>
+
+                        </div>
+
+                    </div>
+
+                </a>
+
+            </div>
+
+
+            <!-- Leave -->
+
+            <div class="col-lg-4 col-md-6">
+
+                <a href="#"
+                   class="text-decoration-none text-dark">
+
+                    <div class="border rounded p-4 h-100">
+
+                        <div class="d-flex align-items-center gap-3">
+
+                            <i class="fas fa-calendar-days"
+                               style="
+                                color:#d97706;
+                                font-size:22px;">
+                            </i>
+
+                            <div>
+
+                                <div class="fw-bold">
+                                    Leave Management
+                                </div>
+
+                                <div class="small text-muted">
+                                    View leave information
+                                </div>
+
+                            </div>
+
+                        </div>
+
+                    </div>
+
+                </a>
+
+            </div>
+
+
+            <!-- Payroll -->
+
+            <div class="col-lg-4 col-md-6">
+
+                <a href="#"
+                   class="text-decoration-none text-dark">
+
+                    <div class="border rounded p-4 h-100">
+
+                        <div class="d-flex align-items-center gap-3">
+
+                            <i class="fas fa-money-check-dollar"
+                               style="
+                                color:#2563eb;
+                                font-size:22px;">
+                            </i>
+
+                            <div>
+
+                                <div class="fw-bold">
+                                    Payroll
+                                </div>
+
+                                <div class="small text-muted">
+                                    View salary and payroll information
+                                </div>
+
+                            </div>
+
+                        </div>
+
+                    </div>
+
+                </a>
+
+            </div>
+
+
+            <!-- Performance -->
+
+            <div class="col-lg-4 col-md-6">
+
+                <a href="#"
+                   class="text-decoration-none text-dark">
+
+                    <div class="border rounded p-4 h-100">
+
+                        <div class="d-flex align-items-center gap-3">
+
+                            <i class="fas fa-chart-line"
+                               style="
+                                color:#0891b2;
+                                font-size:22px;">
+                            </i>
+
+                            <div>
+
+                                <div class="fw-bold">
+                                    Performance
+                                </div>
+
+                                <div class="small text-muted">
+                                    View employee performance
+                                </div>
+
+                            </div>
+
+                        </div>
+
+                    </div>
+
+                </a>
+
+            </div>
+
+
+            <!-- Reports -->
+
+            <div class="col-lg-4 col-md-6">
+
+                <a href="#"
+                   class="text-decoration-none text-dark">
+
+                    <div class="border rounded p-4 h-100">
+
+                        <div class="d-flex align-items-center gap-3">
+
+                            <i class="fas fa-chart-column"
+                               style="
+                                color:#dc2626;
+                                font-size:22px;">
+                            </i>
+
+                            <div>
+
+                                <div class="fw-bold">
+                                    Reports
+                                </div>
+
+                                <div class="small text-muted">
+                                    View HR reports and analytics
+                                </div>
+
+                            </div>
+
+                        </div>
+
+                    </div>
+
+                </a>
+
+            </div>
+
+        </div>
+
+    </div>
+
+</div>

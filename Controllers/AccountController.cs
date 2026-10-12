@@ -21,7 +21,7 @@ namespace ExpenseManagement.Controllers
         public async Task<IActionResult> Login(LoginVM model)
         {
             if (!ModelState.IsValid) return View(model);
-            var user = await _db.Users.FirstOrDefaultAsync(u => u.Email == model.Email);
+            var user = await _db.Users.Include(u => u.Company).FirstOrDefaultAsync(u => u.Email == model.Email);
             if (user == null || !BCrypt.Net.BCrypt.Verify(model.Password, user.PasswordHash))
             {
                 TempData["Error"] = "Invalid email or password.";
@@ -32,23 +32,38 @@ namespace ExpenseManagement.Controllers
                 new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()),
                 new Claim(ClaimTypes.Name, user.FullName),
                 new Claim(ClaimTypes.Email, user.Email),
-                new Claim(ClaimTypes.Role, user.Role.ToString())
+                new Claim(ClaimTypes.Role, user.Role.ToString()),
+                new Claim("CompanyId", user.CompanyId?.ToString() ?? ""),
+                new Claim("CompanyName", user.Company?.Name ?? "")
             };
             var identity = new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme);
             await HttpContext.SignInAsync(CookieAuthenticationDefaults.AuthenticationScheme, new ClaimsPrincipal(identity));
 
             TempData["JustLoggedIn"] = true;
+
             return user.Role switch
             {
-                UserRole.Employee => RedirectToAction("Dashboard", "Employee"),
-                UserRole.AccountTeam => RedirectToAction("Dashboard", "AccountTeam"),
-                UserRole.Management => RedirectToAction("Dashboard", "Management"),
-                _ => RedirectToAction("Login")
+                UserRole.Employee =>
+                    RedirectToAction("Dashboard", "HRMEmployee"),
+
+                UserRole.AccountTeam =>
+                    RedirectToAction("SelectProfile", "AccountTeam"),
+
+                UserRole.Management =>
+                    RedirectToAction("SelectDirector", "Management"),
+
+                UserRole.HR =>
+                    RedirectToAction("SelectProfile", "HR"),
+
+                _ =>
+                    RedirectToAction("Login")
             };
         }
 
         public async Task<IActionResult> Logout()
         {
+            // Clear profile sessions before sign-out so stale names never leak to the next login
+            HttpContext.Session.Clear();
             await HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
             return RedirectToAction("Login");
         }

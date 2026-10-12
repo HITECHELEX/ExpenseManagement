@@ -8,7 +8,10 @@
     decimal walletBalance = activeBudgets.Sum(b => b.RemainingBalance);
     bool isOver   = walletBalance < 0;
     decimal totalOwed = isOver ? Math.Abs(walletBalance) : 0;
-    var topUpHistory = ViewBag.TopUpHistory as List<WalletTopUp> ?? new List<WalletTopUp>();
+    var topUpHistory   = ViewBag.TopUpHistory as List<WalletTopUp> ?? new List<WalletTopUp>();
+    var walletHistory  = ViewBag.WalletHistory as List<WalletTransaction> ?? new List<WalletTransaction>();
+    var creditTotal    = walletHistory.Where(t => t.Type == WalletTransactionType.Credit).Sum(t => t.Amount);
+    var debitTotal     = walletHistory.Where(t => t.Type == WalletTransactionType.Debit).Sum(t => t.Amount);
 }
 
 <h5 class="mb-3 fw-bold"><i class="fas fa-wallet me-2"></i>My Wallet</h5>
@@ -48,8 +51,8 @@
                     </div>
                     <div class="col-4">
                         <div style="background:rgba(255,255,255,.13);border-radius:10px;padding:12px 6px">
-                            <div style="font-size:1.15rem;font-weight:700">@topUpHistory.Count</div>
-                            <div style="font-size:.68rem;opacity:.75;margin-top:2px">Total Top-ups</div>
+                            <div style="font-size:1.15rem;font-weight:700">@walletHistory.Count</div>
+                            <div style="font-size:.68rem;opacity:.75;margin-top:2px">Transactions</div>
                         </div>
                     </div>
                 </div>
@@ -69,60 +72,106 @@ else
 {
     @* ── TOP-UP HISTORY ── *@
     <div class="d-flex justify-content-between align-items-center mb-2">
-        <h6 class="fw-semibold mb-0"><i class="fas fa-history me-1 text-primary"></i>Top-up History</h6>
-        <span class="badge bg-primary rounded-pill">@topUpHistory.Count record(s)</span>
+        <h6 class="fw-semibold mb-0">
+            <i class="fas fa-arrow-circle-up me-1" style="color:#16a34a"></i>Top-Up History
+        </h6>
+        <span class="badge rounded-pill" style="background:#d1fae5;color:#065f46">@topUpHistory.Count record(s)</span>
     </div>
 
     @if (!topUpHistory.Any())
     {
         <div class="card mb-4 text-center py-4 text-muted" style="font-size:.87rem">
-            <i class="fas fa-inbox fa-2x mb-2 d-block"></i>No top-ups recorded yet.
+            <i class="fas fa-inbox fa-2x mb-2 d-block"></i>No top-ups received yet.
         </div>
     }
     else
     {
         <div class="card mb-4">
             <div class="card-body p-0">
-                @foreach (var (t, idx) in topUpHistory.Select((t, i) => (t, topUpHistory.Count - i)))
+                @foreach (var tu in topUpHistory.OrderByDescending(t => t.TopUpOn))
                 {
-                    bool neg = t.BalanceAfter < 0;
+                    bool negAfter = tu.BalanceAfter < 0;
                     <div class="d-flex align-items-center justify-content-between px-4 py-3 border-bottom flex-wrap gap-2">
                         <div class="d-flex align-items-center gap-3">
-                            <span class="badge rounded-pill flex-shrink-0" style="background:#eff6ff;color:#2563eb;font-weight:700;font-size:.8rem;padding:6px 10px">#@idx</span>
+                            <div style="width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:.72rem;font-weight:700;color:#fff;background:#16a34a">
+                                TOP
+                            </div>
                             <div>
-                                <div class="fw-bold">@t.Purpose</div>
+                                <div class="fw-semibold" style="font-size:.9rem">
+                                    Wallet Top-Up: @tu.Purpose
+                                </div>
                                 <small class="text-muted">
-                                    <i class="fas fa-user me-1"></i>@(t.TopUpBy?.FullName ?? "Account Team")
+                                    <i class="fas fa-user me-1"></i>@(tu.TopUpBy?.FullName ?? "Accounts Team")
                                     &nbsp;·&nbsp;
-                                    <i class="fas fa-clock me-1"></i>@t.TopUpOn.ToString("dd MMM yyyy, hh:mm tt")
+                                    <i class="fas fa-clock me-1"></i>@tu.TopUpOn.ToIst().ToString("dd MMM yyyy, hh:mm tt")
                                 </small>
                             </div>
                         </div>
                         <div class="d-flex gap-3 text-end">
                             <div>
                                 <div style="font-size:.68rem;color:#94a3b8">Amount Added</div>
-                                <div class="fw-bold text-primary">+₹@t.Amount.ToString("N2")</div>
+                                <div class="fw-bold text-success">+₹@tu.Amount.ToString("N2")</div>
                             </div>
                             <div>
-                                @{
-                                    decimal prevBal = t.BalanceAfter - t.Amount;
-                                }
                                 <div style="font-size:.68rem;color:#94a3b8">Balance After</div>
-                                <div class="fw-bold @(neg ? "text-danger" : "text-success")">
-                                    @(neg ? "-" : "")₹@Math.Abs(t.BalanceAfter).ToString("N2")
+                                <div class="fw-bold @(negAfter ? "text-danger" : "text-success")">
+                                    @(negAfter ? "-" : "")₹@Math.Abs(tu.BalanceAfter).ToString("N2")
                                 </div>
-                                @if (prevBal < 0)
-                                {
-                                    <div style="font-size:.68rem;color:#f59e0b;margin-top:2px">
-                                        <i class="fas fa-exclamation-triangle me-1"></i>₹@Math.Abs(prevBal).ToString("N2") debt recovered
-                                    </div>
-                                }
-                                else if (prevBal > 0)
-                                {
-                                    <div style="font-size:.68rem;color:#64748b;margin-top:2px">
-                                        <i class="fas fa-layer-group me-1"></i>Incl. ₹@prevBal.ToString("N2") carry-forward
-                                    </div>
-                                }
+                            </div>
+                        </div>
+                    </div>
+                }
+            </div>
+        </div>
+    }
+
+    @* ── TRANSACTION HISTORY ── *@
+    <div class="d-flex justify-content-between align-items-center mb-2">
+        <h6 class="fw-semibold mb-0"><i class="fas fa-history me-1 text-primary"></i>Transaction History</h6>
+        <span class="badge bg-primary rounded-pill">@walletHistory.Count record(s)</span>
+    </div>
+
+    @if (!walletHistory.Any())
+    {
+        <div class="card mb-4 text-center py-4 text-muted" style="font-size:.87rem">
+            <i class="fas fa-inbox fa-2x mb-2 d-block"></i>No transactions recorded yet.
+        </div>
+    }
+    else
+    {
+        <div class="card mb-4">
+            <div class="card-body p-0">
+                @foreach (var tx in walletHistory.OrderByDescending(t => t.Date))
+                {
+                    bool isCredit = tx.Type == WalletTransactionType.Credit;
+                    bool negBal   = tx.BalanceAfter < 0;
+                    <div class="d-flex align-items-center justify-content-between px-4 py-3 border-bottom flex-wrap gap-2">
+                        <div class="d-flex align-items-center gap-3">
+                            <div style="width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:.75rem;font-weight:700;color:#fff;background:@(isCredit ? "#16a34a" : "#dc2626")">
+                                @(isCredit ? "CR" : "DR")
+                            </div>
+                            <div>
+                                <div class="fw-semibold" style="font-size:.9rem">@tx.Description</div>
+                                <small class="text-muted">
+                                    <i class="fas fa-user me-1"></i>@(tx.PerformedBy?.FullName ?? "System")
+                                    &nbsp;·&nbsp;
+                                    <i class="fas fa-clock me-1"></i>@tx.Date.ToIst().ToString("dd MMM yyyy, hh:mm tt")
+                                </small>
+                            </div>
+                        </div>
+                        <div class="d-flex gap-3 text-end">
+                            <div>
+                                <div style="font-size:.68rem;color:#94a3b8">Amount</div>
+                                <div class="fw-bold @(isCredit ? "text-success" : "text-danger")">
+                                    @(isCredit ? "+" : "-")₹@tx.Amount.ToString("N2")
+                                </div>
+                            </div>
+                            <div>
+                                <div style="font-size:.68rem;color:#94a3b8">Balance After</div>
+                                <div class="fw-bold @(negBal ? "text-danger" : "text-success")">
+                                    @(negBal ? "-" : "")₹@Math.Abs(tx.BalanceAfter).ToString("N2")
+                                </div>
+                                @if (negBal) { <div style="font-size:.66rem;color:#dc2626">Overdrawn</div> }
                             </div>
                         </div>
                     </div>
@@ -146,7 +195,7 @@ else
                             </div>
                             <div>
                                 <div class="fw-semibold text-muted">@b.Purpose <span class="badge bg-secondary ms-1" style="font-size:.6rem">Closed</span></div>
-                                <small class="text-muted">@b.AllocatedOn.ToString("dd MMM yyyy")</small>
+                                <small class="text-muted">@b.AllocatedOn.ToIst().ToString("dd MMM yyyy")</small>
                             </div>
                         </div>
                         <div class="d-flex gap-3 text-end">

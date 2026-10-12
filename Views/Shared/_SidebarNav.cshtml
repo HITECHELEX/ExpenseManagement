@@ -14,6 +14,10 @@
     <div class="nav-label">Account</div>
     <a href="/Employee/Notifications"><i class="fas fa-bell"></i> Notifications</a>
     <a href="/Employee/ExpenseGuideline"><i class="fas fa-book-open"></i> Expense Guideline</a>
+    <div class="nav-label">HRM</div>
+    <a href="/HRMEmployee/Dashboard">
+        <i class="fas fa-users-cog"></i> HRM
+    </a>
 }
 else if (User.IsInRole("AccountTeam"))
 {
@@ -29,6 +33,8 @@ else if (User.IsInRole("AccountTeam"))
     <a href="/AccountTeam/Reports"><i class="fas fa-file-invoice"></i> Expense Reports</a>
     <div class="nav-label">Account</div>
     <a href="/AccountTeam/Notifications"><i class="fas fa-bell"></i> Notifications</a>
+    <div class="nav-label">Settings</div>
+    <a href="/AccountTeam/ManageProfiles"><i class="fas fa-users-cog"></i> Manage Team</a>
 }
 else if (User.IsInRole("Management"))
 {
@@ -42,4 +48,10 @@ else if (User.IsInRole("Management"))
     <a href="/Management/AllClaims"><i class="fas fa-receipt"></i> All Claims</a>
     <div class="nav-label">Account</div>
     <a href="/Management/Notifications"><i class="fas fa-bell"></i> Notifications</a>
+    <div class="nav-label">Settings</div>
+    <a href="/Management/ManageDirectors"><i class="fas fa-users-cog"></i> Manage Directors</a>
+    <div class="nav-label">HRM</div>
+    <a href="/HRMManagement/Dashboard">
+        <i class="fas fa-users-cog"></i> HRM
+    </a>
 }

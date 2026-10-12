@@ -1,0 +1,309 @@
+﻿@using ExpenseManagement.Models
+
+@{
+    ViewData["Title"] = "My Leave";
+
+    var employee = ViewBag.Employee as Employee;
+    var leaves = ViewBag.Leaves as List<Leave> ?? new List<Leave>();
+    var leaveTypes =
+    ViewBag.LeaveTypes as Dictionary<string, string>
+    ?? new Dictionary<string, string>
+    {
+        ["CL"] = "Casual Leave",
+        ["SL"] = "Sick Leave",
+        ["C/Off"] = "Compensatory Off",
+        ["Paternity"] = "Paternity Leave",
+        ["Maternity"] = "Maternity Leave",
+        ["Medical"] = "Medical Leave"
+    };
+    decimal annualEntitlement = ViewBag.AnnualEntitlement ?? 10m;
+    decimal approvedUsed = ViewBag.ApprovedUsed ?? 0m;
+    decimal pendingDays = ViewBag.PendingDays ?? 0m;
+    decimal availableBalance = ViewBag.AvailableBalance ?? 0m;
+
+    int currentYear = ViewBag.CurrentYear ?? DateTime.Now.Year;
+}
+
+<div class="container-fluid py-4">
+
+    <!-- Header -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2 class="fw-bold mb-1">My Leave</h2>
+
+            @if (employee?.User != null)
+            {
+                <div class="text-muted">
+                    @employee.User.FullName
+                </div>
+            }
+
+            <div class="text-muted small">
+                Leave Year: @currentYear
+            </div>
+        </div>
+
+        <a asp-controller="Leave"
+           asp-action="Apply"
+           class="btn btn-primary">
+            Apply Leave
+        </a>
+    </div>
+
+
+    <!-- Messages -->
+    @if (TempData["Success"] != null)
+    {
+        <div class="alert alert-success alert-dismissible fade show">
+            @TempData["Success"]
+            <button type="button"
+                    class="btn-close"
+                    data-bs-dismiss="alert"></button>
+        </div>
+    }
+
+    @if (TempData["Error"] != null)
+    {
+        <div class="alert alert-danger alert-dismissible fade show">
+            @TempData["Error"]
+            <button type="button"
+                    class="btn-close"
+                    data-bs-dismiss="alert"></button>
+        </div>
+    }
+
+
+    <!-- Leave Balance -->
+    <div class="row g-3 mb-4">
+
+        <div class="col-md-3">
+            <div class="card shadow-sm h-100">
+                <div class="card-body">
+                    <div class="text-muted small">
+                        Total Paid Leave
+                    </div>
+
+                    <div class="fs-3 fw-bold mt-2">
+                        @annualEntitlement.ToString("0.##")
+                    </div>
+
+                    <div class="text-muted small">
+                        Days / Year
+                    </div>
+                </div>
+            </div>
+        </div>
+
+
+        <div class="col-md-3">
+            <div class="card shadow-sm h-100">
+                <div class="card-body">
+                    <div class="text-muted small">
+                        Used
+                    </div>
+
+                    <div class="fs-3 fw-bold mt-2">
+                        @approvedUsed.ToString("0.##")
+                    </div>
+
+                    <div class="text-muted small">
+                        Approved
+                    </div>
+                </div>
+            </div>
+        </div>
+
+
+        <div class="col-md-3">
+            <div class="card shadow-sm h-100">
+                <div class="card-body">
+                    <div class="text-muted small">
+                        Pending
+                    </div>
+
+                    <div class="fs-3 fw-bold mt-2">
+                        @pendingDays.ToString("0.##")
+                    </div>
+
+                    <div class="text-muted small">
+                        Awaiting HR review
+                    </div>
+                </div>
+            </div>
+        </div>
+
+
+        <div class="col-md-3">
+            <div class="card shadow-sm h-100">
+                <div class="card-body">
+                    <div class="text-muted small">
+                        Available
+                    </div>
+
+                    <div class="fs-3 fw-bold mt-2">
+                        @availableBalance.ToString("0.##")
+                    </div>
+
+                    <div class="text-muted small">
+                        Days remaining
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+
+    <!-- Leave History -->
+    <div class="card shadow-sm">
+
+        <div class="card-header bg-white">
+            <h5 class="mb-0 fw-bold">
+                Leave History
+            </h5>
+        </div>
+
+        <div class="card-body p-0">
+
+            @if (!leaves.Any())
+            {
+                <div class="text-center text-muted py-5">
+                    No leave applications found for @currentYear.
+                </div>
+            }
+            else
+            {
+                <div class="table-responsive">
+
+                    <table class="table table-hover align-middle mb-0">
+
+                        <thead class="table-light">
+                            <tr>
+                                <th>Leave Type</th>
+                                <th>From</th>
+                                <th>To</th>
+                                <th>Days</th>
+                                <th>Reason</th>
+                                <th>Status</th>
+                                <th>Applied On</th>
+                                <th class="text-end">Action</th>
+                            </tr>
+                        </thead>
+
+                        <tbody>
+
+                            @foreach (var leave in leaves)
+                            {
+                                <tr>
+
+                                    <td>
+                                        <span class="fw-semibold">
+                                            @(leaveTypes.TryGetValue(
+                                            leave.LeaveType,
+                                            out var leaveTypeName)
+                                                ? leaveTypeName
+                                                : leave.LeaveType)
+                                        </span>
+                                    </td>
+
+                                    <td>
+                                        @leave.FromDate.ToString("dd MMM yyyy")
+                                    </td>
+
+                                    <td>
+                                        @leave.ToDate.ToString("dd MMM yyyy")
+                                    </td>
+
+                                    <td>
+                                        @(leave.TotalDays?.ToString("0.##") ?? "-")
+                                    </td>
+
+                                    <td>
+                                        @(string.IsNullOrWhiteSpace(leave.Reason)
+                                            ? "-"
+                                            : leave.Reason)
+                                    </td>
+
+                                    <td>
+                                        @if (leave.Status == "Approved")
+                                        {
+                                            <span class="badge bg-success">
+                                                Approved
+                                            </span>
+                                        }
+                                        else if (leave.Status == "Pending")
+                                        {
+                                            <span class="badge bg-warning text-dark">
+                                                Pending
+                                            </span>
+                                        }
+                                        else if (leave.Status == "Rejected")
+                                        {
+                                            <span class="badge bg-danger">
+                                                Rejected
+                                            </span>
+                                        }
+                                        else if (leave.Status == "Cancelled")
+                                        {
+                                            <span class="badge bg-secondary">
+                                                Cancelled
+                                            </span>
+                                        }
+                                        else
+                                        {
+                                            <span class="badge bg-secondary">
+                                                @leave.Status
+                                            </span>
+                                        }
+                                    </td>
+
+                                    <td>
+                                        @(leave.AppliedOn?.ToLocalTime()
+                                            .ToString("dd MMM yyyy, hh:mm tt") ?? "-")
+                                    </td>
+
+                                    <td class="text-end">
+
+                                        @if (leave.Status == "Pending" ||
+                                             leave.Status == "Approved")
+                                        {
+                                            <form asp-controller="Leave"
+                                                  asp-action="Cancel"
+                                                  method="post"
+                                                  class="d-inline"
+                                                  onsubmit="return confirm('Are you sure you want to cancel this leave?');">
+
+                                                @Html.AntiForgeryToken()
+
+                                                <input type="hidden"
+                                                       name="id"
+                                                       value="@leave.Id" />
+
+                                                <button type="submit"
+                                                        class="btn btn-sm btn-outline-danger">
+                                                    Cancel
+                                                </button>
+
+                                            </form>
+                                        }
+                                        else
+                                        {
+                                            <span class="text-muted">-</span>
+                                        }
+
+                                    </td>
+
+                                </tr>
+                            }
+
+                        </tbody>
+
+                    </table>
+
+                </div>
+            }
+
+        </div>
+    </div>
+
+</div>

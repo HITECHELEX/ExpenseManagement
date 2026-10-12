@@ -17,7 +17,7 @@
             </div>
             <div class="flex-grow-1">
                 <div class="@(!n.IsRead ? "fw-semibold" : "")">@n.Message</div>
-                <small class="text-muted">@n.CreatedAt.ToString("dd MMM yyyy HH:mm")</small>
+                <small class="text-muted">@n.CreatedAt.ToIst().ToString("dd MMM yyyy HH:mm")</small>
                 @if (!string.IsNullOrEmpty(n.Link))
                 { <div class="mt-1"><a href="@n.Link" class="btn btn-xs btn-sm btn-outline-primary py-0 px-2" style="font-size:.78rem">View →</a></div> }
             </div>

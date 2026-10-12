@@ -1,0 +1,339 @@
+﻿@model List<ExpenseManagement.Models.Employee>
+
+@{
+    ViewData["Title"] = "Attendance";
+
+    var attendanceRecords =
+        ViewBag.AttendanceRecords
+        as Dictionary<int, ExpenseManagement.Models.Attendance>;
+
+    var selectedDate = (DateTime)ViewBag.AttendanceDate;
+
+    var companies =
+        ViewBag.Companies
+        as List<ExpenseManagement.Models.Company>;
+
+    var selectedCompanyId =
+        (int)ViewBag.SelectedCompanyId;
+
+    var selectedCompanyName =
+        (string)ViewBag.SelectedCompanyName;
+}
+
+<div class="container-fluid">
+
+    <!-- Header -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+
+        <div>
+            <h2 class="mb-1">Employee Attendance</h2>
+            <p class="text-muted mb-0">
+                View employee attendance records
+            </p>
+        </div>
+
+        <a href="/HRMManagement/Dashboard?companyId=@selectedCompanyId"
+           class="btn btn-outline-secondary">
+            Back
+        </a>
+
+    </div>
+
+
+    <!-- Filters -->
+    <div class="card shadow-sm mb-4">
+
+        <div class="card-body">
+
+            <form method="get"
+                  action="/HRMManagement/Attendance"
+                  class="row g-3 align-items-end">
+
+                <!-- Company -->
+                <div class="col-md-4">
+
+                    <label class="form-label fw-semibold">
+                        Company
+                    </label>
+
+                    <select name="companyId"
+                            class="form-select">
+
+                        @if (companies != null)
+                        {
+                            foreach (var company in companies)
+                            {
+                                <option value="@company.Id"
+                                        selected="@(company.Id == selectedCompanyId)">
+                                    @company.Name
+                                </option>
+                            }
+                        }
+
+                    </select>
+
+                </div>
+
+
+                <!-- Date -->
+                <div class="col-md-4">
+
+                    <label class="form-label fw-semibold">
+                        Attendance Date
+                    </label>
+
+                    <input type="date"
+                           name="date"
+                           value="@selectedDate.ToString("yyyy-MM-dd")"
+                           class="form-control" />
+
+                </div>
+
+
+                <!-- Button -->
+                <div class="col-md-auto">
+
+                    <button type="submit"
+                            class="btn btn-primary">
+                        View Attendance
+                    </button>
+
+                </div>
+
+            </form>
+
+        </div>
+
+    </div>
+
+
+    <!-- Summary Cards -->
+    <div class="row g-3 mb-4">
+
+        <div class="col-md-3">
+
+            <div class="card shadow-sm h-100">
+
+                <div class="card-body">
+
+                    <div class="text-muted small">
+                        Total Employees
+                    </div>
+
+                    <div class="fs-3 fw-bold">
+                        @ViewBag.TotalEmployees
+                    </div>
+
+                </div>
+
+            </div>
+
+        </div>
+
+
+        <div class="col-md-3">
+
+            <div class="card shadow-sm h-100">
+
+                <div class="card-body">
+
+                    <div class="text-muted small">
+                        Present
+                    </div>
+
+                    <div class="fs-3 fw-bold">
+                        @ViewBag.PresentEmployees
+                    </div>
+
+                </div>
+
+            </div>
+
+        </div>
+
+
+        <div class="col-md-3">
+
+            <div class="card shadow-sm h-100">
+
+                <div class="card-body">
+
+                    <div class="text-muted small">
+                        Half Day
+                    </div>
+
+                    <div class="fs-3 fw-bold">
+                        @ViewBag.HalfDayEmployees
+                    </div>
+
+                </div>
+
+            </div>
+
+        </div>
+
+
+        <div class="col-md-3">
+
+            <div class="card shadow-sm h-100">
+
+                <div class="card-body">
+
+                    <div class="text-muted small">
+                        Absent
+                    </div>
+
+                    <div class="fs-3 fw-bold">
+                        @ViewBag.AbsentEmployees
+                    </div>
+
+                </div>
+
+            </div>
+
+        </div>
+
+    </div>
+
+
+    <!-- Attendance Table -->
+    <div class="card shadow-sm">
+
+        <div class="card-body">
+
+            <div class="d-flex justify-content-between align-items-center mb-3">
+
+                <div>
+
+                    <h5 class="mb-1">
+                        @selectedCompanyName
+                    </h5>
+
+                    <p class="text-muted mb-0">
+                        @selectedDate.ToString("dd MMMM yyyy")
+                    </p>
+
+                </div>
+
+            </div>
+
+
+            <div class="table-responsive">
+
+                <table class="table table-hover align-middle">
+
+                    <thead>
+
+                        <tr>
+
+                            <th>Employee Code</th>
+
+                            <th>Employee Name</th>
+
+                            <th>Check-In</th>
+
+                            <th>Check-Out</th>
+
+                            <th>Working Hours</th>
+
+                            <th>Late</th>
+
+                            <th>Early Leave</th>
+
+                            <th>Status</th>
+
+                        </tr>
+
+                    </thead>
+
+                    <tbody>
+
+                        @foreach (var employee in Model)
+                        {
+                            ExpenseManagement.Models.Attendance? attendance = null;
+
+                            if (attendanceRecords != null)
+                            {
+                                attendanceRecords.TryGetValue(
+                                    employee.Id,
+                                    out attendance);
+                            }
+
+                            <tr>
+
+                                <td>
+                                    @employee.EmployeeCode
+                                </td>
+
+                                <td>
+                                    @employee.User.FullName
+                                </td>
+
+                                <td>
+                                    @(attendance?.CheckIn.HasValue == true
+                                        ? attendance.CheckIn.Value
+                                            .ToUniversalTime()
+                                            .AddHours(5)
+                                            .AddMinutes(30)
+                                            .ToString("HH:mm")
+                                        : "-")
+                                </td>
+
+                                <td>
+                                    @(attendance?.CheckOut.HasValue == true
+                                        ? attendance.CheckOut.Value
+                                            .ToUniversalTime()
+                                            .AddHours(5)
+                                            .AddMinutes(30)
+                                            .ToString("HH:mm")
+                                        : "-")
+                                </td>
+
+                                <td>
+                                    @(attendance?.WorkingHours.HasValue == true
+                                        ? attendance.WorkingHours.Value
+                                            .ToString("0.00") + " hrs"
+                                        : "-")
+                                </td>
+
+                                <td>
+                                    @(attendance?.LateMinutes.HasValue == true
+                                        ? attendance.LateMinutes.Value + " min"
+                                        : "-")
+                                </td>
+
+                                <td>
+                                    @(attendance?.EarlyLeaveMinutes.HasValue == true
+                                        ? attendance.EarlyLeaveMinutes.Value + " min"
+                                        : "-")
+                                </td>
+
+                                <td>
+
+                                    @if (attendance == null)
+                                    {
+                                        <span class="text-muted">
+                                            No Record
+                                        </span>
+                                    }
+                                    else
+                                    {
+                                        @attendance.Status
+                                    }
+
+                                </td>
+
+                            </tr>
+                        }
+
+                    </tbody>
+
+                </table>
+
+            </div>
+
+        </div>
+
+    </div>
+
+</div>

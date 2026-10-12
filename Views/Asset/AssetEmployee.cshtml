@@ -1,0 +1,466 @@
+﻿@using ExpenseManagement.Models
+@using System.Linq
+
+@model IEnumerable<Asset>
+
+@{
+    var page = ViewBag.AssetPage as string ?? "Index";
+
+    var assets = Model ?? Enumerable.Empty<Asset>();
+
+    var asset = ViewBag.Asset as Asset;
+
+    var history =
+        ViewBag.History as IEnumerable<AssetHistory>
+        ?? Enumerable.Empty<AssetHistory>();
+
+    ViewData["Title"] =
+        page == "Details"
+            ? "My Asset Details"
+            : "My Assets";
+}
+
+
+<div class="container-fluid py-3">
+
+    @if (TempData["Error"] != null)
+    {
+        <div class="alert alert-danger">
+            @TempData["Error"]
+        </div>
+    }
+
+
+    @* ============================================================
+       MY ASSETS
+       ============================================================ *@
+
+    @if (page == "Index")
+    {
+        <div class="mb-4">
+
+            <h2 class="fw-bold mb-1">
+                My Assets
+            </h2>
+
+            <p class="text-muted mb-0">
+                Assets currently assigned to you.
+            </p>
+
+        </div>
+
+
+        <div class="row g-3">
+
+            @if (!assets.Any())
+            {
+                <div class="col-12">
+
+                    <div class="card border-0 shadow-sm">
+
+                        <div class="card-body text-center py-5">
+
+                            <i class="bi bi-inbox fs-1 text-muted"></i>
+
+                            <h5 class="mt-3">
+                                No assets assigned
+                            </h5>
+
+                            <p class="text-muted mb-0">
+                                You currently have no company assets
+                                assigned to you.
+                            </p>
+
+                        </div>
+
+                    </div>
+
+                </div>
+            }
+            else
+            {
+                @foreach (var item in assets)
+                {
+                    <div class="col-md-6 col-xl-4">
+
+                        <div class="card border-0 shadow-sm h-100">
+
+                            <div class="card-body">
+
+                                <div class="d-flex
+                                            justify-content-between
+                                            gap-2">
+
+                                    <div>
+
+                                        <div class="text-muted small">
+                                            @item.AssetCode
+                                        </div>
+
+                                        <h5 class="fw-semibold mb-1">
+                                            @item.AssetName
+                                        </h5>
+
+                                    </div>
+
+
+                                    <span class="badge
+                                                 bg-primary-subtle
+                                                 text-primary
+                                                 align-self-start">
+
+                                        @item.Status
+
+                                    </span>
+
+                                </div>
+
+
+                                <hr />
+
+
+                                <div class="small text-muted">
+                                    Type
+                                </div>
+
+                                <div class="mb-2">
+                                    @(item.AssetType ?? "—")
+                                </div>
+
+
+                                <div class="small text-muted">
+                                    Serial Number
+                                </div>
+
+                                <div class="mb-3">
+                                    @(item.SerialNumber ?? "—")
+                                </div>
+
+
+                                <a asp-controller="HRMEmployee"
+                                   asp-action="MyAssets"
+                                   asp-route-assetId="@item.Id"
+                                   class="btn btn-outline-primary btn-sm">
+
+                                    View Details
+
+                                </a>
+
+                            </div>
+
+                        </div>
+
+                    </div>
+                }
+            }
+
+        </div>
+    }
+
+
+    @* ============================================================
+       ASSET DETAILS + HISTORY
+       ============================================================ *@
+
+    @if (page == "Details" && asset != null)
+    {
+        <div class="d-flex flex-wrap
+                    justify-content-between
+                    align-items-center
+                    gap-2 mb-4">
+
+            <div>
+
+                <h2 class="fw-bold mb-1">
+                    @asset.AssetName
+                </h2>
+
+                <p class="text-muted mb-0">
+                    @asset.AssetCode ·
+                    @(asset.AssetType ?? "Asset")
+                </p>
+
+            </div>
+
+
+            <a asp-controller="HRMEmployee"
+               asp-action="MyAssets"
+               class="btn btn-outline-secondary">
+
+                Back to My Assets
+
+            </a>
+
+        </div>
+
+
+        <div class="row g-3">
+
+            <div class="col-lg-8">
+
+                <div class="card border-0 shadow-sm h-100">
+
+                    <div class="card-header bg-white py-3">
+
+                        <h5 class="mb-0">
+                            Asset Details
+                        </h5>
+
+                    </div>
+
+
+                    <div class="card-body">
+
+                        <div class="row g-3">
+
+                            <div class="col-md-6">
+
+                                <div class="text-muted small">
+                                    Asset Code
+                                </div>
+
+                                <div class="fw-semibold">
+                                    @asset.AssetCode
+                                </div>
+
+                            </div>
+
+
+                            <div class="col-md-6">
+
+                                <div class="text-muted small">
+                                    Asset Type
+                                </div>
+
+                                <div>
+                                    @(asset.AssetType ?? "—")
+                                </div>
+
+                            </div>
+
+
+                            <div class="col-md-6">
+
+                                <div class="text-muted small">
+                                    Serial Number
+                                </div>
+
+                                <div>
+                                    @(asset.SerialNumber ?? "—")
+                                </div>
+
+                            </div>
+
+
+                            <div class="col-md-6">
+
+                                <div class="text-muted small">
+                                    Status
+                                </div>
+
+                                <div>
+
+                                    <span class="badge
+                                                 bg-primary-subtle
+                                                 text-primary">
+
+                                        @asset.Status
+
+                                    </span>
+
+                                </div>
+
+                            </div>
+
+
+                            <div class="col-md-6">
+
+                                <div class="text-muted small">
+                                    Assigned On
+                                </div>
+
+                                <div>
+                                    @(asset.AssignedOn?
+                                        .ToString("dd MMM yyyy")
+                                        ?? "—")
+                                </div>
+
+                            </div>
+
+
+                            <div class="col-md-6">
+
+                                <div class="text-muted small">
+                                    Expected Return
+                                </div>
+
+                                <div>
+                                    @(asset.ExpectedReturnDate?
+                                        .ToString("dd MMM yyyy")
+                                        ?? "—")
+                                </div>
+
+                            </div>
+
+
+                            <div class="col-12">
+
+                                <div class="text-muted small">
+                                    Description
+                                </div>
+
+                                <div>
+                                    @(asset.Description ?? "—")
+                                </div>
+
+                            </div>
+
+
+                            <div class="col-12">
+
+                                <div class="text-muted small">
+                                    Remarks
+                                </div>
+
+                                <div>
+                                    @(asset.Remarks ?? "—")
+                                </div>
+
+                            </div>
+
+                        </div>
+
+                    </div>
+
+                </div>
+
+            </div>
+
+
+            <div class="col-lg-4">
+
+                <div class="card border-0 shadow-sm h-100">
+
+                    <div class="card-header bg-white py-3">
+
+                        <h5 class="mb-0">
+                            Assignment Condition
+                        </h5>
+
+                    </div>
+
+
+                    <div class="card-body">
+
+                        <div class="text-muted small">
+                            Condition on Assignment
+                        </div>
+
+                        <p>
+                            @(asset.ConditionOnAssignment ?? "—")
+                        </p>
+
+
+                        <div class="text-muted small">
+                            Condition on Return
+                        </div>
+
+                        <p>
+                            @(asset.ConditionOnReturn ?? "—")
+                        </p>
+
+                    </div>
+
+                </div>
+
+            </div>
+
+        </div>
+
+
+        <div class="card border-0 shadow-sm mt-3">
+
+            <div class="card-header bg-white py-3">
+
+                <h5 class="mb-0">
+                    Asset History
+                </h5>
+
+            </div>
+
+
+            <div class="card-body p-0">
+
+                <div class="table-responsive">
+
+                    <table class="table table-hover
+                                  align-middle mb-0">
+
+                        <thead class="table-light">
+
+                            <tr>
+
+                                <th>Action</th>
+                                <th>Date</th>
+                                <th>Condition</th>
+                                <th>Remarks</th>
+
+                            </tr>
+
+                        </thead>
+
+
+                        <tbody>
+
+                            @foreach (var h in history)
+                            {
+                                <tr>
+
+                                    <td class="fw-semibold">
+                                        @h.Action
+                                    </td>
+
+                                    <td>
+                                        @h.ActionDate.ToString(
+                                            "dd MMM yyyy")
+                                    </td>
+
+                                    <td>
+                                        @(h.Condition ?? "—")
+                                    </td>
+
+                                    <td>
+                                        @(h.Remarks ?? "—")
+                                    </td>
+
+                                </tr>
+                            }
+
+
+                            @if (!history.Any())
+                            {
+                                <tr>
+
+                                    <td colspan="4"
+                                        class="text-center
+                                               text-muted py-4">
+
+                                        No history available.
+
+                                    </td>
+
+                                </tr>
+                            }
+
+                        </tbody>
+
+                    </table>
+
+                </div>
+
+            </div>
+
+        </div>
+    }
+
+</div>

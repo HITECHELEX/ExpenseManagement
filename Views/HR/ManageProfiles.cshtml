@@ -1,0 +1,281 @@
+﻿@model IEnumerable<ExpenseManagement.Models.PortalProfile>
+
+@{
+    ViewData["Title"] = "Manage HR Members";
+
+    var companyName = ViewBag.CompanyName as string ?? "";
+}
+
+<div class="container-fluid py-4">
+
+    <!-- PAGE HEADER -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+
+        <div>
+            <h2 class="mb-1">
+                <i class="fas fa-users-cog text-primary me-2"></i>
+                Manage HR Members
+            </h2>
+
+            <p class="text-muted mb-0">
+                Add or remove HR member names for
+                <strong>@companyName</strong>
+            </p>
+        </div>
+
+        <a asp-action="SelectProfile"
+           asp-controller="HR"
+           class="btn btn-outline-secondary">
+
+            <i class="fas fa-arrow-left me-1"></i>
+            Back
+
+        </a>
+
+    </div>
+
+
+    <!-- SUCCESS MESSAGE -->
+    @if (TempData["Success"] != null)
+    {
+        <div class="alert alert-success alert-dismissible fade show"
+             role="alert">
+
+            <i class="fas fa-check-circle me-2"></i>
+            @TempData["Success"]
+
+            <button type="button"
+                    class="btn-close"
+                    data-bs-dismiss="alert">
+            </button>
+
+        </div>
+    }
+
+
+    <!-- ERROR MESSAGE -->
+    @if (TempData["Error"] != null)
+    {
+        <div class="alert alert-danger alert-dismissible fade show"
+             role="alert">
+
+            <i class="fas fa-exclamation-circle me-2"></i>
+            @TempData["Error"]
+
+            <button type="button"
+                    class="btn-close"
+                    data-bs-dismiss="alert">
+            </button>
+
+        </div>
+    }
+
+
+    <!-- ADD NEW MEMBER -->
+    <div class="card border-0 shadow-sm mb-4">
+
+        <div class="card-header py-3"
+             style="background:#e6f8ef;">
+
+            <h5 class="mb-0">
+
+                <i class="fas fa-user-plus text-success me-2"></i>
+
+                Add New HR Member
+
+            </h5>
+
+        </div>
+
+
+        <div class="card-body">
+
+            <form asp-action="AddProfile"
+                  asp-controller="HR"
+                  method="post">
+
+                @Html.AntiForgeryToken()
+
+                <div class="row align-items-end">
+
+                    <div class="col-md-10">
+
+                        <label class="form-label fw-semibold">
+                            Full Name
+                        </label>
+
+                        <input type="text"
+                               name="name"
+                               class="form-control"
+                               placeholder="e.g. Ravi Kumar"
+                               maxlength="150"
+                               autocomplete="off"
+                               required />
+
+                    </div>
+
+
+                    <div class="col-md-2">
+
+                        <button type="submit"
+                                class="btn btn-success w-100">
+
+                            <i class="fas fa-plus me-1"></i>
+                            Add Member
+
+                        </button>
+
+                    </div>
+
+                </div>
+
+            </form>
+
+        </div>
+
+    </div>
+
+
+    <!-- CURRENT MEMBERS -->
+    <div class="card border-0 shadow-sm">
+
+        <div class="card-header bg-white py-3">
+
+            <h5 class="mb-0">
+
+                <i class="fas fa-users text-primary me-2"></i>
+
+                Current HR Members
+
+                <span class="badge bg-primary ms-2">
+                    @Model.Count()
+                </span>
+
+            </h5>
+
+        </div>
+
+
+        <div class="card-body p-0">
+
+            @if (!Model.Any())
+            {
+                <div class="text-center py-5">
+
+                    <div class="mb-3">
+
+                        <i class="fas fa-users-slash fa-3x text-muted"></i>
+
+                    </div>
+
+                    <h5>
+                        No HR Members
+                    </h5>
+
+                    <p class="text-muted mb-0">
+                        Add an HR member above to make them available
+                        during profile selection.
+                    </p>
+
+                </div>
+            }
+            else
+            {
+                <div class="list-group list-group-flush">
+
+                    @foreach (var profile in Model)
+                    {
+                        <div class="list-group-item px-3 py-3">
+
+                            <div class="d-flex
+                                justify-content-between
+                                align-items-center">
+
+
+                                <!-- MEMBER INFORMATION -->
+
+                                <div class="d-flex align-items-center">
+
+                                    @{
+                                        var initials = string.Concat(
+                                            profile.Name
+                                                .Split(
+                                                    ' ',
+                                                    StringSplitOptions
+                                                        .RemoveEmptyEntries)
+                                                .Take(2)
+                                                .Select(x => x[0])
+                                        ).ToUpper();
+                                    }
+
+                                    <div class="rounded-circle
+                                        bg-success
+                                        text-white
+                                        d-flex
+                                        align-items-center
+                                        justify-content-center
+                                        me-3"
+                                         style="
+                                        width:46px;
+                                        height:46px;
+                                        font-weight:600;
+                                        ">
+
+                                        @initials
+
+                                    </div>
+
+
+                                    <div>
+
+                                        <div class="fw-semibold">
+                                            @profile.Name
+                                        </div>
+
+                                        <div class="text-muted small">
+
+                                            Added
+                                            @profile.CreatedAt.ToString("dd MMM yyyy")
+
+                                        </div>
+
+                                    </div>
+
+                                </div>
+
+
+                                <!-- REMOVE BUTTON -->
+
+                                <form asp-action="DeleteProfile"
+                                      asp-controller="HR"
+                                      method="post"
+                                      onsubmit="return confirm('Are you sure you want to remove this HR member?');">
+
+                                    @Html.AntiForgeryToken()
+
+                                    <input type="hidden"
+                                           name="id"
+                                           value="@profile.Id" />
+
+                                    <button type="submit"
+                                            class="btn btn-outline-danger">
+
+                                        <i class="fas fa-trash"></i>
+
+                                    </button>
+
+                                </form>
+
+                            </div>
+
+                        </div>
+                    }
+
+                </div>
+            }
+
+        </div>
+
+    </div>
+
+</div>

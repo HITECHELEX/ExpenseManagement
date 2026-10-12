@@ -1,0 +1,516 @@
+﻿@using System.Globalization
+
+@{
+    ViewData["Title"] = "Payroll";
+
+    int month = ViewBag.Month;
+    int year = ViewBag.Year;
+    bool isCurrentMonth = ViewBag.IsCurrentMonth ?? false;
+    bool isPastMonth = ViewBag.IsPastMonth ?? false;
+    bool isFutureMonth = ViewBag.IsFutureMonth ?? false;
+    bool isLastThreeDays = ViewBag.IsLastThreeDays ?? false;
+
+    var rows = ViewBag.Rows as IEnumerable<dynamic>
+        ?? Enumerable.Empty<dynamic>();
+
+    var monthName = CultureInfo.CurrentCulture
+        .DateTimeFormat
+        .GetMonthName(month);
+}
+
+<div class="container-fluid py-4">
+
+    <!-- Header -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2 class="fw-bold mb-1">Payroll Management</h2>
+            <p class="text-muted mb-0">
+                Manage monthly payroll and employee salary processing.
+            </p>
+        </div>
+
+        <a asp-controller="Payroll"
+           asp-action="Index"
+           class="btn btn-outline-secondary">
+            Refresh
+        </a>
+    </div>
+
+    <!-- Month Selection -->
+    <div class="card shadow-sm border-0 mb-4">
+        <div class="card-body">
+
+            <form asp-controller="Payroll"
+                  asp-action="Index"
+                  method="get"
+                  class="row g-3 align-items-end">
+
+                <div class="col-md-3">
+                    <label class="form-label fw-semibold">
+                        Month
+                    </label>
+
+                    <select name="month"
+                            class="form-select">
+
+                        @for (int m = 1; m <= 12; m++)
+                        {
+                            <option value="@m"
+                                    selected="@(m == month)">
+                                @CultureInfo.CurrentCulture.DateTimeFormat.GetMonthName(m)
+                            </option>
+                        }
+
+                    </select>
+                </div>
+
+                <div class="col-md-2">
+                    <label class="form-label fw-semibold">
+                        Year
+                    </label>
+
+                    <select name="year"
+                            class="form-select">
+
+                        @for (int y = year - 2; y <= year + 1; y++)
+                        {
+                            <option value="@y"
+                                    selected="@(y == year)">
+                                @y
+                            </option>
+                        }
+
+                    </select>
+                </div>
+
+                <div class="col-md-2">
+                    <button type="submit"
+                            class="btn btn-primary w-100">
+                        View Payroll
+                    </button>
+                </div>
+
+            </form>
+
+        </div>
+    </div>
+
+
+    <!-- Summary Cards -->
+    @{
+        var totalEmployees = rows.Count();
+        var salaryConfigured = rows.Count(x => x.Salary != null);
+        var processed = rows.Count(x => x.Payroll != null);
+        var pending = totalEmployees - processed;
+    }
+
+    <div class="row g-3 mb-4">
+
+        <div class="col-md-3">
+            <div class="card shadow-sm border-0 h-100">
+                <div class="card-body">
+                    <div class="text-muted small">
+                        Employees
+                    </div>
+
+                    <h3 class="fw-bold mb-0">
+                        @totalEmployees
+                    </h3>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-3">
+            <div class="card shadow-sm border-0 h-100">
+                <div class="card-body">
+                    <div class="text-muted small">
+                        Salary Configured
+                    </div>
+
+                    <h3 class="fw-bold mb-0">
+                        @salaryConfigured
+                    </h3>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-3">
+            <div class="card shadow-sm border-0 h-100">
+                <div class="card-body">
+                    <div class="text-muted small">
+                        Payroll Processed
+                    </div>
+
+                    <h3 class="fw-bold mb-0">
+                        @processed
+                    </h3>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-3">
+            <div class="card shadow-sm border-0 h-100">
+                <div class="card-body">
+                    <div class="text-muted small">
+                        Pending
+                    </div>
+
+                    <h3 class="fw-bold mb-0">
+                        @pending
+                    </h3>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+
+    <!-- Employee Payroll Table -->
+    <div class="card shadow-sm border-0">
+
+        <div class="card-header bg-white py-3">
+            <h5 class="mb-0 fw-bold">
+                @monthName
+                @year Payroll
+            </h5>
+        </div>
+
+        <div class="card-body p-0">
+
+            <div class="table-responsive">
+
+                <table class="table table-hover align-middle mb-0">
+
+                    <thead class="table-light">
+
+                        <tr>
+                            <th class="ps-4">
+                                Employee
+                            </th>
+
+                            <th>
+                                Employee Code
+                            </th>
+
+                            <th>
+                                Salary
+                            </th>
+
+                            <th>
+                                Payroll Status
+                            </th>
+
+                            <th class="text-end pe-4">
+                                Action
+                            </th>
+                        </tr>
+
+                    </thead>
+
+                    <tbody>
+
+                        @if (!rows.Any())
+                        {
+                            <tr>
+                                <td colspan="5"
+                                    class="text-center py-5 text-muted">
+
+                                    No active employees found
+                                    for this company.
+
+                                </td>
+                            </tr>
+                        }
+                        else
+                        {
+                            foreach (var row in rows)
+                            {
+                                var employee = row.Employee;
+                                var salary = row.Salary;
+                                var payroll = row.Payroll;
+
+                                <tr>
+
+                                    <!-- Employee -->
+                                    <td class="ps-4">
+
+                                        <div class="fw-semibold">
+                                            @employee.User.FullName
+                                        </div>
+
+                                        <div class="small text-muted">
+                                            @employee.User.Email
+                                        </div>
+
+                                    </td>
+
+
+                                    <!-- Employee Code -->
+                                    <td>
+                                        <span class="badge bg-light text-dark">
+                                            @employee.EmployeeCode
+                                        </span>
+                                    </td>
+
+
+                                    <!-- Salary -->
+                                    <td>
+
+                                        @if (salary != null)
+                                        {
+                                            var monthlySalary =
+                                                (salary.BasicSalary
+                                                + salary.HRA
+                                                + salary.ConveyanceAllowance
+                                                + salary.OtherAllowances);
+
+                                            <div class="fw-semibold">
+                                                ₹@monthlySalary.ToString("N2")
+                                            </div>
+
+                                            <div class="small text-muted">
+                                                Basic ₹@salary.BasicSalary.ToString("N2")
+                                            </div>
+                                        }
+                                        else
+                                        {
+                                            <span class="badge bg-warning text-dark">
+                                                Not Configured
+                                            </span>
+                                        }
+
+                                    </td>
+
+
+                                    <!-- Status -->
+                                    <td>
+
+                                        @if (payroll == null)
+                                        {
+                                            <span class="badge bg-warning text-dark">
+                                                Pending
+                                            </span>
+                                        }
+                                        else if (payroll.Status == "Finalized")
+                                        {
+                                            <span class="badge bg-success">
+                                                Finalized
+                                            </span>
+                                        }
+                                        else
+                                        {
+                                            <span class="badge bg-info text-dark">
+                                                @(
+                                                    string.IsNullOrWhiteSpace(
+                                                        payroll.Status)
+                                                        ? "Processed"
+                                                        : payroll.Status
+                                                )
+                                            </span>
+                                        }
+
+                                    </td>
+
+
+                                    <!-- Action -->
+                                    <td class="text-end pe-4">
+
+                                        @if (salary == null)
+                                        {
+                                            <a asp-controller="Payroll"
+                                               asp-action="Salary"
+                                               asp-route-employeeId="@employee.Id"
+                                               class="btn btn-sm btn-primary">
+                                                Configure Salary
+                                            </a>
+                                        }
+                                        else if (payroll == null)
+                                        {
+                                            <div class="d-flex justify-content-end gap-2">
+
+                                                <a asp-controller="Payroll"
+                                                   asp-action="Salary"
+                                                   asp-route-employeeId="@employee.Id"
+                                                   class="btn btn-sm btn-outline-secondary">
+                                                    Edit Salary
+                                                </a>
+
+                                                @if (isFutureMonth)
+                                                {
+                                                    <button type="button"
+                                                            class="btn btn-sm btn-secondary"
+                                                            disabled>
+                                                        Not Available
+                                                    </button>
+                                                }
+                                               else if (isCurrentMonth && isLastThreeDays)
+{
+    <a asp-controller="Payroll"
+       asp-action="Process"
+       asp-route-employeeId="@employee.Id"
+       asp-route-month="@month"
+       asp-route-year="@year"
+       class="btn btn-sm btn-primary">
+
+        <i class="fas fa-calculator me-1"></i>
+        Process Payroll
+
+    </a>
+}
+else if (isCurrentMonth)
+{
+    <a asp-controller="Payroll"
+       asp-action="Process"
+       asp-route-employeeId="@employee.Id"
+       asp-route-month="@month"
+       asp-route-year="@year"
+       class="btn btn-sm btn-primary">
+
+        <i class="fas fa-eye me-1"></i>
+        Preview Payroll
+
+    </a>
+}
+                                                else if (isPastMonth)
+                                                {
+                                                    <a asp-controller="Payroll"
+                                                       asp-action="Process"
+                                                       asp-route-employeeId="@employee.Id"
+                                                       asp-route-month="@month"
+                                                       asp-route-year="@year"
+                                                       class="btn btn-sm btn-primary">
+
+                                                        <i class="fas fa-calculator me-1"></i>
+                                                        Process Payroll
+
+                                                    </a>
+                                                }
+
+                                            </div>
+                                        }
+ else
+{
+    <div class="d-flex justify-content-end gap-2">
+
+        <a asp-controller="Payroll"
+           asp-action="Salary"
+           asp-route-employeeId="@employee.Id"
+           class="btn btn-sm btn-outline-secondary">
+            View Salary
+        </a>
+
+        @if (payroll.Status == "Draft")
+        {
+            <a asp-controller="Payroll"
+               asp-action="Process"
+               asp-route-employeeId="@employee.Id"
+               asp-route-month="@month"
+               asp-route-year="@year"
+               class="btn btn-sm btn-primary">
+
+                <i class="fas fa-calculator me-1"></i>
+                Process Payroll
+
+            </a>
+        }
+        else if (payroll.Status == "Processed")
+        {
+            <a asp-controller="Payroll"
+               asp-action="Process"
+               asp-route-employeeId="@employee.Id"
+               asp-route-month="@month"
+               asp-route-year="@year"
+               class="btn btn-sm btn-outline-primary">
+
+                <i class="fas fa-eye me-1"></i>
+                View Payroll
+
+            </a>
+
+            <form asp-controller="Payroll"
+                  asp-action="Finalize"
+                  method="post"
+                  class="d-inline">
+
+                @Html.AntiForgeryToken()
+
+                <input type="hidden"
+                       name="employeeId"
+                       value="@employee.Id" />
+
+                <input type="hidden"
+                       name="month"
+                       value="@month" />
+
+                <input type="hidden"
+                       name="year"
+                       value="@year" />
+
+                <button type="submit"
+                        class="btn btn-sm btn-success"
+                        onclick="return confirm('Are you sure you want to finalize this payroll? Once finalized, it cannot be modified.');">
+
+                    <i class="fas fa-lock me-1"></i>
+                    Finalize
+
+                </button>
+
+            </form>
+        }
+        else if (payroll.Status == "Finalized")
+        {
+            <a asp-controller="Payroll"
+               asp-action="Process"
+               asp-route-employeeId="@employee.Id"
+               asp-route-month="@month"
+               asp-route-year="@year"
+               class="btn btn-sm btn-outline-primary">
+
+                <i class="fas fa-eye me-1"></i>
+                View Payroll
+
+            </a>
+
+            <a asp-controller="Payroll"
+   asp-action="Payslip"
+   asp-route-employeeId="@employee.Id"
+   asp-route-month="@month"
+   asp-route-year="@year"
+   class="btn btn-sm btn-outline-primary">
+
+    <i class="fas fa-file-invoice me-1"></i>
+    View Payslip
+
+</a>
+
+            <button type="button"
+                    class="btn btn-sm btn-secondary"
+                    disabled>
+
+                <i class="fas fa-lock me-1"></i>
+                Finalized
+
+            </button>
+
+            
+        }
+
+    </div>
+}
+
+                                    </td>
+
+                                </tr>
+                            }
+                        }
+
+                    </tbody>
+
+                </table>
+
+            </div>
+
+        </div>
+    </div>
+
+</div>

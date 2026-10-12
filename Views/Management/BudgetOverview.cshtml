@@ -1,21 +1,136 @@
 @model List<ExpenseManagement.Models.Budget>
-@{ ViewData["Title"] = "Budget Overview"; }
-<h5 class="mb-3"><i class="fas fa-wallet me-2"></i>Budget Overview</h5>
+@{
+    ViewData["Title"] = "Budget Overview";
+    int? companyId        = ViewBag.SelectedCompanyId as int?;
+    string selectedMonth  = ViewBag.SelectedMonth ?? "";
+    var availableMonths   = ViewBag.AvailableMonths as IEnumerable<dynamic> ?? Enumerable.Empty<dynamic>();
+    decimal totalAllocated = ViewBag.TotalAllocated ?? 0m;
+    decimal totalSpent     = ViewBag.TotalSpent     ?? 0m;
+    decimal totalRemaining = ViewBag.TotalRemaining ?? 0m;
+    string monthLabel     = string.IsNullOrEmpty(selectedMonth) ? "All Time" :
+        availableMonths.FirstOrDefault(m => m.Key == selectedMonth)?.Label ?? selectedMonth;
+}
+
+@await Html.PartialAsync("_ManagementCompanyFilter")
+
+<!-- ── Header + Month Filter ── -->
+<div class="d-flex flex-wrap align-items-center justify-content-between gap-3 mb-3">
+    <h5 class="mb-0"><i class="fas fa-wallet me-2"></i>Budget Overview
+        <small class="text-muted fw-normal ms-2" style="font-size:.8rem">@monthLabel</small>
+    </h5>
+    <form method="get" action="/Management/BudgetOverview" class="d-flex align-items-center gap-2">
+        <input type="hidden" name="companyId" value="@companyId" />
+        <select name="month" class="form-select form-select-sm" style="min-width:150px"
+                onchange="this.form.submit()">
+            <option value="">All Months</option>
+            @foreach (var m in availableMonths)
+            {
+                <option value="@m.Key" selected="@(m.Key == selectedMonth ? "selected" : null)">@m.Label</option>
+            }
+        </select>
+        @if (!string.IsNullOrEmpty(selectedMonth))
+        {
+            <a href="/Management/BudgetOverview?companyId=@companyId" class="btn btn-sm btn-outline-secondary">
+                <i class="fas fa-times"></i>
+            </a>
+        }
+    </form>
+</div>
+
+<!-- ── Summary Cards ── -->
+<div class="row g-3 mb-4">
+    <div class="col-6 col-md-4">
+        <div style="background:linear-gradient(135deg,#1e3a8a,#2563eb);border-radius:14px;padding:18px;color:#fff">
+            <div style="opacity:.75;font-size:.68rem;text-transform:uppercase;letter-spacing:.6px;margin-bottom:4px">
+                <i class="fas fa-wallet me-1"></i>Total Allocated
+            </div>
+            <div style="font-size:1.5rem;font-weight:800;letter-spacing:-1px">₹@totalAllocated.ToString("N2")</div>
+        </div>
+    </div>
+    <div class="col-6 col-md-4">
+        <div style="background:linear-gradient(135deg,#dc2626,#b91c1c);border-radius:14px;padding:18px;color:#fff">
+            <div style="opacity:.75;font-size:.68rem;text-transform:uppercase;letter-spacing:.6px;margin-bottom:4px">
+                <i class="fas fa-receipt me-1"></i>Total Spent
+            </div>
+            <div style="font-size:1.5rem;font-weight:800;letter-spacing:-1px">₹@totalSpent.ToString("N2")</div>
+        </div>
+    </div>
+    <div class="col-12 col-md-4">
+        <div style="background:linear-gradient(135deg,@(totalRemaining<0?"#dc2626,#b91c1c":"#15803d,#16a34a"));border-radius:14px;padding:18px;color:#fff">
+            <div style="opacity:.75;font-size:.68rem;text-transform:uppercase;letter-spacing:.6px;margin-bottom:4px">
+                <i class="fas fa-piggy-bank me-1"></i>Total Remaining
+            </div>
+            <div style="font-size:1.5rem;font-weight:800;letter-spacing:-1px">
+                @(totalRemaining < 0 ? "-" : "")₹@Math.Abs(totalRemaining).ToString("N2")
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ── Budget Table ── -->
+@if (!Model.Any())
+{
+    <div class="text-center py-5 text-muted">
+        <i class="fas fa-inbox fa-3x mb-3 d-block"></i>
+        No budgets found for @monthLabel.
+    </div>
+}
+else
+{
 <div class="table-responsive">
     <table class="table table-hover">
-        <thead><tr><th>Employee</th><th>Purpose</th><th>Total</th><th>Spent</th><th>Balance</th><th>Allocated On</th></tr></thead>
+        <thead><tr>
+            <th>Employee</th>
+            @if (companyId == null) { <th>Company</th> }
+            <th>Purpose</th>
+            <th class="text-end">Allocated</th>
+            <th class="text-end">Spent</th>
+            <th class="text-end">Balance</th>
+            <th>Allocated On</th>
+            <th>Status</th>
+        </tr></thead>
         <tbody>
             @foreach (var b in Model)
             {
                 <tr>
-                    <td><div class="fw-semibold">@b.Employee?.FullName</div></td>
+                    <td class="fw-semibold">@b.Employee?.FullName</td>
+                    @if (companyId == null)
+                    {
+                        <td>
+                            <span class="badge" style="background:#eff6ff;color:#2563eb;font-size:.72rem">
+                                <i class="fas fa-building me-1"></i>@b.Employee?.Company?.Name
+                            </span>
+                        </td>
+                    }
                     <td>@b.Purpose</td>
-                    <td>₹@b.TotalAmount.ToString("N0")</td>
-                    <td>₹@b.SpentAmount.ToString("N0")</td>
-                    <td class="@(b.RemainingBalance > 0 ? "text-success" : "text-danger") fw-bold">₹@b.RemainingBalance.ToString("N0")</td>
-                    <td>@b.AllocatedOn.ToString("dd MMM yyyy")</td>
+                    <td class="text-end fw-semibold text-primary">₹@b.TotalAmount.ToString("N2")</td>
+                    <td class="text-end text-danger">₹@b.SpentAmount.ToString("N2")</td>
+                    <td class="text-end fw-bold @(b.RemainingBalance >= 0 ? "text-success" : "text-danger")">
+                        @(b.RemainingBalance < 0 ? "-" : "")₹@Math.Abs(b.RemainingBalance).ToString("N2")
+                    </td>
+                    <td class="text-muted">@b.AllocatedOn.ToIst().ToString("dd MMM yyyy")</td>
+                    <td>
+                        @if (b.IsLocked)
+                        { <span class="badge bg-secondary" style="font-size:.65rem"><i class="fas fa-lock me-1"></i>Closed</span> }
+                        else if (b.IsActive)
+                        { <span class="badge badge-approved" style="font-size:.65rem">Active</span> }
+                        else
+                        { <span class="badge bg-secondary" style="font-size:.65rem">Inactive</span> }
+                    </td>
                 </tr>
             }
         </tbody>
+        <tfoot style="background:#f8fafc;font-weight:700">
+            <tr>
+                <td colspan="@(companyId == null ? 3 : 2)">Total (@Model.Count budget(s))</td>
+                <td class="text-end text-primary">₹@totalAllocated.ToString("N2")</td>
+                <td class="text-end text-danger">₹@totalSpent.ToString("N2")</td>
+                <td class="text-end @(totalRemaining < 0 ? "text-danger" : "text-success")">
+                    @(totalRemaining < 0 ? "-" : "")₹@Math.Abs(totalRemaining).ToString("N2")
+                </td>
+                <td colspan="2"></td>
+            </tr>
+        </tfoot>
     </table>
 </div>
+}

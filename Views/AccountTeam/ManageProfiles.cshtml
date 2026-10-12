@@ -1,0 +1,84 @@
+@using ExpenseManagement.Models
+@model List<PortalProfile>
+@{ ViewData["Title"] = "Manage Team Members"; }
+
+<div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
+    <div>
+        <h5 class="mb-1"><i class="fas fa-users-cog me-2 text-success"></i>Manage Team Members</h5>
+        <small class="text-muted">Add or remove Accounts Team member names for <strong>@(ViewBag.CompanyName)</strong></small>
+    </div>
+    <a href="/AccountTeam/Dashboard" class="btn btn-sm btn-outline-secondary" style="border-radius:8px">
+        <i class="fas fa-arrow-left me-1"></i>Back
+    </a>
+</div>
+
+@* ── ADD FORM ── *@
+<div class="card mb-4" style="border-radius:14px">
+    <div class="card-header fw-semibold" style="background:linear-gradient(135deg,#ecfdf5,#d1fae5);border-bottom:1.5px solid #a7f3d0">
+        <i class="fas fa-user-plus me-2 text-success"></i>Add New Member
+    </div>
+    <div class="card-body p-3">
+        <form method="post" action="/AccountTeam/AddProfile" class="d-flex gap-2 align-items-end flex-wrap">
+            @Html.AntiForgeryToken()
+            <div style="flex:1;min-width:200px">
+                <label class="form-label">Full Name</label>
+                <input type="text" name="name" class="form-control" placeholder="e.g. Ravi Kumar" required style="border-radius:8px" />
+            </div>
+            <button type="submit" class="btn btn-success" style="border-radius:8px;padding:9px 20px">
+                <i class="fas fa-plus me-1"></i>Add Member
+            </button>
+        </form>
+    </div>
+</div>
+
+@* ── CURRENT MEMBERS ── *@
+<div class="card" style="border-radius:14px">
+    <div class="card-header fw-semibold" style="background:#f8fafc;border-bottom:1px solid #e2e8f0">
+        <i class="fas fa-users me-2 text-primary"></i>Current Members
+        <span class="badge bg-primary ms-2" style="border-radius:20px">@Model.Count</span>
+    </div>
+    <div class="card-body p-0">
+        @if (!Model.Any())
+        {
+            <div class="text-center py-5 text-muted">
+                <i class="fas fa-users fa-2x mb-3 d-block"></i>
+                No members yet. Add one above.
+            </div>
+        }
+        else
+        {
+            var avatarColors = new[] { "#059669","#0891b2","#7c3aed","#dc2626","#d97706","#0284c7" };
+            int mi = 0;
+            foreach (var p in Model)
+            {
+                var col   = avatarColors[mi % avatarColors.Length];
+                var ini   = string.Concat(p.Name.Split(' ', StringSplitOptions.RemoveEmptyEntries).Take(2).Select(w => char.ToUpper(w[0])));
+                var isAct = Context.Session.GetString("ATProfileName") == p.Name;
+                <div class="d-flex align-items-center justify-content-between p-3 border-bottom" style="@(isAct?"background:#f0fdf4":"")">
+                    <div class="d-flex align-items-center gap-3">
+                        <div style="width:44px;height:44px;border-radius:50%;background:@col;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;font-size:.9rem;flex-shrink:0">@ini</div>
+                        <div>
+                            <div class="fw-semibold">@p.Name</div>
+                            <div style="font-size:.75rem;color:#64748b">
+                                Added @p.CreatedAt.ToString("dd MMM yyyy")
+                                @if (isAct)
+                                {
+                                    <span class="badge ms-1" style="background:#d1fae5;color:#065f46;font-size:.68rem">Active Session</span>
+                                }
+                            </div>
+                        </div>
+                    </div>
+                    <form method="post" action="/AccountTeam/DeleteProfile"
+                          onsubmit="return confirm('Remove @p.Name from the team? This cannot be undone.')">
+                        @Html.AntiForgeryToken()
+                        <input type="hidden" name="id" value="@p.Id" />
+                        <button type="submit" class="btn btn-sm btn-outline-danger" style="border-radius:7px" title="Remove">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </form>
+                </div>
+                mi++;
+            }
+        }
+    </div>
+</div>

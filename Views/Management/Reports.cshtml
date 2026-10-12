@@ -1,40 +1,154 @@
 @model List<ExpenseManagement.Models.ExpenseReport>
 @using ExpenseManagement.Models
-@{ ViewData["Title"] = "Expense Reports"; var currentStatus = ViewBag.CurrentStatus as string; }
+@{
+    ViewData["Title"] = "Expense Reports";
+    var currentStatus   = ViewBag.CurrentStatus as string ?? "ForwardedToManagement";
+    int? companyId      = ViewBag.SelectedCompanyId as int?;
+    int? selectedEmpId  = ViewBag.SelectedEmployeeId as int?;
+    var employees       = ViewBag.Employees as IEnumerable<dynamic> ?? Enumerable.Empty<dynamic>();
+    string CqParam      = companyId.HasValue ? $"&companyId={companyId}" : "";
+    string EqParam      = selectedEmpId.HasValue ? $"&employeeId={selectedEmpId}" : "";
 
-<div class="d-flex justify-content-between align-items-center mb-3">
-    <h5 class="mb-0"><i class="fas fa-file-invoice me-2"></i>Expense Reports</h5>
-</div>
-
-<div class="mb-3 d-flex flex-wrap gap-2">
-    <a href="/Management/Reports?status=ForwardedToManagement" class="btn btn-sm @(currentStatus == "ForwardedToManagement" ? "btn-primary" : "btn-outline-secondary")">Pending Review</a>
-    <a href="/Management/Reports?status=ApprovedByManagement" class="btn btn-sm @(currentStatus == "ApprovedByManagement" ? "btn-success" : "btn-outline-secondary")">Approved</a>
-    <a href="/Management/Reports?status=RejectedByManagement" class="btn btn-sm @(currentStatus == "RejectedByManagement" ? "btn-danger" : "btn-outline-secondary")">Rejected</a>
-</div>
-
-@if (!Model.Any())
-{ <div class="card text-center py-5 text-muted"><i class="fas fa-inbox fa-3x mb-3 d-block"></i>No reports</div> }
-
-@foreach (var r in Model)
-{
-    var (cls, txt) = r.Status switch {
-        ReportStatus.ForwardedToManagement => ("badge-forwarded","Pending Review"),
-        ReportStatus.ApprovedByManagement => ("badge-approved","Approved"),
-        ReportStatus.RejectedByManagement => ("badge-rejected","Rejected"),
-        _ => ("badge-secondary",r.Status.ToString())
+    var statusLabel = currentStatus switch {
+        "ApprovedByManagement"  => "Approved",
+        "RejectedByManagement"  => "Rejected",
+        _                       => "Pending Review"
     };
-    <div class="card mb-2">
-        <div class="card-body d-flex align-items-center justify-content-between flex-wrap gap-2">
-            <div>
-                <div class="fw-semibold">@r.ReportTitle</div>
-                <small class="text-muted">@r.Employee?.FullName · @r.CreatedOn.ToString("dd MMM yyyy") · ₹@r.TotalClaimed.ToString("N2")</small>
-                @if (!string.IsNullOrEmpty(r.AccountTeamNotes))
-                { <small class="text-muted d-block">Accounts: @r.AccountTeamNotes</small> }
-            </div>
-            <div class="d-flex gap-2 align-items-center">
-                <span class="badge @cls">@txt</span>
-                <a href="/Management/ReportDetail/@r.Id" class="btn btn-sm btn-outline-primary">Review</a>
-            </div>
-        </div>
+}
+
+@await Html.PartialAsync("_ManagementCompanyFilter")
+
+@* ── PAGE HEADER ── *@
+<div class="d-flex align-items-center justify-content-between mb-3 flex-wrap gap-2">
+    <h5 class="mb-0 fw-bold"><i class="fas fa-file-invoice me-2 text-primary"></i>Expense Reports</h5>
+    <span style="font-size:.78rem;color:#64748b">@Model.Count report@(Model.Count == 1 ? "" : "s") shown</span>
+</div>
+
+@* ── FILTERS ROW ── *@
+<div class="mb-3" style="background:#f8fafc;border:1.5px solid #e2e8f0;border-radius:14px;padding:14px 16px">
+    @* Status tabs *@
+    <div class="d-flex flex-wrap gap-2 mb-3">
+        <a href="/Management/Reports?status=ForwardedToManagement@(CqParam)@(EqParam)"
+           class="btn btn-sm @(currentStatus == "ForwardedToManagement" ? "btn-warning" : "btn-outline-secondary")"
+           style="border-radius:8px;font-size:.8rem">
+            <i class="fas fa-clock me-1"></i>Pending Review
+        </a>
+        <a href="/Management/Reports?status=ApprovedByManagement@(CqParam)@(EqParam)"
+           class="btn btn-sm @(currentStatus == "ApprovedByManagement" ? "btn-success" : "btn-outline-secondary")"
+           style="border-radius:8px;font-size:.8rem">
+            <i class="fas fa-check-circle me-1"></i>Approved
+        </a>
+        <a href="/Management/Reports?status=RejectedByManagement@(CqParam)@(EqParam)"
+           class="btn btn-sm @(currentStatus == "RejectedByManagement" ? "btn-danger" : "btn-outline-secondary")"
+           style="border-radius:8px;font-size:.8rem">
+            <i class="fas fa-times-circle me-1"></i>Rejected
+        </a>
     </div>
+
+    @* Employee filter *@
+    <div class="d-flex align-items-center gap-2 flex-wrap">
+        <label style="font-size:.78rem;font-weight:600;color:#334155;white-space:nowrap">
+            <i class="fas fa-user me-1 text-primary"></i>Filter by Employee:
+        </label>
+        <select id="empFilter" class="form-select form-select-sm" style="max-width:260px;border-radius:8px;font-size:.82rem"
+                onchange="applyEmployeeFilter(this.value)">
+            <option value="">— All Employees —</option>
+            @foreach (var emp in employees)
+            {
+                int empId = (int)emp.Id;
+                string empName = (string)emp.FullName;
+                <option value="@empId" selected="@(selectedEmpId == empId ? "selected" : null)">@empName</option>
+            }
+        </select>
+        @if (selectedEmpId.HasValue)
+        {
+            <a href="/Management/Reports?status=@currentStatus@CqParam"
+               class="btn btn-sm btn-outline-secondary"
+               style="border-radius:8px;font-size:.78rem">
+                <i class="fas fa-times me-1"></i>Clear
+            </a>
+        }
+    </div>
+</div>
+
+@* ── REPORT LIST ── *@
+@if (!Model.Any())
+{
+    <div class="text-center py-5" style="background:#f8fafc;border:1.5px dashed #e2e8f0;border-radius:16px">
+        <div style="width:56px;height:56px;background:#f1f5f9;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;margin-bottom:12px">
+            <i class="fas fa-inbox" style="font-size:1.4rem;color:#94a3b8"></i>
+        </div>
+        <div class="fw-semibold" style="color:#334155;font-size:.9rem">No @statusLabel.ToLower() reports</div>
+        @if (selectedEmpId.HasValue)
+        {
+            <div class="text-muted mt-1" style="font-size:.8rem">Try clearing the employee filter</div>
+        }
+    </div>
+}
+else
+{
+    var colors = new[] { "#dbeafe|#1d4ed8", "#dcfce7|#16a34a", "#fef3c7|#d97706", "#f3e8ff|#7c3aed", "#fce7f3|#be185d" };
+    <div class="d-flex flex-column gap-2">
+        @foreach (var (r, idx) in Model.Select((r, i) => (r, i)))
+        {
+            var (badgeCls, badgeTxt, badgeStyle) = r.Status switch {
+                ReportStatus.ForwardedToManagement => ("", "Pending Review", "background:#fef3c7;color:#b45309;border:1px solid #fde68a"),
+                ReportStatus.ApprovedByManagement  => ("", "Approved",       "background:#dcfce7;color:#166534;border:1px solid #86efac"),
+                ReportStatus.RejectedByManagement  => ("", "Rejected",       "background:#fef2f2;color:#991b1b;border:1px solid #fecaca"),
+                _                                  => ("", r.Status.ToString(), "background:#f1f5f9;color:#475569;border:1px solid #e2e8f0")
+            };
+            var cPair    = colors[idx % colors.Length].Split('|');
+            var initials = string.Join("", (r.Employee?.FullName ?? "?").Split(' ', StringSplitOptions.RemoveEmptyEntries).Take(2).Select(w => w[0])).ToUpper();
+
+            <div style="background:#fff;border:1.5px solid #e2e8f0;border-radius:14px;padding:14px 16px">
+                <div class="d-flex align-items-center justify-content-between gap-2 flex-wrap">
+                    <div class="d-flex align-items-center gap-3" style="min-width:0;flex:1 1 0">
+                        <div style="width:40px;height:40px;border-radius:10px;background:@cPair[0];color:@cPair[1];display:flex;align-items:center;justify-content:center;font-weight:700;font-size:.82rem;flex-shrink:0">
+                            @initials
+                        </div>
+                        <div style="min-width:0">
+                            <div class="fw-bold text-truncate" style="font-size:.92rem">@r.ReportTitle</div>
+                            <div class="d-flex gap-2 flex-wrap mt-1" style="font-size:.72rem;color:#64748b">
+                                <span><i class="fas fa-user me-1"></i>@r.Employee?.FullName</span>
+                                @if (companyId == null)
+                                {
+                                    <span style="background:#eff6ff;color:#2563eb;border-radius:4px;padding:1px 6px;font-size:.65rem">
+                                        <i class="fas fa-building me-1"></i>@r.Employee?.Company?.Name
+                                    </span>
+                                }
+                                <span><i class="fas fa-calendar me-1"></i>@r.CreatedOn.ToIst().ToString("dd MMM yyyy")</span>
+                                <span><i class="fas fa-receipt me-1"></i>@r.ExpenseClaims.Count expense@(r.ExpenseClaims.Count == 1 ? "" : "s")</span>
+                                <span class="fw-semibold" style="color:#2563eb">₹@r.TotalClaimed.ToString("N2")</span>
+                            </div>
+                            @if (!string.IsNullOrEmpty(r.AccountTeamNotes))
+                            {
+                                <div style="font-size:.72rem;color:#64748b;margin-top:4px">
+                                    <i class="fas fa-comment me-1"></i>Accounts: @r.AccountTeamNotes
+                                </div>
+                            }
+                        </div>
+                    </div>
+                    <div class="d-flex align-items-center gap-2 flex-shrink-0">
+                        <span style="font-size:.72rem;font-weight:600;border-radius:8px;padding:4px 10px;@badgeStyle">@badgeTxt</span>
+                        <a href="/Management/ReportDetail/@r.Id" class="btn btn-sm btn-primary" style="border-radius:8px;font-size:.78rem;padding:6px 14px">
+                            <i class="fas fa-eye me-1"></i>Review
+                        </a>
+                    </div>
+                </div>
+            </div>
+        }
+    </div>
+}
+
+@section Scripts {
+<script>
+function applyEmployeeFilter(empId) {
+    const status    = '@currentStatus';
+    const companyId = '@(companyId?.ToString() ?? "")';
+    let url = `/Management/Reports?status=${status}`;
+    if (companyId) url += `&companyId=${companyId}`;
+    if (empId)     url += `&employeeId=${empId}`;
+    window.location.href = url;
+}
+</script>
 }

@@ -15,7 +15,8 @@
     };
     bool isDraft       = Model.Status == ReportStatus.Draft;
     bool isRejectedAT  = Model.Status == ReportStatus.RejectedByAccountTeam;
-    bool canEdit       = isDraft || isRejectedAT;
+    bool isRejectedMgmt = Model.Status == ReportStatus.RejectedByManagement;
+    bool canEdit       = isDraft || isRejectedAT || isRejectedMgmt;
     bool isViewOnly    = !canEdit;
     decimal walletBal  = (ViewBag.WalletBalance as decimal?) ?? Model.Budget?.RemainingBalance ?? 0;
 }
@@ -27,6 +28,15 @@
     </a>
     <h5 class="mb-0 me-auto fw-bold">@Model.ReportTitle</h5>
     <span class="badge @badgeCls px-3 py-2" style="font-size:.82rem">@badgeTxt</span>
+    @* Download ZIP — only available once Management has approved *@
+    @if (Model.Status == ReportStatus.ApprovedByManagement)
+    {
+        <a href="/Employee/DownloadReport/@Model.Id"
+           class="btn btn-sm btn-success fw-semibold"
+           style="border-radius:8px">
+            <i class="fas fa-file-archive me-1"></i>Download Approved ZIP
+        </a>
+    }
     @* Edit/Delete only for Draft or Rejected-by-AT *@
     @if (canEdit)
     {
@@ -45,9 +55,32 @@
     <div class="alert alert-danger mb-3 d-flex gap-3 align-items-start" style="border-radius:12px">
         <i class="fas fa-times-circle fa-lg mt-1 flex-shrink-0"></i>
         <div>
-            <strong>Rejected by Account Team</strong>
+            <strong>Rejected by @(!string.IsNullOrEmpty(Model.AccountTeamProfileName) ? Model.AccountTeamProfileName : (Model.AccountTeamVerifiedBy?.FullName ?? "Account Team"))</strong>
             <div class="mt-1">@Model.AccountTeamNotes</div>
-            <small class="text-muted">Reviewed on @Model.AccountTeamVerifiedOn?.ToString("dd MMM yyyy HH:mm") by @Model.AccountTeamVerifiedBy?.FullName</small>
+            <small class="text-muted">Reviewed on @Model.AccountTeamVerifiedOn?.ToIst().ToString("dd MMM yyyy HH:mm")</small>
+        </div>
+    </div>
+}
+
+@* ── REJECTION ALERT (Management) ── *@
+@if (isRejectedMgmt)
+{
+    var _mgmtAlertName = !string.IsNullOrEmpty(Model.DirectorName)
+        ? Model.DirectorName
+        : (Model.ManagementReviewedBy?.FullName ?? "Management");
+    <div class="alert alert-danger mb-3 d-flex gap-3 align-items-start" style="border-radius:12px">
+        <i class="fas fa-times-circle fa-lg mt-1 flex-shrink-0"></i>
+        <div>
+            <strong>Rejected by @_mgmtAlertName</strong>
+            @if (!string.IsNullOrEmpty(Model.ManagementFeedback))
+            {
+                <div class="mt-1">@Model.ManagementFeedback</div>
+            }
+            @if (!string.IsNullOrEmpty(Model.ManagementNotes))
+            {
+                <div class="mt-1 text-muted">@Model.ManagementNotes</div>
+            }
+            <small class="text-muted">Reviewed on @Model.ManagementReviewedOn?.ToIst().ToString("dd MMM yyyy HH:mm")</small>
         </div>
     </div>
 }
@@ -66,7 +99,7 @@
     <div class="alert alert-info mb-3 d-flex align-items-center gap-2" style="border-radius:12px;font-size:.87rem">
         <i class="fas fa-lock-open text-primary flex-shrink-0"></i>
         <span>
-            This report was <strong>forwarded on @Model.ForwardedToAccountTeamOn?.ToString("dd MMM yyyy")</strong> and is now
+            This report was <strong>forwarded on @Model.ForwardedToAccountTeamOn?.ToIst().ToString("dd MMM yyyy")</strong> and is now
             <strong>view-only</strong>. No further changes can be made.
         </span>
     </div>
@@ -83,7 +116,7 @@
     </div>
     <div class="col-6 col-md-3">
         <div class="stat-card">
-            @if (isDraft)
+            @if (isDraft || isRejectedAT || isRejectedMgmt)
             {
                 <div class="stat-label">Wallet Balance</div>
                 @if (walletBal >= 0)
@@ -115,7 +148,7 @@
     <div class="col-6 col-md-3">
         <div class="stat-card">
             <div class="stat-label">Created</div>
-            <div style="font-size:1rem;font-weight:700">@Model.CreatedOn.ToString("dd MMM yyyy")</div>
+            <div style="font-size:1rem;font-weight:700">@Model.CreatedOn.ToIst().ToString("dd MMM yyyy")</div>
         </div>
     </div>
     <div class="col-6 col-md-3">
@@ -129,10 +162,14 @@
 @* ── DRAFT / REJECTED-BY-AT ACTION BAR ── *@
 @if (canEdit)
 {
-    <div class="alert @(walletBal < 0 ? "alert-warning" : isRejectedAT ? "alert-danger" : "alert-info") d-flex align-items-center justify-content-between flex-wrap gap-2 mb-3" style="border-radius:12px">
+    <div class="alert @(walletBal < 0 ? "alert-warning" : (isRejectedAT || isRejectedMgmt) ? "alert-danger" : "alert-info") d-flex align-items-center justify-content-between flex-wrap gap-2 mb-3" style="border-radius:12px">
         <div>
             <i class="fas fa-info-circle me-2"></i>
-            @if (isRejectedAT)
+            @if (isRejectedMgmt)
+            {
+                <span>Report was <strong>rejected by Management</strong>. Fix the issues and resubmit to Account Team.</span>
+            }
+            else if (isRejectedAT)
             {
                 <span>Report was <strong>rejected</strong>. Fix the issues and resubmit to Account Team.</span>
             }
@@ -151,8 +188,8 @@
             </a>
             @if (Model.ExpenseClaims.Any())
             {
-                <button type="button" class="btn @(isRejectedAT ? "btn-warning" : "btn-success") btn-sm" data-bs-toggle="modal" data-bs-target="#forwardModal" style="border-radius:8px">
-                    <i class="fas fa-paper-plane me-1"></i>@(isRejectedAT ? "Resubmit to Accounts" : "Forward to Accounts")
+                <button type="button" class="btn @((isRejectedAT || isRejectedMgmt) ? "btn-warning" : "btn-success") btn-sm" data-bs-toggle="modal" data-bs-target="#forwardModal" style="border-radius:8px">
+                    <i class="fas fa-paper-plane me-1"></i>@((isRejectedAT || isRejectedMgmt) ? "Resubmit to Accounts" : "Forward to Accounts")
                 </button>
             }
         </div>
@@ -167,22 +204,22 @@
             <div class="timeline-item">
                 <div class="timeline-dot done"></div>
                 <strong>Draft Created</strong>
-                <div class="text-muted" style="font-size:.8rem">@Model.CreatedOn.ToString("dd MMM yyyy HH:mm")</div>
+                <div class="text-muted" style="font-size:.8rem">@Model.CreatedOn.ToIst().ToString("dd MMM yyyy HH:mm")</div>
             </div>
             <div class="timeline-item">
                 <div class="timeline-dot @(Model.Status >= ReportStatus.SubmittedToAccountTeam ? "done" : "")"></div>
                 <strong>Forwarded to Account Team</strong>
                 @if (Model.ForwardedToAccountTeamOn.HasValue)
-                { <div class="text-muted" style="font-size:.8rem">@Model.ForwardedToAccountTeamOn.Value.ToString("dd MMM yyyy HH:mm")</div> }
+                { <div class="text-muted" style="font-size:.8rem">@Model.ForwardedToAccountTeamOn.Value.ToIst().ToString("dd MMM yyyy HH:mm")</div> }
                 else { <div class="text-muted" style="font-size:.8rem">Pending</div> }
             </div>
             <div class="timeline-item">
                 <div class="timeline-dot @(Model.Status >= ReportStatus.ForwardedToManagement ? "done" : "")"></div>
-                <strong>Reviewed by Account Team</strong>
+                <strong>Reviewed by @(!string.IsNullOrEmpty(Model.AccountTeamProfileName) ? Model.AccountTeamProfileName : "Account Team")</strong>
                 @if (Model.AccountTeamVerifiedOn.HasValue)
                 {
                     <div class="text-muted" style="font-size:.8rem">
-                        @Model.AccountTeamVerifiedOn.Value.ToString("dd MMM yyyy HH:mm")
+                        @Model.AccountTeamVerifiedOn.Value.ToIst().ToString("dd MMM yyyy HH:mm")
                         @if (!string.IsNullOrEmpty(Model.AccountTeamNotes)) { <span>· @Model.AccountTeamNotes</span> }
                     </div>
                 }
@@ -190,11 +227,23 @@
             </div>
             <div class="timeline-item">
                 <div class="timeline-dot @(Model.Status == ReportStatus.ApprovedByManagement ? "done" : Model.Status == ReportStatus.RejectedByManagement ? "rejected" : "")"></div>
-                <strong>Management Decision</strong>
+                @{
+                    var _mgmtName = !string.IsNullOrEmpty(Model.DirectorName)
+                        ? Model.DirectorName
+                        : (Model.ManagementReviewedBy?.FullName ?? "Management");
+                    string _mgmtLabel;
+                    if (Model.Status == ReportStatus.ApprovedByManagement)
+                        _mgmtLabel = $"Approved by {_mgmtName}";
+                    else if (Model.Status == ReportStatus.RejectedByManagement)
+                        _mgmtLabel = $"Rejected by {_mgmtName}";
+                    else
+                        _mgmtLabel = "Management Decision";
+                }
+                <strong>@_mgmtLabel</strong>
                 @if (Model.ManagementReviewedOn.HasValue)
                 {
                     <div class="text-muted" style="font-size:.8rem">
-                        @Model.ManagementReviewedOn.Value.ToString("dd MMM yyyy HH:mm")
+                        @Model.ManagementReviewedOn.Value.ToIst().ToString("dd MMM yyyy HH:mm")
                         @if (!string.IsNullOrEmpty(Model.ManagementNotes)) { <span>· @Model.ManagementNotes</span> }
                     </div>
                 }
@@ -239,7 +288,7 @@
                 @foreach (var c in Model.ExpenseClaims.OrderBy(x => x.ExpenseDate))
                 {
                     <tr>
-                        <td style="white-space:nowrap">@c.ExpenseDate.ToString("dd MMM yy")</td>
+                        <td style="white-space:nowrap">@c.ExpenseDate.ToIst().ToString("dd MMM yy")</td>
                         <td>
                             <div class="fw-semibold">@c.Title</div>
                             <small class="text-muted">@c.Category</small>
@@ -264,13 +313,42 @@
                         </td>
                         <td class="fw-semibold">₹@c.Amount.ToString("N2")</td>
                         <td>
-                            @if (!string.IsNullOrEmpty(c.ReceiptPath))
+                            @{
+                                var rSlots  = new[] { c.ReceiptPath, c.Receipt2Path, c.Receipt3Path }
+                                                .Where(p => !string.IsNullOrEmpty(p)).ToList();
+                                int rCount  = rSlots.Count;
+                            }
+                            @if (rCount > 0)
                             {
-                                var ext = System.IO.Path.GetExtension(c.ReceiptPath).ToLower();
-                                if (ext == ".pdf")
-                                { <a href="@c.ReceiptPath" target="_blank" class="btn btn-sm btn-outline-danger" style="border-radius:6px"><i class="fas fa-file-pdf"></i></a> }
-                                else
-                                { <a href="@c.ReceiptPath" target="_blank"><img src="@c.ReceiptPath" style="height:36px;width:36px;object-fit:cover;border-radius:6px;border:1px solid #e2e8f0" /></a> }
+                                var fp   = rSlots[0];
+                                var fUrl = $"/Receipt/View?key={Uri.EscapeDataString(fp)}";
+                                var fExt = System.IO.Path.GetExtension(fp).ToLower();
+                                var urlsJs  = "[" + string.Join(",", rSlots.Select(p => $"'{System.Uri.EscapeDataString(p)}'")) + "]";
+                                var extsJs  = "[" + string.Join(",", rSlots.Select(p => $"'{System.IO.Path.GetExtension(p).ToLower()}'")) + "]";
+                                var labsJs  = "[" + string.Join(",", new[]{"Photo 1","Photo 2","Photo 3"}.Take(rCount).Select(n => $"'{n}'")) + "]";
+                                <div onclick="openReceiptViewer(@Html.Raw(urlsJs),@Html.Raw(extsJs),@Html.Raw(labsJs))"
+                                     title="Click to view receipt@(rCount > 1 ? "s" : "")"
+                                     style="cursor:pointer;display:inline-flex;flex-direction:column;align-items:center;gap:2px">
+                                    <div style="position:relative">
+                                        @if (fExt == ".pdf")
+                                        {
+                                            <div style="height:46px;width:46px;border-radius:10px;background:#fee2e2;border:2px solid #fca5a5;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 8px rgba(0,0,0,.12)">
+                                                <i class="fas fa-file-pdf text-danger" style="font-size:1.3rem"></i>
+                                            </div>
+                                        }
+                                        else
+                                        {
+                                            <img src="@fUrl" style="height:46px;width:46px;object-fit:cover;border-radius:10px;border:2px solid #bfdbfe;box-shadow:0 2px 8px rgba(0,0,0,.15)" />
+                                        }
+                                        @if (rCount > 1)
+                                        {
+                                            <span style="position:absolute;top:-7px;right:-7px;background:#2563eb;color:#fff;border-radius:10px;font-size:.6rem;padding:2px 5px;font-weight:700;border:2px solid #fff;line-height:1.3">+@(rCount-1)</span>
+                                        }
+                                    </div>
+                                    <span style="font-size:.62rem;color:#2563eb;font-weight:600">
+                                        @(rCount > 1 ? $"{rCount} photos" : "View")
+                                    </span>
+                                </div>
                             }
                             else { <span class="text-muted" style="font-size:.8rem">None</span> }
                         </td>
@@ -279,9 +357,17 @@
                             <td>
                                 @if (c.Status == ExpenseStatus.Approved)
                                 {
-                                    <span class="badge bg-success px-2 py-1" style="font-size:.78rem">
-                                        <i class="fas fa-check me-1"></i>OK
-                                    </span>
+                                    <div>
+                                        <span class="badge bg-success px-2 py-1" style="font-size:.78rem">
+                                            <i class="fas fa-check me-1"></i>OK
+                                        </span>
+                                        @if (!string.IsNullOrEmpty(c.AccountTeamRemarks))
+                                        {
+                                            <div class="mt-1" style="font-size:.74rem;color:#16a34a;font-style:italic">
+                                                <i class="fas fa-comment-alt me-1" style="font-size:.65rem"></i>@c.AccountTeamRemarks
+                                            </div>
+                                        }
+                                    </div>
                                 }
                                 else if (c.Status == ExpenseStatus.Declined)
                                 {
@@ -291,7 +377,9 @@
                                         </span>
                                         @if (!string.IsNullOrEmpty(c.AccountTeamRemarks))
                                         {
-                                            <div class="text-danger mt-1" style="font-size:.75rem">@c.AccountTeamRemarks</div>
+                                            <div class="text-danger mt-1" style="font-size:.74rem;font-style:italic">
+                                                <i class="fas fa-comment-alt me-1" style="font-size:.65rem"></i>@c.AccountTeamRemarks
+                                            </div>
                                         }
                                     </div>
                                 }
@@ -299,16 +387,29 @@
                         }
                         @if (canEdit)
                         {
-                            <td>
-                                <div class="d-flex gap-1">
-                                    <a href="/Employee/EditExpense/@c.Id" class="btn btn-sm btn-outline-secondary" style="border-radius:6px;padding:3px 8px"><i class="fas fa-edit"></i></a>
-                                    <form method="post" action="/Employee/DeleteExpense" onsubmit="return confirm('Remove this expense?')">
-                                        @Html.AntiForgeryToken()
-                                        <input type="hidden" name="claimId" value="@c.Id" />
-                                        <button class="btn btn-sm btn-outline-danger" style="border-radius:6px;padding:3px 8px"><i class="fas fa-trash"></i></button>
-                                    </form>
-                                </div>
-                            </td>
+                            @if (c.Status == ExpenseStatus.Approved)
+                            {
+                                @* Approved by Account Team — locked, no edit/delete *@
+                                <td>
+                                    <span class="badge bg-success px-2 py-1" style="font-size:.78rem">
+                                        <i class="fas fa-lock me-1"></i>Approved
+                                    </span>
+                                </td>
+                            }
+                            else
+                            {
+                                @* Draft / Declined / Pending — editable *@
+                                <td>
+                                    <div class="d-flex gap-1">
+                                        <a href="/Employee/EditExpense/@c.Id" class="btn btn-sm btn-outline-secondary" style="border-radius:6px;padding:3px 8px"><i class="fas fa-edit"></i></a>
+                                        <form method="post" action="/Employee/DeleteExpense" onsubmit="return confirm('Remove this expense?')">
+                                            @Html.AntiForgeryToken()
+                                            <input type="hidden" name="claimId" value="@c.Id" />
+                                            <button class="btn btn-sm btn-outline-danger" style="border-radius:6px;padding:3px 8px"><i class="fas fa-trash"></i></button>
+                                        </form>
+                                    </div>
+                                </td>
+                            }
                         }
                     </tr>
                 }
@@ -334,14 +435,15 @@
         <div class="modal-dialog modal-dialog-centered">
             <div class="modal-content" style="border-radius:16px;border:none">
                 <div class="modal-header" style="border-bottom:1px solid #f1f5f9">
-                    <h5 class="modal-title fw-bold"><i class="fas fa-paper-plane me-2 text-success"></i>@(isRejectedAT ? "Resubmit Report" : "Forward Report")</h5>
+                    <h5 class="modal-title fw-bold"><i class="fas fa-paper-plane me-2 text-success"></i>@((isRejectedAT || isRejectedMgmt) ? "Resubmit Report" : "Forward Report")</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
                 <form method="post" action="/Employee/ForwardReport">
                     @Html.AntiForgeryToken()
                     <input type="hidden" name="reportId" value="@Model.Id" />
                     <div class="modal-body">
-                        @* Summary *@
+
+                        @* ── Summary ── *@
                         <div class="p-3 rounded-3 mb-3" style="background:#f8fafc;border:1px solid #e2e8f0">
                             <div class="d-flex justify-content-between mb-2">
                                 <span class="text-muted">Report Total</span>
@@ -358,6 +460,7 @@
                                 </strong>
                             </div>
                         </div>
+
                         @if (walletBal < 0)
                         {
                             <div class="alert alert-warning" style="border-radius:10px;font-size:.85rem">
@@ -372,14 +475,15 @@
                                 ₹@walletBal.ToString("N2") unused balance will be returned to your wallet after approval.
                             </div>
                         }
+
                         <div>
-                            <label class="form-label fw-semibold">Notes for Account Team (optional)</label>
+                            <label class="form-label fw-semibold" style="font-size:.85rem">Notes for Account Team <span class="text-muted fw-normal">(optional)</span></label>
                             <textarea name="notes" class="form-control" rows="2" placeholder="Any additional context..." style="border-radius:10px"></textarea>
                         </div>
                     </div>
                     <div class="modal-footer" style="border-top:1px solid #f1f5f9">
                         <button type="button" class="btn btn-secondary" data-bs-dismiss="modal" style="border-radius:8px">Cancel</button>
-                        <button type="submit" class="btn btn-success fw-semibold" style="border-radius:8px">
+                        <button type="submit" class="btn btn-success fw-semibold" id="forwardSubmitBtn" style="border-radius:8px">
                             <i class="fas fa-paper-plane me-2"></i>Forward Report
                         </button>
                     </div>
@@ -389,15 +493,15 @@
     </div>
 }
 
-@* ── DELETE REPORT MODAL (draft only) ── *@
-@if (isDraft)
+@* ── DELETE REPORT MODAL ── *@
+@if (canEdit)
 {
     <div class="modal fade" id="deleteReportModal" tabindex="-1">
         <div class="modal-dialog modal-dialog-centered">
             <div class="modal-content" style="border-radius:16px;border:none">
                 <div class="modal-body p-4 text-center">
                     <div style="width:60px;height:60px;background:#fee2e2;border-radius:14px;display:flex;align-items:center;justify-content:center;margin:0 auto 16px;font-size:1.6rem">🗑️</div>
-                    <h5 class="fw-bold">Delete Draft Report?</h5>
+                    <h5 class="fw-bold">Delete Report?</h5>
                     <p class="text-muted mb-3" style="font-size:.88rem">
                         Deleting <strong>"@Model.ReportTitle"</strong> will remove all <strong>@Model.ExpenseClaims.Count expense(s)</strong>
                         and restore ₹@Model.TotalClaimed.ToString("N2") to your wallet balance.
@@ -414,4 +518,66 @@
             </div>
         </div>
     </div>
+}
+
+<!-- ── Receipt Viewer Modal ── -->
+<div class="modal fade" id="receiptViewerModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered" style="max-width:500px">
+        <div class="modal-content" style="border-radius:18px;border:none;overflow:hidden;box-shadow:0 20px 60px rgba(0,0,0,.25)">
+            <div class="modal-header" style="background:linear-gradient(135deg,#1e293b,#0f172a);border:none;padding:14px 20px">
+                <div class="d-flex align-items-center gap-2">
+                    <i class="fas fa-images" style="color:#93c5fd;font-size:1rem"></i>
+                    <span class="fw-bold text-white" id="receiptViewerTitle" style="font-size:.95rem">Receipt Photos</span>
+                </div>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body p-3" id="receiptViewerBody" style="background:#f8fafc;max-height:75vh;overflow-y:auto"></div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+<script>
+function openReceiptViewer(keys, exts, labels) {
+    const urls = keys.map(k => '/Receipt/View?key=' + decodeURIComponent(k));
+    document.getElementById('receiptViewerTitle').textContent =
+        'Receipt Photo' + (urls.length > 1 ? 's (' + urls.length + ')' : '');
+
+    document.getElementById('receiptViewerBody').innerHTML = urls.map((url, i) => {
+        const isPdf = exts[i] === '.pdf';
+        const label = labels[i];
+        if (isPdf) {
+            return `<div class="mb-3 rounded-3 border overflow-hidden" style="background:#fff">
+                <div class="d-flex align-items-center gap-3 p-3">
+                    <div style="width:50px;height:50px;border-radius:10px;background:#fee2e2;display:flex;align-items:center;justify-content:center;flex-shrink:0">
+                        <i class="fas fa-file-pdf text-danger" style="font-size:1.4rem"></i>
+                    </div>
+                    <div>
+                        <div class="fw-semibold" style="font-size:.85rem;color:#1e293b">${label}</div>
+                        <div class="text-muted" style="font-size:.74rem">PDF Document</div>
+                    </div>
+                    <a href="${url}" target="_blank" class="btn btn-danger btn-sm ms-auto" style="border-radius:8px;font-size:.76rem">
+                        <i class="fas fa-external-link-alt me-1"></i>Open
+                    </a>
+                </div>
+            </div>`;
+        }
+        return `<div class="mb-3 rounded-3 border overflow-hidden" style="background:#fff">
+            <a href="${url}" target="_blank">
+                <img src="${url}" style="width:100%;max-height:280px;object-fit:contain;display:block;background:#f1f5f9" />
+            </a>
+            <div class="d-flex align-items-center justify-content-between px-3 py-2" style="border-top:1px solid #f1f5f9">
+                <span style="font-size:.8rem;font-weight:600;color:#334155">
+                    <i class="fas fa-image me-1 text-primary" style="font-size:.75rem"></i>${label}
+                </span>
+                <a href="${url}" target="_blank" class="btn btn-outline-primary btn-sm" style="border-radius:8px;font-size:.72rem">
+                    <i class="fas fa-expand-alt me-1"></i>Full Size
+                </a>
+            </div>
+        </div>`;
+    }).join('');
+
+    new bootstrap.Modal(document.getElementById('receiptViewerModal')).show();
+}
+</script>
 }

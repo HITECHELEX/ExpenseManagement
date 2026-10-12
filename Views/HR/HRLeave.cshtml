@@ -1,0 +1,380 @@
+﻿@model List<ExpenseManagement.Models.Leave>
+
+@{
+    ViewData["Title"] = "Leave Management";
+
+    var employees =
+        ViewBag.Employees as List<ExpenseManagement.Models.Employee>
+        ?? new List<ExpenseManagement.Models.Employee>();
+
+    var selectedStatus = ViewBag.Status as string;
+    var selectedLeaveType = ViewBag.LeaveType as string;
+    var selectedEmployeeId = ViewBag.EmployeeId as int?;
+    var leaveTypes =
+    ViewBag.LeaveTypes as Dictionary<string, string>
+    ?? new Dictionary<string, string>
+    {
+        ["CL"] = "Casual Leave",
+        ["SL"] = "Sick Leave",
+        ["C/Off"] = "Compensatory Off",
+        ["Paternity"] = "Paternity Leave",
+        ["Maternity"] = "Maternity Leave",
+        ["Medical"] = "Medical Leave"
+    };
+}
+
+<div class="container-fluid py-4">
+
+    <!-- Header -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+
+        <div>
+            <h2 class="fw-bold mb-1">Leave Management</h2>
+            <p class="text-muted mb-0">
+                Review and manage employee leave applications
+            </p>
+        </div>
+
+    </div>
+
+
+    <!-- Filters -->
+    <div class="card shadow-sm mb-4">
+
+        <div class="card-header bg-white">
+            <h5 class="mb-0 fw-bold">Filters</h5>
+        </div>
+
+        <div class="card-body">
+
+            <form method="get"
+                  asp-controller="Leave"
+                  asp-action="Index">
+
+                <div class="row g-3 align-items-end">
+
+                    <!-- Employee -->
+                    <div class="col-md-4">
+
+                        <label class="form-label">
+                            Employee
+                        </label>
+
+                        <select name="employeeId"
+                                class="form-select">
+
+                            <option value="">
+                                All Employees
+                            </option>
+
+                            @foreach (var employee in employees)
+                            {
+                                <option value="@employee.Id"
+                                        selected="@(selectedEmployeeId == employee.Id)">
+                                    @employee.User.FullName
+                                </option>
+                            }
+
+                        </select>
+
+                    </div>
+
+
+                    <!-- Leave Type -->
+                    <div class="col-md-3">
+
+                        <label class="form-label">
+                            Leave Type
+                        </label>
+
+                        <select name="leaveType"
+                                class="form-select">
+
+                            <option value="">
+                                All Types
+                            </option>
+
+                            @foreach (var type in leaveTypes)
+                            {
+                                <option value="@type.Key"
+                                        selected="@(selectedLeaveType == type.Key)">
+                                    @type.Value
+                                </option>
+                            }
+
+                        </select>
+
+                    </div>
+
+
+                    <!-- Status -->
+                    <div class="col-md-3">
+
+                        <label class="form-label">
+                            Status
+                        </label>
+
+                        <select name="status"
+                                class="form-select">
+
+                            <option value="">
+                                All Statuses
+                            </option>
+
+                            <option value="Pending"
+                                    selected="@(selectedStatus == "Pending")">
+                                Pending
+                            </option>
+
+                            <option value="Approved"
+                                    selected="@(selectedStatus == "Approved")">
+                                Approved
+                            </option>
+
+                            <option value="Rejected"
+                                    selected="@(selectedStatus == "Rejected")">
+                                Rejected
+                            </option>
+
+                            <option value="Cancelled"
+                                    selected="@(selectedStatus == "Cancelled")">
+                                Cancelled
+                            </option>
+
+                        </select>
+
+                    </div>
+
+
+                    <!-- Filter -->
+                    <div class="col-md-2">
+
+                        <button type="submit"
+                                class="btn btn-primary w-100">
+                            <i class="fas fa-filter me-1"></i>
+                            Filter
+                        </button>
+
+                    </div>
+
+                </div>
+
+            </form>
+
+        </div>
+
+    </div>
+
+
+    <!-- Leave Applications -->
+    <div class="card shadow-sm">
+
+        <div class="card-header bg-white d-flex justify-content-between align-items-center">
+
+            <h5 class="mb-0 fw-bold">
+                Leave Applications
+            </h5>
+
+            <span class="text-muted small">
+                @Model.Count application(s)
+            </span>
+
+        </div>
+
+        <div class="card-body p-0">
+
+            @if (!Model.Any())
+            {
+                <div class="text-center text-muted py-5">
+                    No leave applications found.
+                </div>
+            }
+            else
+            {
+                <div class="table-responsive">
+
+                    <table class="table table-hover align-middle mb-0">
+
+                        <thead class="table-light">
+
+                            <tr>
+                                <th>Employee</th>
+                                <th>Type</th>
+                                <th>From</th>
+                                <th>To</th>
+                                <th>Days</th>
+                                <th>Reason</th>
+                                <th>Status</th>
+                                <th>Applied On</th>
+                                <th style="min-width:220px;">
+                                    Action
+                                </th>
+                            </tr>
+
+                        </thead>
+
+                        <tbody>
+
+                            @foreach (var leave in Model)
+                            {
+                                <tr>
+
+                                    <td>
+                                        <div class="fw-semibold">
+                                            @leave.Employee?.User?.FullName
+                                        </div>
+
+                                        <div class="text-muted small">
+                                            @leave.Employee?.EmployeeCode
+                                        </div>
+                                    </td>
+
+
+                                    <td>
+                                        <span class="fw-semibold">
+                                            @(leaveTypes.TryGetValue(
+                                        leave.LeaveType,
+                                        out var leaveTypeName)
+                                            ? leaveTypeName
+                                            : leave.LeaveType)
+                                        </span>
+                                    </td>
+
+
+                                    <td>
+                                        @leave.FromDate.ToString("dd MMM yyyy")
+                                    </td>
+
+
+                                    <td>
+                                        @leave.ToDate.ToString("dd MMM yyyy")
+                                    </td>
+
+
+                                    <td>
+                                        @(leave.TotalDays?.ToString("0.##") ?? "-")
+                                    </td>
+
+
+                                    <td>
+                                        @(string.IsNullOrWhiteSpace(leave.Reason)
+                                            ? "-"
+                                            : leave.Reason)
+                                    </td>
+
+
+                                    <td>
+
+                                        @if (leave.Status == "Pending")
+                                        {
+                                            <span class="badge bg-warning text-dark">
+                                                Pending
+                                            </span>
+                                        }
+                                        else if (leave.Status == "Approved")
+                                        {
+                                            <span class="badge bg-success">
+                                                Approved
+                                            </span>
+                                        }
+                                        else if (leave.Status == "Rejected")
+                                        {
+                                            <span class="badge bg-danger">
+                                                Rejected
+                                            </span>
+                                        }
+                                        else if (leave.Status == "Cancelled")
+                                        {
+                                            <span class="badge bg-secondary">
+                                                Cancelled
+                                            </span>
+                                        }
+                                        else
+                                        {
+                                            <span class="badge bg-secondary">
+                                                @leave.Status
+                                            </span>
+                                        }
+
+                                    </td>
+
+
+                                    <td>
+                                        @(leave.AppliedOn?.ToLocalTime()
+                                            .ToString("dd MMM yyyy, hh:mm tt") ?? "-")
+                                    </td>
+
+
+                                    <td>
+
+                                        @if (leave.Status == "Pending")
+                                        {
+                                            <div class="d-flex gap-2">
+
+                                                <!-- Approve -->
+                                                <form asp-controller="Leave"
+                                                      asp-action="Approve"
+                                                      method="post">
+
+                                                    @Html.AntiForgeryToken()
+
+                                                    <input type="hidden"
+                                                           name="id"
+                                                           value="@leave.Id" />
+
+                                                    <button type="submit"
+                                                            class="btn btn-sm btn-success"
+                                                            onclick="return confirm('Approve this leave application?');">
+                                                        <i class="fas fa-check me-1"></i>
+                                                        Approve
+                                                    </button>
+
+                                                </form>
+
+
+                                                <!-- Reject -->
+                                                <form asp-controller="Leave"
+                                                      asp-action="Reject"
+                                                      method="post">
+
+                                                    @Html.AntiForgeryToken()
+
+                                                    <input type="hidden"
+                                                           name="id"
+                                                           value="@leave.Id" />
+
+                                                    <button type="submit"
+                                                            class="btn btn-sm btn-outline-danger"
+                                                            onclick="return confirm('Reject this leave application?');">
+                                                        <i class="fas fa-times me-1"></i>
+                                                        Reject
+                                                    </button>
+
+                                                </form>
+
+                                            </div>
+                                        }
+                                        else
+                                        {
+                                            <span class="text-muted">
+                                                No action
+                                            </span>
+                                        }
+
+                                    </td>
+
+                                </tr>
+                            }
+
+                        </tbody>
+
+                    </table>
+
+                </div>
+            }
+
+        </div>
+
+    </div>
+
+</div>

@@ -1,0 +1,56 @@
+﻿@using System.Security.Claims
+
+@{
+    ViewData["Title"] = "";
+
+    var userName = User.Identity?.Name ?? "User";
+    var role = User.FindFirstValue(ClaimTypes.Role) ?? "";
+    var companyName = User.FindFirstValue("CompanyName") ?? "";
+}
+
+<style>
+    .portal-container {
+        min-height: calc(100vh - 80px);
+        display: flex;
+        justify-content: center;
+        align-items: flex-start;
+        padding-top: 90px;
+    }
+
+    .portal-welcome {
+        text-align: center;
+    }
+
+        .portal-welcome h1 {
+            font-size: 32px;
+            font-weight: 700;
+            margin-bottom: 10px;
+            color: #111827;
+        }
+
+        .portal-welcome .company {
+            color: #64748b;
+            font-size: 17px;
+            margin-bottom: 8px;
+        }
+
+        .portal-welcome .role {
+            color: #64748b;
+            font-size: 16px;
+        }
+</style>
+
+<div class="portal-container">
+    <div class="portal-welcome">
+
+        <h1>Welcome, @userName</h1>
+
+        @if (!string.IsNullOrEmpty(companyName))
+        {
+            <div class="company">@companyName</div>
+        }
+
+        <div class="role">@role</div>
+
+    </div>
+</div>

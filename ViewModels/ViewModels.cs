@@ -32,6 +32,8 @@ namespace ExpenseManagement.ViewModels
         [Required]
         public string Purpose { get; set; } = "";
         public DateTime? ValidUntil { get; set; }
+        // Date the money was actually transferred (defaults to today if left blank)
+        public DateTime? TransferDate { get; set; }
     }
 
     public class ExpenseClaimVM
@@ -41,13 +43,16 @@ namespace ExpenseManagement.ViewModels
         public int? ReportId { get; set; }
         [Required]
         public string Title { get; set; } = "";
-        public string Description { get; set; } = "";
+        public string? Description { get; set; }
         [Required]
         public string Category { get; set; } = "";
         [Required, Range(0.01, double.MaxValue, ErrorMessage = "Amount must be positive")]
         public decimal Amount { get; set; }
         public DateTime ExpenseDate { get; set; } = DateTime.Today;
         public IFormFile? Receipt { get; set; }
+        // Extra receipt photos (Receipt is photo 1, these are photos 2 and 3)
+        public IFormFile? Receipt2 { get; set; }
+        public IFormFile? Receipt3 { get; set; }
         public ExpenseManagement.Models.PaymentMethod PaymentMethod { get; set; } = ExpenseManagement.Models.PaymentMethod.Cash;
     }
 
@@ -97,6 +102,7 @@ namespace ExpenseManagement.ViewModels
         public List<ExpenseReport> PendingReports_List { get; set; } = new();
         public List<WalletTopUp> RecentTopUps { get; set; } = new();
         public int UnreadNotifications { get; set; }
+        public string CompanyName { get; set; } = "";
     }
 
     public class ManagementDashboardVM
@@ -110,6 +116,11 @@ namespace ExpenseManagement.ViewModels
         public List<ExpenseReport> RecentReports { get; set; } = new();
         public List<Budget> RecentBudgets { get; set; } = new();
         public int UnreadNotifications { get; set; }
+
+        // Multi-company support
+        public int? SelectedCompanyId { get; set; }
+        public string SelectedCompanyName { get; set; } = "All Companies";
+        public List<Company> Companies { get; set; } = new();
     }
 
     public class ForwardReportVM
@@ -147,6 +158,8 @@ namespace ExpenseManagement.ViewModels
         public int TotalTopUps { get; set; }
         public decimal TotalTopUpAmount { get; set; }
         public List<WalletTopUp> TopUps { get; set; } = new();
+        public List<WalletTransaction> Transactions { get; set; } = new();
+        public List<OpeningBalance> OpeningBalances { get; set; } = new();
         public List<Budget> Budgets { get; set; } = new();
     }
 
@@ -160,6 +173,9 @@ namespace ExpenseManagement.ViewModels
         public decimal Remaining { get; set; }
         public int BudgetCount { get; set; }
         public int ReportCount { get; set; }
+        // Monthly top-up breakdown (populated when month filter is active)
+        public decimal TopUpAmount { get; set; }
+        public int TopUpCount { get; set; }
     }
 
     public class MonthlyAllocationRow

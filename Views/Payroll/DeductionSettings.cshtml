@@ -1,0 +1,131 @@
+﻿@model ExpenseManagement.Models.PayrollDeductionSettings
+
+@{
+    ViewData["Title"] = "Payroll Deduction Settings";
+}
+
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2 class="mb-1">Payroll Deduction Settings</h2>
+            <p class="text-muted mb-0">
+                Configure fixed payroll deduction amounts for the current company.
+            </p>
+        </div>
+    </div>
+
+    @if (TempData["Success"] != null)
+    {
+        <div class="alert alert-success">
+            @TempData["Success"]
+        </div>
+    }
+
+    <div asp-validation-summary="ModelOnly" class="alert alert-danger"></div>
+
+    <div class="card shadow-sm">
+        <div class="card-body">
+            <form asp-action="DeductionSettings" method="post">
+                @Html.AntiForgeryToken()
+
+                <div class="row g-4">
+                    <div class="col-md-6">
+                        <label asp-for="PF" class="form-label">
+                            PF
+                        </label>
+
+                        <div class="input-group">
+                            <span class="input-group-text">₹</span>
+                            <input asp-for="PF"
+                                   type="number"
+                                   step="0.01"
+                                   min="0"
+                                   class="form-control"
+                                   placeholder="Enter PF amount" />
+                        </div>
+
+                        <span asp-validation-for="PF"
+                              class="text-danger"></span>
+                    </div>
+
+                    <div class="col-md-6">
+                        <label asp-for="ESIC" class="form-label">
+                            ESIC
+                        </label>
+
+                        <div class="input-group">
+                            <span class="input-group-text">₹</span>
+                            <input asp-for="ESIC"
+                                   type="number"
+                                   step="0.01"
+                                   min="0"
+                                   class="form-control"
+                                   placeholder="Enter ESIC amount" />
+                        </div>
+
+                        <span asp-validation-for="ESIC"
+                              class="text-danger"></span>
+                    </div>
+
+                    <div class="col-md-6">
+                        <label asp-for="ProfessionalTax" class="form-label">
+                            Professional Tax
+                        </label>
+
+                        <div class="input-group">
+                            <span class="input-group-text">₹</span>
+                            <input asp-for="ProfessionalTax"
+                                   type="number"
+                                   step="0.01"
+                                   min="0"
+                                   class="form-control"
+                                   placeholder="Enter Professional Tax amount" />
+                        </div>
+
+                        <span asp-validation-for="ProfessionalTax"
+                              class="text-danger"></span>
+                    </div>
+
+                    <div class="col-md-6">
+                        <label asp-for="LWF" class="form-label">
+                            LWF
+                        </label>
+
+                        <div class="input-group">
+                            <span class="input-group-text">₹</span>
+                            <input asp-for="LWF"
+                                   type="number"
+                                   step="0.01"
+                                   min="0"
+                                   class="form-control"
+                                   placeholder="Enter LWF amount" />
+                        </div>
+
+                        <span asp-validation-for="LWF"
+                              class="text-danger"></span>
+                    </div>
+                </div>
+
+                <hr class="my-4" />
+
+                <div class="d-flex justify-content-end gap-2">
+                    <a asp-action="Index"
+                       class="btn btn-secondary">
+                        Cancel
+                    </a>
+
+                    <button type="submit"
+                            class="btn btn-primary">
+                        Save Settings
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div class="alert alert-info mt-4">
+        <strong>Note:</strong>
+        These are company-level fixed deduction amounts.
+        Employee-level applicability is controlled separately through Salary Master.
+    </div>
+</div>

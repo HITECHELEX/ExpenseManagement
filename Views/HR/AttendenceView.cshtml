@@ -1,0 +1,957 @@
+﻿@model List<ExpenseManagement.Models.Employee>
+
+@{
+    var monthlySummary = ViewBag.MonthlySummary;
+    var monthStart = (DateTime)ViewBag.MonthStart;
+
+    ViewData["Title"] = "Attendance";
+
+    var attendanceRecords =
+        ViewBag.AttendanceRecords as Dictionary<int, ExpenseManagement.Models.Attendance>;
+
+    var selectedDate = (DateTime)ViewBag.AttendanceDate;
+
+    var isHR = User.IsInRole("HR");
+    var isManagement = User.IsInRole("Management");
+    var isToday = selectedDate.Date == DateTime.Today;
+    var indiaTimeZone = TimeZoneInfo.FindSystemTimeZoneById("India Standard Time");
+}
+
+<div class="container-fluid">
+
+    <!-- Header -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2 class="mb-1">Attendance</h2>
+            <p class="text-muted mb-0">
+                Daily employee attendance
+            </p>
+        </div>
+
+        <form method="get"
+              asp-action="Index"
+              class="d-flex gap-2">
+
+            <input type="date"
+                   name="date"
+                   value="@selectedDate.ToString("yyyy-MM-dd")"
+                   class="form-control" />
+
+            <button type="submit"
+                    class="btn btn-primary">
+                View
+            </button>
+        </form>
+    </div>
+
+    <!-- Attendance Table -->
+    <div class="card shadow-sm">
+        <div class="card-body">
+
+            <div class="table-responsive">
+
+                <table class="table table-hover align-middle">
+
+                    <thead>
+                        <tr>
+                            <th>Employee Code</th>
+                            <th>Employee Name</th>
+                            <th>In Time</th>
+                            <th>Out Time</th>
+                            <th>Working Hours</th>
+                            <th>Late</th>
+                            <th>Early Leave</th>
+                            <th>Status</th>
+                            <th>Location</th>
+
+                            @if (isHR)
+                            {
+                                <th>Action</th>
+                            }
+                        </tr>
+                    </thead>
+
+                    <tbody>
+
+                        @foreach (var employee in Model)
+                        {
+                            ExpenseManagement.Models.Attendance? attendance = null;
+
+                            if (attendanceRecords != null)
+                            {
+                                attendanceRecords.TryGetValue(employee.Id, out attendance);
+                            }
+
+                            <tr>
+
+                                <td>
+                                    @employee.EmployeeCode
+                                </td>
+
+                                <td>
+                                    @employee.User.FullName
+                                </td>
+
+                                <td>
+                                    @(attendance?.CheckIn.HasValue == true
+    ? TimeZoneInfo.ConvertTimeFromUtc(
+        attendance.CheckIn.Value.ToUniversalTime(),
+        indiaTimeZone
+      ).ToString("HH:mm")
+    : "-")
+                                </td>
+
+                                <td>
+                                    @(attendance?.CheckOut.HasValue == true
+     ? TimeZoneInfo.ConvertTimeFromUtc(
+         attendance.CheckOut.Value.ToUniversalTime(),
+         indiaTimeZone
+       ).ToString("HH:mm")
+     : "-")
+                                </td>
+                                <td>
+                                    @(attendance?.WorkingHours?.ToString("0.00") ?? "-")
+                                </td>
+
+                                <td>
+                                    @(attendance?.LateMinutes.HasValue == true
+                                        ? attendance.LateMinutes.Value + " min"
+                                        : "-")
+                                </td>
+
+                                <td>
+                                    @(attendance?.EarlyLeaveMinutes.HasValue == true
+                                        ? attendance.EarlyLeaveMinutes.Value + " min"
+                                        : "-")
+                                </td>
+
+                                <td>
+                                    @(attendance?.Status ?? "No Record")
+                                </td>
+
+                                <td>
+                                    @if (attendance != null &&
+                                         (attendance.CheckInLatitude.HasValue ||
+                                          attendance.CheckOutLatitude.HasValue))
+                                    {
+                                        <button type="button"
+                                                class="btn btn-sm btn-outline-success"
+                                                data-bs-toggle="modal"
+                                                data-bs-target="#locationModal-@attendance.Id">
+
+                                            <i class="fas fa-location-dot me-1"></i>
+                                            View Location
+
+                                        </button>
+
+                                        <!-- GPS Location Modal -->
+                                        <div class="modal fade"
+                                             id="locationModal-@attendance.Id"
+                                             tabindex="-1"
+                                             aria-hidden="true">
+
+                                            <div class="modal-dialog modal-lg modal-dialog-centered">
+
+                                                <div class="modal-content">
+
+                                                    <div class="modal-header">
+
+                                                        <div>
+                                                            <h5 class="modal-title mb-1">
+                                                                Attendance Location
+                                                            </h5>
+
+                                                            <div class="small text-muted">
+                                                                @employee.User.FullName
+                                                                · @employee.EmployeeCode
+                                                            </div>
+                                                        </div>
+
+                                                        <button type="button"
+                                                                class="btn-close"
+                                                                data-bs-dismiss="modal">
+                                                        </button>
+
+                                                    </div>
+
+                                                    <div class="modal-body">
+
+                                                        <div class="row g-4">
+
+                                                            <!-- ============================= -->
+                                                            <!-- CHECK-IN LOCATION -->
+                                                            <!-- ============================= -->
+
+                                                            <div class="col-md-6">
+
+                                                                <div class="border rounded p-3 h-100">
+
+                                                                    <h6 class="fw-bold mb-3">
+                                                                        <i class="fas fa-right-to-bracket me-2"></i>
+                                                                        Check-In Location
+                                                                    </h6>
+
+                                                                    @if (attendance.CheckInLatitude.HasValue &&
+                                                                         attendance.CheckInLongitude.HasValue)
+                                                                    {
+                                                                        <div class="mb-3">
+
+                                                                            <div class="small text-muted mb-1">
+                                                                                Location
+                                                                            </div>
+
+                                                                            <div class="fw-semibold">
+                                                                                @(string.IsNullOrWhiteSpace(
+                                                                                    attendance.CheckInLocationName)
+                                                                                    ? "Location name unavailable"
+                                                                                    : attendance.CheckInLocationName)
+                                                                            </div>
+
+                                                                        </div>
+
+                                                                        <div class="mb-3">
+
+                                                                            <div class="small text-muted mb-1">
+                                                                                Coordinates
+                                                                            </div>
+
+                                                                            <div>
+                                                                                @attendance.CheckInLatitude.Value.ToString("0.000000"),
+                                                                                @attendance.CheckInLongitude.Value.ToString("0.000000")
+                                                                            </div>
+
+                                                                        </div>
+
+                                                                        <div class="mb-3">
+
+                                                                            <div class="small text-muted mb-1">
+                                                                                Accuracy
+                                                                            </div>
+
+                                                                            @if (attendance.CheckInAccuracy.HasValue)
+                                                                            {
+                                                                                <span class="badge bg-info text-dark">
+                                                                                    ±@attendance.CheckInAccuracy.Value.ToString("0.00") m
+                                                                                </span>
+                                                                            }
+                                                                            else
+                                                                            {
+                                                                                <span class="text-muted">
+                                                                                    Not available
+                                                                                </span>
+                                                                            }
+
+                                                                        </div>
+
+                                                                        <a target="_blank"
+                                                                           rel="noopener noreferrer"
+                                                                           href="https://www.google.com/maps/search/?api=1&query=@attendance.CheckInLatitude.Value.ToString(System.Globalization.CultureInfo.InvariantCulture),@attendance.CheckInLongitude.Value.ToString(System.Globalization.CultureInfo.InvariantCulture)"
+                                                                           class="btn btn-sm btn-outline-primary">
+
+                                                                            <i class="fas fa-map-marker-alt me-1"></i>
+                                                                            Open in Maps
+
+                                                                        </a>
+                                                                    }
+                                                                    else
+                                                                    {
+                                                                        <div class="text-muted">
+                                                                            No check-in GPS data available.
+                                                                        </div>
+                                                                    }
+
+                                                                </div>
+
+                                                            </div>
+
+
+                                                            <!-- ============================= -->
+                                                            <!-- CHECK-OUT LOCATION -->
+                                                            <!-- ============================= -->
+
+                                                            <div class="col-md-6">
+
+                                                                <div class="border rounded p-3 h-100">
+
+                                                                    <h6 class="fw-bold mb-3">
+                                                                        <i class="fas fa-right-from-bracket me-2"></i>
+                                                                        Check-Out Location
+                                                                    </h6>
+
+                                                                    @if (attendance.CheckOutLatitude.HasValue &&
+                                                                         attendance.CheckOutLongitude.HasValue)
+                                                                    {
+                                                                        <div class="mb-3">
+
+                                                                            <div class="small text-muted mb-1">
+                                                                                Location
+                                                                            </div>
+
+                                                                            <div class="fw-semibold">
+                                                                                @(string.IsNullOrWhiteSpace(
+                                                                                    attendance.CheckOutLocationName)
+                                                                                    ? "Location name unavailable"
+                                                                                    : attendance.CheckOutLocationName)
+                                                                            </div>
+
+                                                                        </div>
+
+                                                                        <div class="mb-3">
+
+                                                                            <div class="small text-muted mb-1">
+                                                                                Coordinates
+                                                                            </div>
+
+                                                                            <div>
+                                                                                @attendance.CheckOutLatitude.Value.ToString("0.000000"),
+                                                                                @attendance.CheckOutLongitude.Value.ToString("0.000000")
+                                                                            </div>
+
+                                                                        </div>
+
+                                                                        <div class="mb-3">
+
+                                                                            <div class="small text-muted mb-1">
+                                                                                Accuracy
+                                                                            </div>
+
+                                                                            @if (attendance.CheckOutAccuracy.HasValue)
+                                                                            {
+                                                                                <span class="badge bg-info text-dark">
+                                                                                    ±@attendance.CheckOutAccuracy.Value.ToString("0.00") m
+                                                                                </span>
+                                                                            }
+                                                                            else
+                                                                            {
+                                                                                <span class="text-muted">
+                                                                                    Not available
+                                                                                </span>
+                                                                            }
+
+                                                                        </div>
+
+                                                                        <a target="_blank"
+                                                                           rel="noopener noreferrer"
+                                                                           href="https://www.google.com/maps/search/?api=1&query=@attendance.CheckOutLatitude.Value.ToString(System.Globalization.CultureInfo.InvariantCulture),@attendance.CheckOutLongitude.Value.ToString(System.Globalization.CultureInfo.InvariantCulture)"
+                                                                           class="btn btn-sm btn-outline-primary">
+
+                                                                            <i class="fas fa-map-marker-alt me-1"></i>
+                                                                            Open in Maps
+
+                                                                        </a>
+                                                                    }
+                                                                    else
+                                                                    {
+                                                                        <div class="text-muted">
+                                                                            No check-out GPS data available.
+                                                                        </div>
+                                                                    }
+
+                                                                </div>
+
+                                                            </div>
+
+                                                        </div>
+
+
+                                                        <!-- ============================= -->
+                                                        <!-- ATTENDANCE INFORMATION -->
+                                                        <!-- ============================= -->
+
+                                                        <div class="border rounded p-3 mt-4">
+
+                                                            <div class="row g-3">
+
+                                                                <div class="col-md-4">
+
+                                                                    <div class="small text-muted">
+                                                                        Attendance Mode
+                                                                    </div>
+
+                                                                    <div class="fw-semibold">
+                                                                        @(attendance.AttendanceMode ?? "-")
+                                                                    </div>
+
+                                                                </div>
+
+                                                                <div class="col-md-4">
+
+                                                                    <div class="small text-muted">
+                                                                        Source
+                                                                    </div>
+
+                                                                    <div class="fw-semibold">
+                                                                        @(attendance.Source ?? "-")
+                                                                    </div>
+
+                                                                </div>
+
+                                                                <div class="col-md-4">
+
+                                                                    <div class="small text-muted">
+                                                                        Visit Location
+                                                                    </div>
+
+                                                                    <div class="fw-semibold">
+                                                                        @(string.IsNullOrWhiteSpace(
+                                                                            attendance.VisitLocation)
+                                                                            ? "-"
+                                                                            : attendance.VisitLocation)
+                                                                    </div>
+
+                                                                </div>
+
+                                                            </div>
+
+                                                        </div>
+
+                                                    </div>
+
+                                                    <div class="modal-footer">
+
+                                                        <button type="button"
+                                                                class="btn btn-secondary"
+                                                                data-bs-dismiss="modal">
+                                                            Close
+                                                        </button>
+
+                                                    </div>
+
+                                                </div>
+
+                                            </div>
+
+                                        </div>
+                                    }
+                                    else
+                                    {
+                                        <span class="text-muted">
+                                            No GPS
+                                        </span>
+                                    }
+                                </td>
+
+                                @if (isHR)
+                                {
+                                    <td>
+                                        @if (attendance != null)
+                                        {
+                                            <a href="/Attendance/Edit?id=@attendance.Id"
+                                               class="btn btn-sm btn-outline-primary">
+                                                Edit
+                                            </a>
+                                        }
+                                        else
+                                        {
+                                            <span class="text-muted">-</span>
+                                        }
+                                    </td>
+                                }
+
+                            </tr>
+                        }
+
+                    </tbody>
+
+                </table>
+
+            </div>
+
+            @if (!Model.Any())
+            {
+                <div class="text-center py-5">
+                    <h5>No employees found</h5>
+                    <p class="text-muted mb-0">
+                        No active employees are available for this company.
+                    </p>
+                </div>
+            }
+
+        </div>
+    </div>
+
+
+    @if (isHR)
+    {
+        var pendingLateReviews =
+            ViewBag.PendingLateReviews
+            as List<ExpenseManagement.Models.Attendance>;
+
+        <div class="card shadow-sm mt-4">
+
+            <div class="card-header bg-white">
+                <div class="d-flex justify-content-between align-items-center">
+
+                    <div>
+                        <h5 class="mb-1">
+                            <i class="fas fa-clock me-2"></i>
+                            Pending Late Reviews
+                        </h5>
+
+                        <small class="text-muted">
+                            Employee late attendance requests awaiting HR review
+                        </small>
+                    </div>
+
+                    <span class="badge bg-warning text-dark">
+                        @(pendingLateReviews?.Count ?? 0) Pending
+                    </span>
+
+                </div>
+            </div>
+
+            <div class="card-body">
+
+                @if (pendingLateReviews == null ||
+                     !pendingLateReviews.Any())
+                {
+                    <div class="text-center py-4">
+
+                        <i class="fas fa-check-circle fa-2x text-success mb-2"></i>
+
+                        <h6 class="mb-1">
+                            No Pending Late Reviews
+                        </h6>
+
+                        <p class="text-muted mb-0">
+                            There are currently no late attendance
+                            requests waiting for review.
+                        </p>
+
+                    </div>
+                }
+                else
+                {
+                    <div class="table-responsive">
+
+                        <table class="table table-hover align-middle">
+
+                            <thead>
+                                <tr>
+
+                                    <th>Employee</th>
+
+                                    <th>Employee Code</th>
+
+                                    <th>Date</th>
+
+                                    <th>Check-In</th>
+
+                                    <th>Late By</th>
+
+                                    <th>Late Mark</th>
+
+                                    <th>Employee Reason</th>
+
+                                    <th class="text-center">
+                                        Action
+                                    </th>
+
+                                </tr>
+                            </thead>
+
+                            <tbody>
+
+                                @foreach (var review in pendingLateReviews)
+                                {
+                                    var reviewIndiaDate =
+                                        TimeZoneInfo.ConvertTimeFromUtc(
+                                            DateTime.SpecifyKind(
+                                                review.AttendanceDate,
+                                                DateTimeKind.Utc),
+                                            indiaTimeZone
+                                        ).Date;
+
+                                    <tr>
+
+                                        <td>
+                                            <strong>
+                                                @review.Employee?.User?.FullName
+                                            </strong>
+                                        </td>
+
+                                        <td>
+                                            @review.Employee?.EmployeeCode
+                                        </td>
+
+                                        <td>
+                                            @reviewIndiaDate.ToString("dd-MM-yyyy")
+                                        </td>
+
+                                        <td>
+                                            @if (review.CheckIn.HasValue)
+                                            {
+                                                @TimeZoneInfo.ConvertTimeFromUtc(
+                                                    DateTime.SpecifyKind(
+                                                        review.CheckIn.Value,
+                                                        DateTimeKind.Utc),
+                                                    indiaTimeZone
+                                                ).ToString("HH:mm")
+                                            }
+                                            else
+                                            {
+                                                <span>-</span>
+                                            }
+                                        </td>
+
+                                        <td>
+                                            @review.LateMinutes min
+                                        </td>
+
+                                        <td>
+                                            <span class="badge bg-warning text-dark">
+                                                #@review.LateMarkNumber
+                                            </span>
+                                        </td>
+
+                                        <td style="min-width: 220px;">
+
+                                            @if (!string.IsNullOrWhiteSpace(
+                                                review.LateReason))
+                                            {
+                                                @review.LateReason
+                                            }
+                                            else
+                                            {
+                                                <span class="text-muted">
+                                                    No reason provided
+                                                </span>
+                                            }
+
+                                        </td>
+
+                                        <td class="text-center">
+
+                                            <button type="button"
+                                                    class="btn btn-sm btn-primary"
+                                                    data-bs-toggle="modal"
+                                                    data-bs-target="#lateReviewModal-@review.Id">
+
+                                                <i class="fas fa-eye me-1"></i>
+                                                Review
+
+                                            </button>
+
+
+                                            <!-- Review Modal -->
+
+                                            <div class="modal fade"
+                                                 id="lateReviewModal-@review.Id"
+                                                 tabindex="-1"
+                                                 aria-hidden="true">
+
+                                                <div class="modal-dialog">
+
+                                                    <div class="modal-content">
+
+                                                        <div class="modal-header">
+
+                                                            <h5 class="modal-title">
+                                                                Late Attendance Review
+                                                            </h5>
+
+                                                            <button type="button"
+                                                                    class="btn-close"
+                                                                    data-bs-dismiss="modal">
+                                                            </button>
+
+                                                        </div>
+
+                                                        <div class="modal-body text-start">
+
+                                                            <div class="mb-3">
+
+                                                                <strong>
+                                                                    Employee:
+                                                                </strong>
+
+                                                                @review.Employee?.User?.FullName
+
+                                                            </div>
+
+                                                            <div class="mb-3">
+
+                                                                <strong>
+                                                                    Employee Code:
+                                                                </strong>
+
+                                                                @review.Employee?.EmployeeCode
+
+                                                            </div>
+
+                                                            <div class="mb-3">
+
+                                                                <strong>
+                                                                    Date:
+                                                                </strong>
+
+                                                                @reviewIndiaDate.ToString("dd-MM-yyyy")
+
+                                                            </div>
+
+                                                            <div class="mb-3">
+
+                                                                <strong>
+                                                                    Check-In:
+                                                                </strong>
+
+                                                                @if (review.CheckIn.HasValue)
+                                                                {
+                                                                    @TimeZoneInfo.ConvertTimeFromUtc(
+                                                                        DateTime.SpecifyKind(
+                                                                            review.CheckIn.Value,
+                                                                            DateTimeKind.Utc),
+                                                                        indiaTimeZone
+                                                                    ).ToString("hh:mm tt")
+                                                                }
+                                                                else
+                                                                {
+                                                                    <span>-</span>
+                                                                }
+
+                                                            </div>
+
+                                                            <div class="mb-3">
+
+                                                                <strong>
+                                                                    Late By:
+                                                                </strong>
+
+                                                                @review.LateMinutes minutes
+
+                                                            </div>
+
+                                                            <div class="mb-3">
+
+                                                                <strong>
+                                                                    Late Mark:
+                                                                </strong>
+
+                                                                #@review.LateMarkNumber
+
+                                                            </div>
+
+                                                            <div class="mb-3">
+
+                                                                <strong>
+                                                                    Employee Reason:
+                                                                </strong>
+
+                                                                <div class="border rounded p-3 mt-1 bg-light">
+                                                                    @(string.IsNullOrWhiteSpace(
+                                                                        review.LateReason)
+                                                                        ? "No reason provided."
+                                                                        : review.LateReason)
+                                                                </div>
+
+                                                            </div>
+
+
+                                                            <form asp-controller="Attendance"
+                                                                  asp-action="ReviewLate"
+                                                                  method="post">
+
+                                                                @Html.AntiForgeryToken()
+
+                                                                <input type="hidden"
+                                                                       name="id"
+                                                                       value="@review.Id" />
+
+
+                                                                <div class="mb-3">
+
+                                                                    <label class="form-label fw-semibold">
+                                                                        HR Remarks
+                                                                    </label>
+
+                                                                    <textarea name="remarks"
+                                                                              class="form-control"
+                                                                              rows="3"
+                                                                              maxlength="500"
+                                                                              placeholder="Enter remarks (optional)"></textarea>
+
+                                                                </div>
+
+
+                                                                <div class="d-flex justify-content-end gap-2">
+
+                                                                    <button type="submit"
+                                                                            name="decision"
+                                                                            value="Rejected"
+                                                                            class="btn btn-danger">
+
+                                                                        <i class="fas fa-times me-1"></i>
+                                                                        Reject
+
+                                                                    </button>
+
+                                                                    <button type="submit"
+                                                                            name="decision"
+                                                                            value="Approved"
+                                                                            class="btn btn-success">
+
+                                                                        <i class="fas fa-check me-1"></i>
+                                                                        Approve
+
+                                                                    </button>
+
+                                                                </div>
+
+                                                            </form>
+
+                                                        </div>
+
+                                                    </div>
+
+                                                </div>
+
+                                            </div>
+
+                                        </td>
+
+                                    </tr>
+                                }
+
+                            </tbody>
+
+                        </table>
+
+                    </div>
+                }
+
+            </div>
+
+        </div>
+    }
+
+    <!-- Monthly Attendance Summary -->
+    <div class="card shadow-sm border-0 mt-4">
+        <div class="card-header bg-white border-0 py-3">
+            <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+
+                <div>
+                    <h5 class="mb-1 fw-bold">
+                        <i class="fas fa-calendar-alt me-2"></i>
+                        Monthly Attendance Summary
+                    </h5>
+
+                    <div class="text-muted">
+                        @monthStart.ToString("MMMM yyyy")
+                    </div>
+                </div>
+
+                <div class="d-flex gap-2">
+                    <a asp-action="Index"
+                       asp-route-date="@monthStart.AddMonths(-1).ToString("yyyy-MM-dd")"
+                       class="btn btn-outline-secondary btn-sm">
+                        <i class="fas fa-chevron-left me-1"></i>
+                        Previous
+                    </a>
+
+                    <a asp-action="Index"
+                       asp-route-date="@monthStart.AddMonths(1).ToString("yyyy-MM-dd")"
+                       class="btn btn-outline-secondary btn-sm">
+                        Next
+                        <i class="fas fa-chevron-right ms-1"></i>
+                    </a>
+                </div>
+
+            </div>
+        </div>
+
+        <div class="card-body">
+
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Employee</th>
+                            <th>Employee Code</th>
+                            <th class="text-center">Working Days</th>
+                            <th class="text-center">Present</th>
+                            <th class="text-center">Late</th>
+                            <th class="text-center">Half Day</th>
+                            <th class="text-center">Absent</th>
+                            <th class="text-center">Leave</th>
+                            <th class="text-center">Punch</th>
+                        </tr>
+                    </thead>
+
+                    <tbody>
+                        @if (monthlySummary != null)
+                        {
+                            foreach (var item in monthlySummary)
+                            {
+                                <tr>
+                                    <td class="fw-semibold">
+                                        @item.EmployeeName
+                                    </td>
+
+                                    <td>
+                                        @item.EmployeeCode
+                                    </td>
+
+                                    <td class="text-center">
+                                        @item.WorkingDays
+                                    </td>
+
+                                    <td class="text-center">
+                                        @item.PresentCount
+                                    </td>
+
+                                    <td class="text-center">
+                                        @item.LateCount
+                                    </td>
+
+                                    <td class="text-center">
+                                        <span class="badge text-white"
+                                              style="background-color: #fd7e14;">
+                                            @item.HalfDayCount
+                                        </span>
+                                    </td>
+
+                                    <td class="text-center">
+                                        @item.AbsentCount
+                                    </td>
+
+                                    <td class="text-center">
+                                        @item.LeaveCount
+                                    </td>
+                                    <td class="text-center">
+                                        @if (item.NoPunchInCount > 0 || item.NoOutPunchCount > 0)
+                                        {
+                                            @if (item.NoPunchInCount > 0)
+                                            {
+                                                <div>
+                                                    <span class="badge bg-warning text-dark">
+                                                        No Punch-In (@item.NoPunchInCount)
+                                                    </span>
+                                                </div>
+                                            }
+
+                                            @if (item.NoOutPunchCount > 0)
+                                            {
+                                                <div class="@(item.NoPunchInCount > 0 ? "mt-1" : "")">
+                                                    <span class="badge bg-warning text-dark">
+                                                        No Punch-Out (@item.NoOutPunchCount)
+                                                    </span>
+                                                </div>
+                                            }
+                                        }
+                                        else
+                                        {
+                                            <span class="text-muted">—</span>
+                                        }
+                                    </td>
+                                </tr>
+                            }
+                        }
+                    </tbody>
+                </table>
+            </div>
+
+        </div>
+    </div>
+
+
+</div>

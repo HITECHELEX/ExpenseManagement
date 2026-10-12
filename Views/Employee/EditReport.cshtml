@@ -1,0 +1,52 @@
+@model ExpenseManagement.ViewModels.CreateReportVM
+@{
+    ViewData["Title"] = "Edit Report";
+    int reportId = ViewBag.ReportId;
+}
+
+<div class="d-flex align-items-center gap-2 mb-3">
+    <a href="/Employee/ReportDetail/@reportId" class="btn btn-outline-secondary btn-sm" style="border-radius:8px">
+        <i class="fas fa-arrow-left me-1"></i>Back
+    </a>
+    <h5 class="mb-0 fw-bold">Edit Report</h5>
+</div>
+
+<div class="card">
+    <div class="card-header fw-semibold"><i class="fas fa-edit me-2"></i>Report Details</div>
+    <div class="card-body">
+        <form method="post" action="/Employee/EditReport/@reportId">
+            @Html.AntiForgeryToken()
+            <input type="hidden" name="BudgetId" value="@Model.BudgetId" />
+
+            @if (!ViewData.ModelState.IsValid)
+            {
+                <div class="alert alert-danger mb-3" style="border-radius:10px">
+                    @foreach (var e in ViewData.ModelState.Values.SelectMany(v => v.Errors))
+                    { <div>@e.ErrorMessage</div> }
+                </div>
+            }
+
+            <div class="mb-3">
+                <label class="form-label fw-semibold">Report Title <span class="text-danger">*</span></label>
+                <input type="text" name="ReportTitle" class="form-control" required
+                       style="border-radius:10px" value="@Model.ReportTitle"
+                       placeholder="e.g. Sales Trip Mumbai – Mar 2025, Field Work Pune" />
+                <small class="text-muted">Give a descriptive title for this batch of expenses.</small>
+            </div>
+
+            <div class="mb-4">
+                <label class="form-label fw-semibold">Summary / Purpose <span class="text-muted fw-normal">(optional)</span></label>
+                <textarea name="Summary" class="form-control" rows="3"
+                          style="border-radius:10px"
+                          placeholder="Brief description of the business purpose or trip...">@Model.Summary</textarea>
+            </div>
+
+            <div class="d-flex gap-2">
+                <button type="submit" class="btn btn-primary flex-fill py-3 fw-bold" style="border-radius:12px;font-size:.95rem">
+                    <i class="fas fa-save me-2"></i>Save Changes
+                </button>
+                <a href="/Employee/ReportDetail/@reportId" class="btn btn-outline-secondary py-3" style="border-radius:12px">Cancel</a>
+            </div>
+        </form>
+    </div>
+</div>

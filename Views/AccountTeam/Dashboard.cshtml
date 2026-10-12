@@ -14,12 +14,12 @@
 <div class="mb-4">
     <div style="background:linear-gradient(135deg,#1e3a8a 0%,#2563eb 100%);border-radius:18px;padding:24px;color:#fff">
 
-        <div style="opacity:.8;font-size:.8rem;letter-spacing:.5px;text-transform:uppercase;margin-bottom:6px">
-            <i class="fas fa-building-columns me-2"></i>Total Allocated Budget
+        <div style="opacity:.8;font-size:.75rem;letter-spacing:.3px;text-transform:uppercase;margin-bottom:6px;line-height:1.4">
+            <i class="fas fa-building-columns me-2"></i>@(string.IsNullOrEmpty(Model.CompanyName) ? "Budget Overview" : Model.CompanyName + " — Budget Overview")
         </div>
 
         <a href="/AccountTeam/AllocationBreakdown" class="text-decoration-none">
-            <div style="font-size:2.6rem;font-weight:800;letter-spacing:-1.5px;line-height:1.1;margin-bottom:4px;color:#fff">
+            <div style="font-size:clamp(1.4rem,7vw,2.6rem);font-weight:800;letter-spacing:-1px;line-height:1.1;margin-bottom:4px;color:#fff;overflow-wrap:anywhere;word-break:break-all">
                 ₹@Model.TotalAllocated.ToString("N2")
             </div>
             <div style="font-size:.72rem;opacity:.7;margin-bottom:10px">
@@ -29,20 +29,20 @@
 
         <div class="row g-2 mt-2">
             <div class="col-4">
-                <div style="background:rgba(255,255,255,.13);border-radius:12px;padding:10px 6px;text-align:center">
-                    <div style="font-size:1.1rem;font-weight:700">@Model.PendingReports</div>
+                <div style="background:rgba(255,255,255,.13);border-radius:12px;padding:10px 6px;text-align:center;min-width:0">
+                    <div style="font-size:clamp(0.75rem,2.5vw,1.1rem);font-weight:700">@Model.PendingReports</div>
                     <div style="font-size:.68rem;opacity:.75;margin-top:2px">Pending Reports</div>
                 </div>
             </div>
             <div class="col-4">
-                <div style="background:rgba(255,255,255,.13);border-radius:12px;padding:10px 6px;text-align:center">
-                    <div style="font-size:1.1rem;font-weight:700">@Model.ApprovedClaims</div>
+                <div style="background:rgba(255,255,255,.13);border-radius:12px;padding:10px 6px;text-align:center;min-width:0">
+                    <div style="font-size:clamp(0.75rem,2.5vw,1.1rem);font-weight:700">@Model.ApprovedClaims</div>
                     <div style="font-size:.68rem;opacity:.75;margin-top:2px">Approved Claims</div>
                 </div>
             </div>
             <div class="col-4">
-                <div style="background:rgba(255,255,255,.13);border-radius:12px;padding:10px 6px;text-align:center">
-                    <div style="font-size:1.1rem;font-weight:700">@Model.TotalEmployees</div>
+                <div style="background:rgba(255,255,255,.13);border-radius:12px;padding:10px 6px;text-align:center;min-width:0">
+                    <div style="font-size:clamp(0.75rem,2.5vw,1.1rem);font-weight:700">@Model.TotalEmployees</div>
                     <div style="font-size:.68rem;opacity:.75;margin-top:2px">Employees</div>
                 </div>
             </div>
@@ -66,33 +66,40 @@
     </div>
 </div>
 
-@* ── CLAIMS SUMMARY STRIP ── *@
-<div class="card mb-4" style="border:none;box-shadow:0 1px 6px rgba(0,0,0,.06);border-radius:14px;overflow:hidden">
-    @{
-        int pPct = totalClaims > 0 ? (int)Math.Round(100.0 * Model.PendingClaims / totalClaims) : 0;
-        int aPct = totalClaims > 0 ? (int)Math.Round(100.0 * Model.ApprovedClaims / totalClaims) : 0;
-        int dPct = totalClaims > 0 ? 100 - pPct - aPct : 0;
-    }
-    <div class="px-3 pt-3 pb-1">
-        <div class="d-flex" style="height:6px;border-radius:6px;overflow:hidden;background:#f1f5f9">
-            <div style="width:@(pPct)%;background:#f59e0b;transition:width .4s"></div>
-            <div style="width:@(aPct)%;background:#16a34a;transition:width .4s"></div>
-            <div style="width:@(dPct)%;background:#ef4444;transition:width .4s"></div>
-        </div>
+@* ── REPORT STATUS CARDS (clickable) ── *@
+<div class="row g-3 mb-4">
+    <div class="col-4">
+        <a href="/AccountTeam/Reports" class="text-decoration-none">
+            <div style="background:#fff;border:1.5px solid #fde68a;border-radius:14px;padding:16px 10px;text-align:center;transition:box-shadow .2s"
+                 onmouseover="this.style.boxShadow='0 4px 16px rgba(245,158,11,.15)'"
+                 onmouseout="this.style.boxShadow=''">
+                <div style="font-size:clamp(1.4rem,5vw,2rem);font-weight:800;color:#f59e0b">@Model.PendingReports</div>
+                <div style="font-size:.72rem;color:#92400e;font-weight:500;margin-top:2px">Pending Review</div>
+                <div style="font-size:.65rem;color:#b45309;margin-top:4px"><i class="fas fa-arrow-right me-1"></i>View</div>
+            </div>
+        </a>
     </div>
-    <div class="d-flex">
-        <div class="flex-fill text-center py-3" style="border-right:1px solid #f1f5f9">
-            <div style="font-size:1.3rem;font-weight:800;color:#f59e0b">@Model.PendingClaims</div>
-            <div style="font-size:.72rem;color:#64748b;font-weight:500;margin-top:2px">Pending</div>
-        </div>
-        <div class="flex-fill text-center py-3" style="border-right:1px solid #f1f5f9">
-            <div style="font-size:1.3rem;font-weight:800;color:#16a34a">@Model.ApprovedClaims</div>
-            <div style="font-size:.72rem;color:#64748b;font-weight:500;margin-top:2px">Approved</div>
-        </div>
-        <div class="flex-fill text-center py-3">
-            <div style="font-size:1.3rem;font-weight:800;color:#ef4444">@Model.DeclinedClaims</div>
-            <div style="font-size:.72rem;color:#64748b;font-weight:500;margin-top:2px">Declined</div>
-        </div>
+    <div class="col-4">
+        <a href="/AccountTeam/Reports?status=ApprovedByManagement" class="text-decoration-none">
+            <div style="background:#fff;border:1.5px solid #86efac;border-radius:14px;padding:16px 10px;text-align:center;transition:box-shadow .2s"
+                 onmouseover="this.style.boxShadow='0 4px 16px rgba(22,163,74,.15)'"
+                 onmouseout="this.style.boxShadow=''">
+                <div style="font-size:clamp(1.4rem,5vw,2rem);font-weight:800;color:#16a34a">@Model.ApprovedClaims</div>
+                <div style="font-size:.72rem;color:#14532d;font-weight:500;margin-top:2px">Approved Claims</div>
+                <div style="font-size:.65rem;color:#166534;margin-top:4px"><i class="fas fa-arrow-right me-1"></i>View</div>
+            </div>
+        </a>
+    </div>
+    <div class="col-4">
+        <a href="/AccountTeam/Reports?status=RejectedByAccountTeam" class="text-decoration-none">
+            <div style="background:#fff;border:1.5px solid #fca5a5;border-radius:14px;padding:16px 10px;text-align:center;transition:box-shadow .2s"
+                 onmouseover="this.style.boxShadow='0 4px 16px rgba(239,68,68,.15)'"
+                 onmouseout="this.style.boxShadow=''">
+                <div style="font-size:clamp(1.4rem,5vw,2rem);font-weight:800;color:#ef4444">@Model.DeclinedClaims</div>
+                <div style="font-size:.72rem;color:#7f1d1d;font-weight:500;margin-top:2px">Declined Claims</div>
+                <div style="font-size:.65rem;color:#991b1b;margin-top:4px"><i class="fas fa-arrow-right me-1"></i>View</div>
+            </div>
+        </a>
     </div>
 </div>
 
@@ -276,7 +283,7 @@ else
 
                     <!-- Row 3: Date -->
                     <div class="mt-2" style="font-size:.72rem;color:#94a3b8">
-                        <i class="fas fa-clock me-1"></i>@t.TopUpOn.ToString("dd MMM yyyy, hh:mm tt")
+                        <i class="fas fa-clock me-1"></i>@t.TopUpOn.ToIst().ToString("dd MMM yyyy, hh:mm tt")
                     </div>
                 </div>
             }
@@ -329,8 +336,8 @@ else
                             </td>
                             <td class="py-3 text-muted" style="white-space:nowrap">
                                 <i class="fas fa-clock me-1" style="font-size:.75rem"></i>
-                                @t.TopUpOn.ToString("dd MMM yyyy")
-                                <div style="font-size:.75rem">@t.TopUpOn.ToString("hh:mm tt")</div>
+                                @t.TopUpOn.ToIst().ToString("dd MMM yyyy")
+                                <div style="font-size:.75rem">@t.TopUpOn.ToIst().ToString("hh:mm tt")</div>
                             </td>
                             <td class="py-3 text-end pe-4">
                                 <span class="fw-bold text-primary">+₹@t.Amount.ToString("N2")</span>

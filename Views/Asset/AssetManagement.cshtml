@@ -1,0 +1,685 @@
+﻿@using ExpenseManagement.Models
+@using System.Linq
+
+@model IEnumerable<Asset>
+
+@{
+    var page = ViewBag.AssetPage as string ?? "Index";
+
+    var assets =
+        Model ?? Enumerable.Empty<Asset>();
+
+    var asset =
+        ViewBag.Asset as Asset;
+
+    var history =
+        ViewBag.History as IEnumerable<AssetHistory>
+        ?? Enumerable.Empty<AssetHistory>();
+
+    var companies =
+        ViewBag.Companies as IEnumerable<Company>
+        ?? Enumerable.Empty<Company>();
+
+    int selectedCompanyId =
+        ViewBag.SelectedCompanyId is int id
+            ? id
+            : 0;
+
+    ViewData["Title"] =
+        page == "Details"
+            ? "Asset Details"
+            : "Asset Management";
+}
+
+
+<div class="container-fluid py-3">
+
+    @if (TempData["Error"] != null)
+    {
+        <div class="alert alert-danger">
+            @TempData["Error"]
+        </div>
+    }
+
+
+    @* ============================================================
+       MANAGEMENT ASSET OVERVIEW
+       ============================================================ *@
+
+    @if (page == "Index")
+    {
+        <div class="d-flex flex-wrap
+                    justify-content-between
+                    align-items-center
+                    gap-2 mb-4">
+
+            <div>
+
+                <h2 class="fw-bold mb-1">
+                    Asset Overview
+                </h2>
+
+                <p class="text-muted mb-0">
+
+                    Read-only asset visibility for
+
+                    <strong>
+                        @ViewBag.SelectedCompanyName
+                    </strong>
+
+                </p>
+
+            </div>
+
+
+            <form method="get"
+                  asp-controller="HRMManagement"
+                  asp-action="Assets">
+
+                <select name="companyId"
+                        class="form-select"
+                        onchange="this.form.submit()">
+
+                    @foreach (var company in companies)
+                    {
+                        <option value="@company.Id"
+                                selected="@(company.Id == selectedCompanyId)">
+
+                            @company.Name
+
+                        </option>
+                    }
+
+                </select>
+
+            </form>
+
+        </div>
+
+
+        @* SUMMARY *@
+
+        <div class="row g-3 mb-4">
+
+            <div class="col-6 col-xl-3">
+
+                <div class="card border-0 shadow-sm">
+
+                    <div class="card-body">
+
+                        <div class="text-muted small">
+                            Total Assets
+                        </div>
+
+                        <div class="fs-3 fw-bold">
+                            @ViewBag.TotalAssets
+                        </div>
+
+                    </div>
+
+                </div>
+
+            </div>
+
+
+            <div class="col-6 col-xl-3">
+
+                <div class="card border-0 shadow-sm">
+
+                    <div class="card-body">
+
+                        <div class="text-muted small">
+                            Available
+                        </div>
+
+                        <div class="fs-3 fw-bold text-success">
+                            @ViewBag.AvailableAssets
+                        </div>
+
+                    </div>
+
+                </div>
+
+            </div>
+
+
+            <div class="col-6 col-xl-3">
+
+                <div class="card border-0 shadow-sm">
+
+                    <div class="card-body">
+
+                        <div class="text-muted small">
+                            Assigned
+                        </div>
+
+                        <div class="fs-3 fw-bold text-primary">
+                            @ViewBag.AssignedAssets
+                        </div>
+
+                    </div>
+
+                </div>
+
+            </div>
+
+
+            <div class="col-6 col-xl-3">
+
+                <div class="card border-0 shadow-sm">
+
+                    <div class="card-body">
+
+                        <div class="text-muted small">
+                            Under Maintenance
+                        </div>
+
+                        <div class="fs-3 fw-bold text-warning">
+                            @ViewBag.MaintenanceAssets
+                        </div>
+
+                    </div>
+
+                </div>
+
+            </div>
+
+        </div>
+
+
+        @* ASSET TABLE *@
+
+        <div class="card border-0 shadow-sm">
+
+            <div class="card-header bg-white py-3">
+
+                <h5 class="mb-0">
+                    Company Assets
+                </h5>
+
+            </div>
+
+
+            <div class="card-body p-0">
+
+                <div class="table-responsive">
+
+                    <table class="table table-hover
+                                  align-middle mb-0">
+
+                        <thead class="table-light">
+
+                            <tr>
+
+                                <th>Asset Code</th>
+                                <th>Asset</th>
+                                <th>Type</th>
+                                <th>Serial Number</th>
+                                <th>Assigned To</th>
+                                <th>Status</th>
+                                <th class="text-end">
+                                    Action
+                                </th>
+
+                            </tr>
+
+                        </thead>
+
+
+                        <tbody>
+
+                            @if (!assets.Any())
+                            {
+                                <tr>
+
+                                    <td colspan="7"
+                                        class="text-center
+                                               text-muted py-5">
+
+                                        No assets found.
+
+                                    </td>
+
+                                </tr>
+                            }
+                            else
+                            {
+                                @foreach (var item in assets)
+                                {
+                                    var badge = item.Status switch
+                                    {
+                                        "Available"
+                                            => "bg-success-subtle text-success",
+
+                                        "Assigned"
+                                            => "bg-primary-subtle text-primary",
+
+                                        "Under Maintenance"
+                                            => "bg-warning-subtle text-warning-emphasis",
+
+                                        "Lost/Damaged"
+                                            => "bg-danger-subtle text-danger",
+
+                                        _
+                                            => "bg-secondary-subtle text-secondary"
+                                    };
+
+                                    <tr>
+
+                                        <td class="fw-semibold">
+                                            @item.AssetCode
+                                        </td>
+
+                                        <td>
+                                            @item.AssetName
+                                        </td>
+
+                                        <td>
+                                            @(item.AssetType ?? "—")
+                                        </td>
+
+                                        <td>
+                                            @(item.SerialNumber ?? "—")
+                                        </td>
+
+                                        <td>
+                                            @(item.CurrentEmployee?
+                                                .User?
+                                                .FullName ?? "—")
+                                        </td>
+
+                                        <td>
+
+                                            <span class="badge @badge">
+                                                @item.Status
+                                            </span>
+
+                                        </td>
+
+                                        <td class="text-end">
+
+                                            <a asp-controller="HRMManagement"
+                                               asp-action="Assets"
+                                               asp-route-companyId="@selectedCompanyId"
+                                               asp-route-assetId="@item.Id"
+                                               class="btn btn-sm
+                                                      btn-outline-primary">
+
+                                                View
+
+                                            </a>
+
+                                        </td>
+
+                                    </tr>
+                                }
+                            }
+
+                        </tbody>
+
+                    </table>
+
+                </div>
+
+            </div>
+
+        </div>
+    }
+
+
+    @* ============================================================
+       MANAGEMENT ASSET DETAILS
+       ============================================================ *@
+
+    @if (page == "Details" && asset != null)
+    {
+        <div class="d-flex flex-wrap
+                    justify-content-between
+                    align-items-center
+                    gap-2 mb-4">
+
+            <div>
+
+                <h2 class="fw-bold mb-1">
+                    @asset.AssetName
+                </h2>
+
+                <p class="text-muted mb-0">
+
+                    @asset.AssetCode ·
+
+                    @ViewBag.SelectedCompanyName
+
+                </p>
+
+            </div>
+
+
+            <a asp-controller="HRMManagement"
+               asp-action="Assets"
+               asp-route-companyId="@selectedCompanyId"
+               class="btn btn-outline-secondary">
+
+                Back to Assets
+
+            </a>
+
+        </div>
+
+
+        <div class="row g-3">
+
+            <div class="col-lg-8">
+
+                <div class="card border-0 shadow-sm h-100">
+
+                    <div class="card-header bg-white py-3">
+
+                        <h5 class="mb-0">
+                            Asset Details
+                        </h5>
+
+                    </div>
+
+
+                    <div class="card-body">
+
+                        <div class="row g-3">
+
+                            <div class="col-md-6">
+
+                                <div class="text-muted small">
+                                    Asset Code
+                                </div>
+
+                                <div class="fw-semibold">
+                                    @asset.AssetCode
+                                </div>
+
+                            </div>
+
+
+                            <div class="col-md-6">
+
+                                <div class="text-muted small">
+                                    Asset Type
+                                </div>
+
+                                <div>
+                                    @(asset.AssetType ?? "—")
+                                </div>
+
+                            </div>
+
+
+                            <div class="col-md-6">
+
+                                <div class="text-muted small">
+                                    Serial Number
+                                </div>
+
+                                <div>
+                                    @(asset.SerialNumber ?? "—")
+                                </div>
+
+                            </div>
+
+
+                            <div class="col-md-6">
+
+                                <div class="text-muted small">
+                                    Status
+                                </div>
+
+                                <div>
+
+                                    <span class="badge
+                                                 bg-primary-subtle
+                                                 text-primary">
+
+                                        @asset.Status
+
+                                    </span>
+
+                                </div>
+
+                            </div>
+
+
+                            <div class="col-md-6">
+
+                                <div class="text-muted small">
+                                    Current Employee
+                                </div>
+
+                                <div>
+                                    @(asset.CurrentEmployee?
+                                        .User?
+                                        .FullName
+                                        ?? "Not assigned")
+                                </div>
+
+                            </div>
+
+
+                            <div class="col-md-6">
+
+                                <div class="text-muted small">
+                                    Assigned On
+                                </div>
+
+                                <div>
+                                    @(asset.AssignedOn?
+                                        .ToString("dd MMM yyyy")
+                                        ?? "—")
+                                </div>
+
+                            </div>
+
+
+                            <div class="col-md-6">
+
+                                <div class="text-muted small">
+                                    Expected Return
+                                </div>
+
+                                <div>
+                                    @(asset.ExpectedReturnDate?
+                                        .ToString("dd MMM yyyy")
+                                        ?? "—")
+                                </div>
+
+                            </div>
+
+
+                            <div class="col-md-6">
+
+                                <div class="text-muted small">
+                                    Returned On
+                                </div>
+
+                                <div>
+                                    @(asset.ReturnedOn?
+                                        .ToString("dd MMM yyyy")
+                                        ?? "—")
+                                </div>
+
+                            </div>
+
+
+                            <div class="col-12">
+
+                                <div class="text-muted small">
+                                    Description
+                                </div>
+
+                                <div>
+                                    @(asset.Description ?? "—")
+                                </div>
+
+                            </div>
+
+
+                            <div class="col-12">
+
+                                <div class="text-muted small">
+                                    Remarks
+                                </div>
+
+                                <div>
+                                    @(asset.Remarks ?? "—")
+                                </div>
+
+                            </div>
+
+                        </div>
+
+                    </div>
+
+                </div>
+
+            </div>
+
+
+            <div class="col-lg-4">
+
+                <div class="card border-0 shadow-sm h-100">
+
+                    <div class="card-header bg-white py-3">
+
+                        <h5 class="mb-0">
+                            Condition
+                        </h5>
+
+                    </div>
+
+
+                    <div class="card-body">
+
+                        <div class="text-muted small">
+                            On Assignment
+                        </div>
+
+                        <p>
+                            @(asset.ConditionOnAssignment ?? "—")
+                        </p>
+
+
+                        <div class="text-muted small">
+                            On Return
+                        </div>
+
+                        <p>
+                            @(asset.ConditionOnReturn ?? "—")
+                        </p>
+
+                    </div>
+
+                </div>
+
+            </div>
+
+        </div>
+
+
+        @* HISTORY *@
+
+        <div class="card border-0 shadow-sm mt-3">
+
+            <div class="card-header bg-white py-3">
+
+                <h5 class="mb-0">
+                    Asset History
+                </h5>
+
+            </div>
+
+
+            <div class="card-body p-0">
+
+                <div class="table-responsive">
+
+                    <table class="table table-hover
+                                  align-middle mb-0">
+
+                        <thead class="table-light">
+
+                            <tr>
+
+                                <th>Action</th>
+                                <th>Employee</th>
+                                <th>Date</th>
+                                <th>Condition</th>
+                                <th>Remarks</th>
+                                <th>Performed By</th>
+
+                            </tr>
+
+                        </thead>
+
+
+                        <tbody>
+
+                            @foreach (var h in history)
+                            {
+                                <tr>
+
+                                    <td class="fw-semibold">
+                                        @h.Action
+                                    </td>
+
+                                    <td>
+                                        @(h.Employee?
+                                            .User?
+                                            .FullName ?? "—")
+                                    </td>
+
+                                    <td>
+                                        @h.ActionDate.ToString(
+                                            "dd MMM yyyy")
+                                    </td>
+
+                                    <td>
+                                        @(h.Condition ?? "—")
+                                    </td>
+
+                                    <td>
+                                        @(h.Remarks ?? "—")
+                                    </td>
+
+                                    <td>
+                                        @(h.PerformedByUser?
+                                            .FullName ?? "—")
+                                    </td>
+
+                                </tr>
+                            }
+
+
+                            @if (!history.Any())
+                            {
+                                <tr>
+
+                                    <td colspan="6"
+                                        class="text-center
+                                               text-muted py-4">
+
+                                        No history available.
+
+                                    </td>
+
+                                </tr>
+                            }
+
+                        </tbody>
+
+                    </table>
+
+                </div>
+
+            </div>
+
+        </div>
+    }
+
+</div>

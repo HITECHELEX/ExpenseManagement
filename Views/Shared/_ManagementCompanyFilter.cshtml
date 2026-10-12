@@ -1,0 +1,45 @@
+@using ExpenseManagement.Models
+@{
+    var companies    = ViewBag.Companies as List<Company> ?? new List<Company>();
+    int? selectedId  = ViewBag.SelectedCompanyId as int?;
+    var  selectedName = selectedId.HasValue
+        ? (companies.FirstOrDefault(c => c.Id == selectedId)?.Name ?? "All Companies")
+        : "All Companies";
+
+    var action      = ViewContext.RouteData.Values["action"]?.ToString() ?? "Dashboard";
+    var status      = ViewBag.CurrentStatus as string;
+
+    // Build the correct URL for each company button, preserving the current status filter
+    Func<int?, string> MakeUrl = (cId) =>
+    {
+        var prefix = $"/Management/{action}";
+        if (action == "Reports" && !string.IsNullOrEmpty(status))
+        {
+            return cId.HasValue
+                ? $"{prefix}?status={status}&companyId={cId}"
+                : $"{prefix}?status={status}";
+        }
+        return cId.HasValue ? $"{prefix}?companyId={cId}" : prefix;
+    };
+}
+
+<div class="mb-3">
+    <div style="font-size:.62rem;text-transform:uppercase;letter-spacing:.5px;color:#94a3b8;font-weight:600;margin-bottom:5px">
+        <i class="fas fa-eye me-1"></i>Viewing
+    </div>
+    <div class="d-flex align-items-center gap-2 flex-wrap">
+        <span style="font-size:.82rem;font-weight:700;color:#1e293b">
+            <i class="fas fa-building me-1" style="color:#2563eb;font-size:.78rem"></i>@selectedName
+        </span>
+        <div class="d-flex flex-wrap gap-2">
+            @foreach (var c in companies)
+            {
+                <a href="@MakeUrl(c.Id)"
+                   class="btn btn-sm @(selectedId == c.Id ? "btn-primary" : "btn-outline-secondary")"
+                   style="border-radius:8px;font-size:.72rem;padding:4px 10px">
+                    <i class="fas fa-building me-1"></i>@c.Name
+                </a>
+            }
+        </div>
+    </div>
+</div>

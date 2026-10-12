@@ -1,0 +1,2164 @@
+﻿@model ExpenseManagement.Models.Attendance?
+
+@{
+    ViewData["Title"] = "My Attendance";
+
+    var selectedDate = (DateTime)ViewBag.AttendanceDate;
+
+    var indiaTimeZone =
+        TimeZoneInfo.FindSystemTimeZoneById("India Standard Time");
+}
+
+<div class="container-fluid">
+
+    <!-- Header -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+
+        <div>
+            <h2 class="mb-1">My Attendance</h2>
+            <p class="text-muted mb-0">
+                View your attendance record
+            </p>
+        </div>
+
+        <a href="/HRMEmployee/Dashboard"
+           class="btn btn-outline-secondary">
+            Back
+        </a>
+
+    </div>
+
+
+    <!-- Date Selection -->
+    <div class="card shadow-sm mb-4">
+        <div class="card-body">
+
+            <form method="get"
+                  asp-action="MyAttendance"
+                  class="row g-3 align-items-end">
+
+                <div class="col-md-4">
+
+                    <label class="form-label fw-semibold">
+                        Attendance Date
+                    </label>
+
+                    <input type="date"
+                           name="date"
+                           value="@selectedDate.ToString("yyyy-MM-dd")"
+                           class="form-control" />
+
+                </div>
+
+                <div class="col-md-auto">
+
+                    <button type="submit"
+                            class="btn btn-primary">
+                        View Attendance
+                    </button>
+
+                </div>
+
+            </form>
+
+        </div>
+    </div>
+
+    @if (ViewBag.AttendanceDate != null &&
+    ((DateTime)ViewBag.AttendanceDate).Date ==
+    DateTime.UtcNow.AddHours(5).AddMinutes(30).Date)
+    {
+        <div class="card shadow-sm mb-4">
+
+            <div class="card-body">
+
+                <h5 class="mb-4">
+                    <i class="fas fa-fingerprint me-2"></i>
+                    Today's Attendance
+                </h5>
+
+
+                @if (ViewBag.ApprovedLeave != null)
+                {
+                    <!-- =====================================================
+                     APPROVED LEAVE
+                     ===================================================== -->
+
+                    <div class="alert alert-warning mb-0">
+
+                        <i class="fas fa-calendar-xmark me-2"></i>
+
+                        <strong>On Leave</strong>
+
+                        <div class="small mt-1">
+                            You have an approved full-day leave for today.
+                            Check-in is not available.
+                        </div>
+
+                    </div>
+                }
+                else if (Model == null || !Model.CheckIn.HasValue)
+                {
+                    <!-- =====================================================
+                     BEFORE CHECK-IN
+                     ===================================================== -->
+
+                    <form asp-controller="Attendance"
+                          asp-action="CheckIn"
+                          method="post"
+                          id="attendanceCheckInForm"
+                          data-geo-attendance="true">
+
+                        @Html.AntiForgeryToken()
+
+                        <input type="hidden"
+                               name="latitude"
+                               class="geo-latitude" />
+
+                        <input type="hidden"
+                               name="longitude"
+                               class="geo-longitude" />
+
+                        <input type="hidden"
+                               name="accuracy"
+                               class="geo-accuracy" />
+
+                        <input type="hidden"
+                               name="locationName"
+                               class="geo-location-name" />
+
+                        <!-- Selected mode is submitted only when
+                         Check-In is clicked -->
+                        <input type="hidden"
+                               name="mode"
+                               id="attendanceMode"
+                               value="" />
+
+                        <div id="visitLocationContainer"
+                             class="mt-4 d-none">
+
+                            <label for="visitLocation"
+                                   class="form-label fw-semibold">
+
+                                Visit Location
+
+                            </label>
+
+                            <textarea name="visitLocation"
+                                      id="visitLocation"
+                                      class="form-control"
+                                      rows="3"
+                                      maxlength="500"
+                                      placeholder="Enter the location you are visiting"></textarea>
+
+                            <div class="form-text">
+                                Enter the name or address of the location you are visiting.
+                            </div>
+
+                        </div>
+
+
+                        <div class="border rounded p-4">
+
+                            <div class="text-center mb-4">
+
+                                <h6 class="fw-semibold mb-1">
+                                    Select Attendance Mode
+                                </h6>
+
+                                <p class="text-muted small mb-0">
+                                    Choose how you are working today before checking in.
+                                </p>
+
+                            </div>
+
+
+                            <div class="row g-3 justify-content-center">
+
+
+                                <!-- =================================================
+                                 IN OFFICE
+                                 ================================================= -->
+
+                                <div class="col-md-5">
+
+                                    <button type="button"
+                                            class="attendance-mode-card"
+                                            data-mode="InOffice">
+
+                                        <i class="fas fa-building fa-2x mb-3"></i>
+
+                                        <div class="fw-semibold fs-5">
+                                            In Office
+                                        </div>
+
+                                        <div class="small text-muted mt-1">
+                                            I am working from the office
+                                        </div>
+
+                                    </button>
+
+                                </div>
+
+
+                                <!-- =================================================
+                                 VISIT
+                                 ================================================= -->
+
+                                <div class="col-md-5">
+
+                                    <button type="button"
+                                            class="attendance-mode-card"
+                                            data-mode="Visit">
+
+                                        <i class="fas fa-location-dot fa-2x mb-3"></i>
+
+                                        <div class="fw-semibold fs-5">
+                                            Visit
+                                        </div>
+
+                                        <div class="small text-muted mt-1">
+                                            I am working at a visit location
+                                        </div>
+
+                                    </button>
+
+                                </div>
+
+                            </div>
+
+
+                            <!-- =================================================
+                             CHECK-IN
+                             Hidden until mode is selected
+                             ================================================= -->
+
+                            <div class="text-center mt-4 d-none"
+                                 id="checkInContainer">
+
+                                <button type="submit"
+                                        class="btn btn-success px-4">
+
+                                    <i class="fas fa-sign-in-alt me-2"></i>
+                                    Check In
+
+                                </button>
+                                <div class="geo-status text-muted small mt-3"
+                                     aria-live="polite"></div>
+
+                            </div>
+
+                        </div>
+
+                    </form>
+                }
+                else
+                {
+                    <!-- =====================================================
+                     AFTER CHECK-IN
+                     ===================================================== -->
+
+                    <div class="border rounded p-4">
+
+                        <div class="text-center mb-4">
+
+                            <h6 class="fw-semibold mb-1">
+                                Attendance Active
+                            </h6>
+
+                            <p class="text-muted small mb-0">
+                                You have already checked in today.
+                            </p>
+
+                        </div>
+
+
+                        <div class="row g-3 justify-content-center">
+
+
+                            <!-- =================================================
+                             IN OFFICE
+                             ================================================= -->
+
+                            <div class="col-md-5">
+
+                                <div class="attendance-mode-card
+                                    @(Model.AttendanceMode == "InOffice"
+                                        ? "selected checked-in"
+                                        : "checked-in")">
+
+                                    <i class="fas fa-building fa-2x mb-3"></i>
+
+                                    <div class="fw-semibold fs-5">
+                                        In Office
+                                    </div>
+
+                                    <div class="small text-muted mt-1 mb-3">
+
+                                        @if (Model.AttendanceMode == "InOffice")
+                                        {
+                                            <span>
+                                                Selected attendance mode
+                                            </span>
+                                        }
+                                        else
+                                        {
+                                            <span>
+                                                Check-In unavailable
+                                            </span>
+                                        }
+
+                                    </div>
+
+
+                                    <!-- Check-In is permanently disabled -->
+                                    <button type="button"
+                                            class="btn btn-secondary mb-2"
+                                            disabled>
+
+                                        <i class="fas fa-sign-in-alt me-2"></i>
+                                        Check In
+
+                                    </button>
+
+
+                                    <!-- Check-Out remains available -->
+                                    @if (!Model.CheckOut.HasValue)
+                                    {
+                                        <form asp-controller="Attendance"
+                                              asp-action="CheckOut"
+                                              method="post"
+                                              data-geo-attendance="true">
+
+                                            @Html.AntiForgeryToken()
+
+                                            <input type="hidden"
+                                                   name="latitude"
+                                                   class="geo-latitude" />
+
+                                            <input type="hidden"
+                                                   name="longitude"
+                                                   class="geo-longitude" />
+
+                                            <input type="hidden"
+                                                   name="accuracy"
+                                                   class="geo-accuracy" />
+
+                                            <input type="hidden"
+                                                   name="locationName"
+                                                   class="geo-location-name" />
+
+                                            <button type="submit"
+                                                    class="btn btn-danger">
+
+                                                <i class="fas fa-sign-out-alt me-2"></i>
+                                                Check Out
+
+                                            </button>
+
+                                            <div class="geo-status text-muted small mt-2"
+                                                 aria-live="polite"></div>
+
+                                        </form>
+                                    }
+                                    else
+                                    {
+                                        <button type="button"
+                                                class="btn btn-secondary"
+                                                disabled>
+
+                                            <i class="fas fa-sign-out-alt me-2"></i>
+                                            Check Out
+
+                                        </button>
+                                    }
+
+                                </div>
+
+                            </div>
+
+
+                            <!-- =================================================
+                             VISIT
+                             ================================================= -->
+
+                            <div class="col-md-5">
+
+                                <div class="attendance-mode-card
+                                    @(Model.AttendanceMode == "Visit"
+                                        ? "selected checked-in"
+                                        : "checked-in")">
+
+                                    <i class="fas fa-location-dot fa-2x mb-3"></i>
+
+                                    <div class="fw-semibold fs-5">
+                                        Visit
+                                    </div>
+
+                                    <div class="small text-muted mt-1 mb-3">
+
+                                        @if (Model.AttendanceMode == "Visit")
+                                        {
+                                            <span>
+                                                Selected attendance mode
+                                            </span>
+                                        }
+                                        else
+                                        {
+                                            <span>
+                                                Check-In unavailable
+                                            </span>
+                                        }
+
+                                    </div>
+
+
+                                    <!-- Check-In is permanently disabled -->
+                                    <button type="button"
+                                            class="btn btn-secondary mb-2"
+                                            disabled>
+
+                                        <i class="fas fa-sign-in-alt me-2"></i>
+                                        Check In
+
+                                    </button>
+
+
+                                    <!-- Check-Out remains available -->
+                                    @if (!Model.CheckOut.HasValue)
+                                    {
+                                        <form asp-controller="Attendance"
+                                              asp-action="CheckOut"
+                                              method="post"
+                                              data-geo-attendance="true">
+
+                                            @Html.AntiForgeryToken()
+
+                                            <input type="hidden"
+                                                   name="latitude"
+                                                   class="geo-latitude" />
+
+                                            <input type="hidden"
+                                                   name="longitude"
+                                                   class="geo-longitude" />
+
+                                            <input type="hidden"
+                                                   name="accuracy"
+                                                   class="geo-accuracy" />
+
+                                            <input type="hidden"
+                                                   name="locationName"
+                                                   class="geo-location-name" />
+
+                                            <button type="submit"
+                                                    class="btn btn-danger">
+
+                                                <i class="fas fa-sign-out-alt me-2"></i>
+                                                Check Out
+
+                                            </button>
+                                            <div class="geo-status text-muted small mt-2"
+                                                 aria-live="polite"></div>
+                                        </form>
+                                    }
+                                    else
+                                    {
+                                        <button type="button"
+                                                class="btn btn-secondary"
+                                                disabled>
+
+                                            <i class="fas fa-sign-out-alt me-2"></i>
+                                            Check Out
+
+                                        </button>
+                                    }
+
+                                </div>
+
+                            </div>
+
+                        </div>
+
+                    </div>
+                }
+
+            </div>
+
+        </div>
+    }
+
+
+    @* ============================================================
+   Late Attendance Review
+   ============================================================ *@
+
+    @if (Model != null &&
+         Model.IsLate &&
+         Model.LateMarkNumber.HasValue)
+    {
+        <div class="mt-4">
+
+            <div class="card border-warning shadow-sm">
+
+                <div class="card-body">
+
+                    <h6 class="fw-bold mb-3">
+                        <i class="fas fa-clock me-2"></i>
+                        Late Attendance Review
+                    </h6>
+
+
+                    @* ------------------------------------------------
+                   Late information
+                   ------------------------------------------------ *@
+
+                    <div class="mb-3">
+
+                        <div class="mb-1">
+                            <strong>Late By:</strong>
+                            @Model.LateMinutes minutes
+                        </div>
+
+                        <div class="mb-1">
+                            <strong>Late Mark:</strong>
+                            @Model.LateMarkNumber
+                        </div>
+
+                    </div>
+
+
+                    @* ------------------------------------------------
+                   Review already approved
+                   ------------------------------------------------ *@
+
+                    @if (Model.LateReviewStatus == "Approved")
+                    {
+                        <div class="alert alert-success mb-0">
+
+                            <i class="fas fa-check-circle me-2"></i>
+
+                            <strong>Late Review Approved</strong>
+
+                            <div class="small mt-1">
+                                HR has approved your late attendance review.
+                                This late mark is no longer counted.
+                            </div>
+
+                        </div>
+                    }
+
+
+                    @* ------------------------------------------------
+                   Review rejected
+                   ------------------------------------------------ *@
+
+                    else if (Model.LateReviewStatus == "Rejected")
+                    {
+                        <div class="alert alert-danger mb-0">
+
+                            <i class="fas fa-times-circle me-2"></i>
+
+                            <strong>Late Review Rejected</strong>
+
+                            <div class="small mt-1">
+                                Your late mark remains valid.
+                            </div>
+
+                            @if (!string.IsNullOrWhiteSpace(
+                                Model.LateReviewRemarks))
+                            {
+                                <div class="mt-2">
+                                    <strong>HR Remarks:</strong>
+                                    @Model.LateReviewRemarks
+                                </div>
+                            }
+
+                        </div>
+                    }
+
+
+                    @* ------------------------------------------------
+                   Review pending
+                   ------------------------------------------------ *@
+
+                    else if (Model.LateReviewStatus == "Pending")
+                    {
+                        <div class="alert alert-warning mb-0">
+
+                            <i class="fas fa-hourglass-half me-2"></i>
+
+                            <strong>Review Pending</strong>
+
+                            <div class="small mt-1">
+                                Your late attendance review has been
+                                submitted and is waiting for HR approval.
+                            </div>
+
+                        </div>
+                    }
+
+
+                    @* ------------------------------------------------
+                   Review required
+                   ------------------------------------------------ *@
+
+                    else if (Model.LateReviewStatus == "Required")
+                    {
+                        <div class="alert alert-warning">
+
+                            <i class="fas fa-triangle-exclamation me-2"></i>
+
+                            <strong>HR Review Required</strong>
+
+                            <div class="small mt-1">
+                                You checked in at or after 10:30 AM.
+                                Please provide a reason for your late
+                                attendance.
+                            </div>
+
+                        </div>
+
+
+                        <form asp-controller="Attendance"
+                              asp-action="RequestLateReview"
+                              method="post">
+
+                            @Html.AntiForgeryToken()
+
+                            <input type="hidden"
+                                   name="id"
+                                   value="@Model.Id" />
+
+
+                            <div class="mb-3">
+
+                                <label for="lateReasonRequired"
+                                       class="form-label fw-semibold">
+
+                                    Reason
+
+                                </label>
+
+                                <textarea name="lateReason"
+                                          id="lateReasonRequired"
+                                          class="form-control"
+                                          rows="3"
+                                          maxlength="500"
+                                          required
+                                          placeholder="Enter the reason for your late attendance"></textarea>
+
+                            </div>
+
+
+                            <button type="submit"
+                                    class="btn btn-warning">
+
+                                <i class="fas fa-paper-plane me-2"></i>
+
+                                Submit for HR Review
+
+                            </button>
+
+                        </form>
+                    }
+
+
+                    @* ------------------------------------------------
+                   Optional review
+                   ------------------------------------------------ *@
+
+                    else
+                    {
+                        <div class="alert alert-info">
+
+                            <i class="fas fa-info-circle me-2"></i>
+
+                            <strong>Late Attendance</strong>
+
+                            <div class="small mt-1">
+                                You may request HR to review this late mark
+                                if you have a valid reason.
+                            </div>
+
+                        </div>
+
+
+                        <form asp-controller="Attendance"
+                              asp-action="RequestLateReview"
+                              method="post">
+
+                            @Html.AntiForgeryToken()
+
+                            <input type="hidden"
+                                   name="id"
+                                   value="@Model.Id" />
+
+
+                            <div class="mb-3">
+
+                                <label for="lateReasonOptional"
+                                       class="form-label fw-semibold">
+
+                                    Reason
+
+                                </label>
+
+                                <textarea name="lateReason"
+                                          id="lateReasonOptional"
+                                          class="form-control"
+                                          rows="3"
+                                          maxlength="500"
+                                          required
+                                          placeholder="Enter the reason for requesting HR review"></textarea>
+
+                            </div>
+
+
+                            <button type="submit"
+                                    class="btn btn-outline-warning">
+
+                                <i class="fas fa-paper-plane me-2"></i>
+
+                                Request HR Review
+
+                            </button>
+
+                        </form>
+                    }
+
+                </div>
+
+            </div>
+
+        </div>
+    }
+
+
+    <!-- Attendance Record -->
+    <div class="card shadow-sm">
+
+        <div class="card-body p-4">
+
+            <div class="d-flex justify-content-between align-items-center mb-4">
+
+                <div>
+                    <h5 class="mb-1">
+                        @selectedDate.ToString("dd MMMM yyyy")
+                    </h5>
+
+                    <p class="text-muted mb-0">
+                        Attendance Details
+                    </p>
+                </div>
+
+                @if (Model != null)
+                {
+                    <span class="badge bg-primary">
+                        @Model.Status
+                    </span>
+                }
+
+            </div>
+
+
+            @if (Model == null)
+            {
+                <div class="text-center py-5">
+
+                    <h5 class="text-muted">
+                        No attendance record found
+                    </h5>
+
+                    <p class="text-muted mb-0">
+                        There is no attendance record available
+                        for this date.
+                    </p>
+
+                </div>
+            }
+            else
+            {
+                <div class="row g-4">
+
+                    <!-- Check In -->
+                    <div class="col-md-6 col-lg-3">
+
+                        <div class="border rounded p-3 h-100">
+
+                            <div class="text-muted small mb-1">
+                                Check-In
+                            </div>
+
+                            <div class="fw-semibold fs-5">
+
+                                @(Model.CheckIn.HasValue
+                                    ? TimeZoneInfo.ConvertTimeFromUtc(
+                                        Model.CheckIn.Value.ToUniversalTime(),
+                                        indiaTimeZone
+                                      ).ToString("HH:mm")
+                                    : "-")
+
+                            </div>
+
+                        </div>
+
+                    </div>
+
+
+                    <!-- Check Out -->
+                    <div class="col-md-6 col-lg-3">
+
+                        <div class="border rounded p-3 h-100">
+
+                            <div class="text-muted small mb-1">
+                                Check-Out
+                            </div>
+
+                            <div class="fw-semibold fs-5">
+
+                                @(Model.CheckOut.HasValue
+                                    ? TimeZoneInfo.ConvertTimeFromUtc(
+                                        Model.CheckOut.Value.ToUniversalTime(),
+                                        indiaTimeZone
+                                      ).ToString("HH:mm")
+                                    : "-")
+
+                            </div>
+
+                        </div>
+
+                    </div>
+
+
+                    <!-- Working Hours -->
+                    <div class="col-md-6 col-lg-3">
+
+                        <div class="border rounded p-3 h-100">
+
+                            <div class="text-muted small mb-1">
+                                Working Hours
+                            </div>
+
+                            <div class="fw-semibold fs-5">
+
+                                @(Model.WorkingHours.HasValue
+                                    ? Model.WorkingHours.Value.ToString("0.00") + " hrs"
+                                    : "-")
+
+                            </div>
+
+                        </div>
+
+                    </div>
+
+
+                    <!-- Late -->
+                    <div class="col-md-6 col-lg-3">
+
+                        <div class="border rounded p-3 h-100">
+
+                            <div class="text-muted small mb-1">
+                                Late
+                            </div>
+
+                            <div class="fw-semibold fs-5">
+
+                                @(Model.LateMinutes.HasValue
+                                    ? Model.LateMinutes.Value + " min"
+                                    : "-")
+
+                            </div>
+
+                        </div>
+
+                    </div>
+
+
+                    <!-- Early Leave -->
+                    <div class="col-md-6 col-lg-3">
+
+                        <div class="border rounded p-3 h-100">
+
+                            <div class="text-muted small mb-1">
+                                Early Leave
+                            </div>
+
+                            <div class="fw-semibold fs-5">
+
+                                @(Model.EarlyLeaveMinutes.HasValue
+                                    ? Model.EarlyLeaveMinutes.Value + " min"
+                                    : "-")
+
+                            </div>
+
+                        </div>
+
+                    </div>
+
+
+                    <!-- Attendance Source -->
+                    <div class="col-md-6 col-lg-3">
+
+                        <div class="border rounded p-3 h-100">
+
+                            <div class="text-muted small mb-1">
+                                Source
+                            </div>
+
+                            <div class="fw-semibold fs-5">
+                                @(string.IsNullOrWhiteSpace(Model.Source)
+                                    ? "-"
+                                    : Model.Source)
+                            </div>
+
+                        </div>
+
+                    </div>
+
+
+                    <!-- Remarks -->
+                    <div class="col-md-6 col-lg-6">
+
+                        <div class="border rounded p-3 h-100">
+
+                            <div class="text-muted small mb-1">
+                                Remarks
+                            </div>
+
+                            <div class="fw-semibold">
+                                @(string.IsNullOrWhiteSpace(Model.Remarks)
+                                    ? "-"
+                                    : Model.Remarks)
+                            </div>
+
+                        </div>
+
+                    </div>
+
+                    @if (Model.CheckInLatitude.HasValue &&
+     Model.CheckInLongitude.HasValue)
+                    {
+                        <div class="col-md-6 col-lg-6">
+
+                            <div class="border rounded p-3 h-100">
+
+                                <div class="text-muted small mb-1">
+                                    <i class="fas fa-location-dot me-1"></i>
+                                    Check-In Location
+                                </div>
+
+                                <div class="fw-semibold">
+
+                                    @(string.IsNullOrWhiteSpace(Model.CheckInLocationName)
+                                        ? "Location name unavailable"
+                                        : Model.CheckInLocationName)
+
+                                </div>
+
+                                <div class="small text-muted mt-2">
+
+                                    Coordinates:
+                                    @Model.CheckInLatitude.Value.ToString("0.000000"),
+                                    @Model.CheckInLongitude.Value.ToString("0.000000")
+
+                                </div>
+
+                                @if (Model.CheckInAccuracy.HasValue)
+                                {
+                                    <div class="small text-muted">
+
+                                        Accuracy:
+                                        ±@Model.CheckInAccuracy.Value.ToString("0.00") m
+
+                                    </div>
+                                }
+
+                            </div>
+
+                        </div>
+                    }
+
+
+                    @if (Model.CheckOutLatitude.HasValue &&
+                         Model.CheckOutLongitude.HasValue)
+                    {
+                        <div class="col-md-6 col-lg-6">
+
+                            <div class="border rounded p-3 h-100">
+
+                                <div class="text-muted small mb-1">
+                                    <i class="fas fa-location-dot me-1"></i>
+                                    Check-Out Location
+                                </div>
+
+                                <div class="fw-semibold">
+
+                                    @(string.IsNullOrWhiteSpace(Model.CheckOutLocationName)
+                                        ? "Location name unavailable"
+                                        : Model.CheckOutLocationName)
+
+                                </div>
+
+                                <div class="small text-muted mt-2">
+
+                                    Coordinates:
+                                    @Model.CheckOutLatitude.Value.ToString("0.000000"),
+                                    @Model.CheckOutLongitude.Value.ToString("0.000000")
+
+                                </div>
+
+                                @if (Model.CheckOutAccuracy.HasValue)
+                                {
+                                    <div class="small text-muted">
+
+                                        Accuracy:
+                                        ±@Model.CheckOutAccuracy.Value.ToString("0.00") m
+
+                                    </div>
+                                }
+
+                            </div>
+
+                        </div>
+                    }
+
+                </div>
+            }
+
+        </div>
+
+    </div>
+
+    @* ============================================================
+   MY LATE ATTENDANCE
+   ============================================================ *@
+
+    @{
+        var lateAttendanceHistory =
+            ViewBag.LateAttendanceHistory
+            as List<ExpenseManagement.Models.Attendance>
+            ?? new List<ExpenseManagement.Models.Attendance>();
+
+        var currentValidLateCount =
+            ViewBag.CurrentValidLateCount != null
+                ? (int)ViewBag.CurrentValidLateCount
+                : 0;
+    }
+
+    <div class="card shadow-sm mt-4">
+
+        <div class="card-body">
+
+            <div class="d-flex justify-content-between align-items-center mb-3">
+
+                <div>
+                    <h5 class="mb-1">
+                        <i class="fas fa-clock me-2"></i>
+                        My Late Attendance
+                    </h5>
+
+                    <p class="text-muted mb-0">
+                        Your In Office late attendance history
+                    </p>
+                </div>
+
+                <div class="text-end">
+
+                    <div class="fw-semibold">
+                        Current Valid Late Marks
+                    </div>
+
+                    <span class="badge bg-warning text-dark fs-6">
+                        @currentValidLateCount / 4
+                    </span>
+
+                </div>
+
+            </div>
+
+
+            @if (!lateAttendanceHistory.Any())
+            {
+                <div class="text-center py-4">
+
+                    <i class="fas fa-check-circle fa-2x text-success mb-2"></i>
+
+                    <h6 class="mb-1">
+                        No Late Marks
+                    </h6>
+
+                    <p class="text-muted mb-0">
+                        You currently have no recorded late attendance.
+                    </p>
+
+                </div>
+            }
+            else
+            {
+                <div class="table-responsive">
+
+                    <table class="table table-hover align-middle mb-0">
+
+                        <thead>
+                            <tr>
+
+                                <th>Date</th>
+
+                                <th>Check-In</th>
+
+                                <th>Late By</th>
+
+                                <th>Late Mark</th>
+
+                                <th>Review Status</th>
+
+                            </tr>
+                        </thead>
+
+                        <tbody>
+
+                            @foreach (var late in lateAttendanceHistory)
+                            {
+                                var lateIndiaDate =
+                                    TimeZoneInfo.ConvertTimeFromUtc(
+                                        DateTime.SpecifyKind(
+                                            late.AttendanceDate,
+                                            DateTimeKind.Utc),
+                                        indiaTimeZone
+                                    ).Date;
+
+                                <tr>
+
+                                    <td>
+                                        @lateIndiaDate.ToString("dd-MM-yyyy")
+                                    </td>
+
+                                    <td>
+
+                                        @if (late.CheckIn.HasValue)
+                                        {
+                                            @TimeZoneInfo.ConvertTimeFromUtc(
+                                                DateTime.SpecifyKind(
+                                                    late.CheckIn.Value,
+                                                    DateTimeKind.Utc),
+                                                indiaTimeZone
+                                            ).ToString("hh:mm tt")
+                                        }
+                                        else
+                                        {
+                                            <span>-</span>
+                                        }
+
+                                    </td>
+
+                                    <td>
+                                        @(late.LateMinutes.HasValue
+                                            ? late.LateMinutes.Value + " min"
+                                            : "-")
+                                    </td>
+
+                                    <td>
+
+                                        @if (late.LateMarkNumber.HasValue)
+                                        {
+                                            <span class="badge bg-warning text-dark">
+                                                #@late.LateMarkNumber
+                                            </span>
+                                        }
+                                        else
+                                        {
+                                            <span class="text-muted">
+                                                Removed
+                                            </span>
+                                        }
+
+                                    </td>
+
+                                    <td>
+
+                                        @if (late.LateReviewStatus == "Approved")
+                                        {
+                                            <span class="badge bg-success">
+                                                Approved
+                                            </span>
+                                        }
+                                        else if (late.LateReviewStatus == "Rejected")
+                                        {
+                                            <span class="badge bg-danger">
+                                                Rejected
+                                            </span>
+                                        }
+                                        else if (late.LateReviewStatus == "Pending")
+                                        {
+                                            <span class="badge bg-warning text-dark">
+                                                Review Pending
+                                            </span>
+                                        }
+                                        else if (late.LateReviewStatus == "Required")
+                                        {
+                                            <span class="badge bg-warning text-dark">
+                                                Review Required
+                                            </span>
+                                        }
+                                        else
+                                        {
+                                            <span class="badge bg-secondary">
+                                                Late
+                                            </span>
+                                        }
+
+                                    </td>
+
+                                </tr>
+                            }
+
+                        </tbody>
+
+                    </table>
+
+                </div>
+            }
+
+        </div>
+
+    </div>
+
+    @{
+        var monthlyAttendance =
+            ViewBag.MonthlyAttendance
+            as List<ExpenseManagement.Models.Attendance>
+            ?? new List<ExpenseManagement.Models.Attendance>();
+
+        var monthlyApprovedLeaves =
+    ViewBag.MonthlyApprovedLeaves
+    as List<ExpenseManagement.Models.Leave>
+    ?? new List<ExpenseManagement.Models.Leave>();
+
+        var monthStart =
+            ViewBag.MonthStart != null
+                ? (DateTime)ViewBag.MonthStart
+                : selectedDate;
+
+        var firstDayOffset =
+            ((int)monthStart.DayOfWeek + 6) % 7;
+
+        var daysInMonth =
+            DateTime.DaysInMonth(
+                monthStart.Year,
+                monthStart.Month);
+
+        var attendanceByDate =
+            monthlyAttendance
+                .ToDictionary(
+                    a => TimeZoneInfo.ConvertTimeFromUtc(
+                        DateTime.SpecifyKind(
+                            a.AttendanceDate,
+                            DateTimeKind.Utc),
+                        indiaTimeZone).Date,
+                    a => a);
+    }
+
+    <div class="card shadow-sm mt-4">
+        <div class="card-body p-4">
+
+            <!-- Calendar Header -->
+            <div class="d-flex justify-content-between align-items-center mb-4">
+
+                <div>
+                    <h5 class="mb-1">
+                        <i class="fas fa-calendar-days me-2"></i>
+                        Monthly Attendance
+                    </h5>
+
+                    <p class="text-muted mb-0">
+                        @monthStart.ToString("MMMM yyyy")
+                    </p>
+                </div>
+
+                <div class="d-flex gap-2">
+
+                    <a asp-action="MyAttendance"
+                       asp-route-date="@monthStart.AddMonths(-1).ToString("yyyy-MM-dd")"
+                       class="btn btn-outline-secondary btn-sm">
+                        <i class="fas fa-chevron-left"></i>
+                    </a>
+
+                    <a asp-action="MyAttendance"
+                       asp-route-date="@monthStart.AddMonths(1).ToString("yyyy-MM-dd")"
+                       class="btn btn-outline-secondary btn-sm">
+                        <i class="fas fa-chevron-right"></i>
+                    </a>
+
+                </div>
+
+            </div>
+
+            <!-- Monthly Summary -->
+            <div class="row g-3 mb-4">
+
+                <div class="col-6 col-md-4 col-lg-2">
+                    <div class="border rounded p-3 h-100 text-center">
+                        <div class="text-muted small mb-1">
+                            Present
+                        </div>
+                        <div class="fw-bold fs-4 text-success">
+                            @ViewBag.MonthlyPresentCount
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-6 col-md-4 col-lg-2">
+                    <div class="border rounded p-3 h-100 text-center">
+                        <div class="text-muted small mb-1">
+                            Late
+                        </div>
+                        <div class="fw-bold fs-4 text-warning">
+                            @ViewBag.MonthlyLateCount
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-6 col-md-4 col-lg-2">
+                    <div class="border rounded p-3 h-100 text-center">
+                        <div class="text-muted small mb-1">
+                            Half Day
+                        </div>
+                        <div class="fw-bold fs-4"
+                             style="color: #fd7e14;">
+                            @ViewBag.MonthlyHalfDayCount
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-6 col-md-4 col-lg-2">
+                    <div class="border rounded p-3 h-100 text-center">
+                        <div class="text-muted small mb-1">
+                            Absent
+                        </div>
+                        <div class="fw-bold fs-4 text-danger">
+                            @ViewBag.MonthlyAbsentCount
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-6 col-md-4 col-lg-2">
+                    <div class="border rounded p-3 h-100 text-center">
+                        <div class="text-muted small mb-1">
+                            On Leave
+                        </div>
+                        <div class="fw-bold fs-4 text-info">
+                            @ViewBag.MonthlyLeaveCount
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-6 col-md-4 col-lg-2">
+                    <div class="border rounded p-3 h-100 text-center">
+                        <div class="text-muted small mb-1">
+                            Working Days
+                        </div>
+                        <div class="fw-bold fs-4">
+                            @ViewBag.MonthlyWorkingDays
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- Calendar Legend -->
+            <div class="d-flex flex-wrap gap-3 mb-3 small">
+
+                <span>
+                    <span class="badge bg-success me-1">&nbsp;</span>
+                    Present
+                </span>
+
+                <span>
+                    <span class="badge bg-warning me-1">&nbsp;</span>
+                    Late
+                </span>
+
+                <span>
+                    <span class="badge text-white me-1"
+                          style="background-color: #fd7e14;">
+                        &nbsp;
+                    </span>
+                    Half Day
+                </span>
+
+                <span>
+                    <span class="badge bg-danger me-1">&nbsp;</span>
+                    Absent
+                </span>
+
+                <span>
+                    <span class="badge bg-info me-1">&nbsp;</span>
+                    On Leave
+                </span>
+
+                <span>
+                    <span class="badge bg-light border text-secondary me-1">&nbsp;</span>
+                    Weekly Off
+                </span>
+
+            </div>
+
+            <!-- Calendar -->
+            <div class="table-responsive">
+
+                <table class="table table-bordered text-center align-middle mb-0 monthly-attendance-calendar">
+
+                    <thead>
+                        <tr>
+                            <th>Monday</th>
+                            <th>Tuesday</th>
+                            <th>Wednesday</th>
+                            <th>Thursday</th>
+                            <th>Friday</th>
+                            <th>Saturday</th>
+                            <th>Sunday</th>
+                        </tr>
+                    </thead>
+
+                    <tbody>
+
+                        @{
+                            var totalCalendarCells =
+                                (int)Math.Ceiling(
+                                    (firstDayOffset + daysInMonth) / 7.0);
+
+                            var dayNumber = 1;
+                        }
+
+                        @for (var week = 0;
+                              week < totalCalendarCells;
+                              week++)
+                        {
+                            <tr class="calendar-week-row">
+
+                                @for (var weekday = 0;
+                                      weekday < 7;
+                                      weekday++)
+                                {
+                                    var cellIndex =
+                                        week * 7 + weekday;
+
+                                    if (cellIndex < firstDayOffset ||
+                                        dayNumber > daysInMonth)
+                                    {
+                                        <td class="bg-light calendar-day-cell"></td>
+                                        continue;
+                                    }
+
+                                    var currentDate =
+                                        new DateTime(
+                                            monthStart.Year,
+                                            monthStart.Month,
+                                            dayNumber);
+
+                                    var hasAttendance =
+                                        attendanceByDate.TryGetValue(
+                                            currentDate,
+                                            out var dayAttendance);
+
+                                    var approvedLeaveForDate =
+                                    monthlyApprovedLeaves.FirstOrDefault(l =>
+                                        l.FromDate.Date <= currentDate.Date &&
+                                        l.ToDate.Date >= currentDate.Date);
+
+                                    var isSunday =
+                                        currentDate.DayOfWeek ==
+                                        DayOfWeek.Sunday;
+
+                                    var isSaturday =
+                                        currentDate.DayOfWeek ==
+                                        DayOfWeek.Saturday;
+
+                                    var weekOfMonth =
+                                        ((currentDate.Day - 1) / 7) + 1;
+
+                                    var isSecondSaturday =
+                                        isSaturday && weekOfMonth == 2;
+
+                                    var isFourthSaturday =
+                                        isSaturday && weekOfMonth == 4;
+
+                                    var isWeeklyOff =
+                                        isSunday ||
+                                        isSecondSaturday ||
+                                        isFourthSaturday;
+
+                                    var cellClass = "";
+
+                                    if (currentDate.Date == selectedDate.Date)
+                                    {
+                                        cellClass = "border-primary border-2";
+                                    }
+
+                                    <td class="@cellClass calendar-day-cell">
+
+                                        <div class="d-flex justify-content-between">
+
+                                            <strong>
+                                                @dayNumber
+                                            </strong>
+
+                                            @if (currentDate.Date == DateTime.UtcNow.AddHours(5).AddMinutes(30).Date)
+                                            {
+                                                <span class="badge bg-primary">
+                                                    Today
+                                                </span>
+                                            }
+
+                                        </div>
+
+                                        @if (isWeeklyOff)
+                                        {
+                                            <div class="mt-3">
+
+                                                <span class="badge bg-light text-secondary">
+                                                    @(isSunday ? "Sunday" : "WO")
+                                                </span>
+
+                                            </div>
+                                        }
+                                        else if (approvedLeaveForDate != null)
+                                        {
+                                            <div class="calendar-day-content">
+
+                                                <div class="mb-2">
+
+                                                    <span class="badge bg-info text-dark">
+                                                        On Leave
+                                                    </span>
+
+                                                </div>
+
+                                                <div class="small text-muted">
+                                                    Approved Leave
+                                                </div>
+
+                                                <div class="mt-2">
+
+                                                    <a asp-action="MyAttendance"
+                                                       asp-route-date="@currentDate.ToString("yyyy-MM-dd")"
+                                                       class="btn btn-sm btn-outline-primary calendar-view-button">
+                                                        View
+                                                    </a>
+
+                                                </div>
+
+                                            </div>
+                                        }
+                                        else if (hasAttendance)
+                                        {
+                                            <div class="calendar-day-content">
+
+                                                <!-- Attendance Status -->
+                                                <div class="mb-2">
+
+                                                    @if (dayAttendance!.Status == "Present")
+                                                    {
+                                                        <span class="badge bg-success">
+                                                            Present
+                                                        </span>
+                                                    }
+                                                    else if (dayAttendance.Status == "Half Day")
+                                                    {
+                                                        <span class="badge text-white"
+                                                              style="background-color: #fd7e14;">
+                                                            Half Day
+                                                        </span>
+                                                    }
+                                                    else if (dayAttendance.Status == "Absent")
+                                                    {
+                                                        <span class="badge bg-danger">
+                                                            Absent
+                                                        </span>
+                                                    }
+                                                    else if (dayAttendance.Status == "On Leave")
+                                                    {
+                                                        <span class="badge bg-info text-dark">
+                                                            On Leave
+                                                        </span>
+                                                    }
+                                                    else if (dayAttendance.Status == "Late — Review Pending")
+                                                    {
+                                                        <span class="badge bg-warning text-dark">
+                                                            Late
+                                                        </span>
+                                                    }
+                                                    else
+                                                    {
+                                                        var calendarStatus =
+                                                            string.IsNullOrWhiteSpace(dayAttendance.Status) ||
+                                                            dayAttendance.Status == "-"
+                                                                ? "Recorded"
+                                                                : dayAttendance.Status;
+
+                                                        <span class="badge bg-secondary">
+                                                            @calendarStatus
+                                                        </span>
+                                                    }
+
+                                                </div>
+
+                                                <!-- Check-In -->
+                                                @if (dayAttendance.CheckIn.HasValue)
+                                                {
+                                                    var calendarCheckIn =
+                                                        TimeZoneInfo.ConvertTimeFromUtc(
+                                                            dayAttendance.CheckIn.Value.ToUniversalTime(),
+                                                            indiaTimeZone);
+
+                                                    <div class="small text-muted">
+                                                        <strong>In:</strong>
+                                                        @calendarCheckIn.ToString("HH:mm")
+                                                    </div>
+                                                }
+
+                                                <!-- Check-Out -->
+                                                @if (dayAttendance.CheckOut.HasValue)
+                                                {
+                                                    var calendarCheckOut =
+                                                        TimeZoneInfo.ConvertTimeFromUtc(
+                                                            dayAttendance.CheckOut.Value.ToUniversalTime(),
+                                                            indiaTimeZone);
+
+                                                    <div class="small text-muted">
+                                                        <strong>Out:</strong>
+                                                        @calendarCheckOut.ToString("HH:mm")
+                                                    </div>
+                                                }
+
+                                                <!-- Late Information -->
+                                                @if (dayAttendance.IsLate &&
+                                                     dayAttendance.LateMinutes.HasValue &&
+                                                     dayAttendance.LateMinutes.Value > 0)
+                                                {
+                                                    <div class="small text-warning fw-semibold">
+                                                        Late: @dayAttendance.LateMinutes.Value min
+                                                    </div>
+                                                }
+
+                                                @if (dayAttendance.LateMarkNumber.HasValue &&
+                                                     dayAttendance.IsLate &&
+                                                     dayAttendance.LateReviewStatus != "Approved")
+                                                {
+                                                    <div class="small text-warning fw-semibold">
+                                                        Late Mark #@dayAttendance.LateMarkNumber
+                                                    </div>
+                                                }
+
+                                                <!-- View -->
+                                                <div class="mt-2">
+
+                                                    <a asp-action="MyAttendance"
+                                                       asp-route-date="@currentDate.ToString("yyyy-MM-dd")"
+                                                       class="btn btn-sm btn-outline-primary calendar-view-button">
+                                                        View
+                                                    </a>
+
+                                                </div>
+
+                                            </div>
+                                        }
+                                        else
+                                        {
+                                            <div class="mt-3">
+
+                                                <span class="badge bg-light text-muted">
+                                                    No Record
+                                                </span>
+
+                                            </div>
+                                        }
+
+                                    </td>
+
+                                    dayNumber++;
+                                }
+
+                            </tr>
+                        }
+
+                    </tbody>
+
+                </table>
+
+            </div>
+
+        </div>
+    </div>
+
+</div>
+
+<style>
+
+    .attendance-mode-card {
+        width: 100%;
+        min-height: 145px;
+        border: 2px solid #dee2e6;
+        border-radius: 12px;
+        background: #ffffff;
+        padding: 25px;
+        text-align: center;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        color: #212529;
+    }
+
+    .attendance-mode-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+    }
+
+    .attendance-mode-card.selected {
+        border-color: #0d6efd;
+        background: #f0f6ff;
+        box-shadow: 0 0 0 2px rgba(13, 110, 253, 0.10);
+    }
+
+    .attendance-mode-card.checked-in {
+        cursor: default;
+        background: #f8f9fa;
+    }
+
+    .attendance-mode-card.checked-in:hover {
+        transform: none;
+        box-shadow: none;
+    }
+
+    .attendance-mode-card button {
+        cursor: pointer;
+    }
+
+
+</style>
+
+<script>
+
+    document.addEventListener("DOMContentLoaded", function() {
+
+        // ============================================================
+        // EXISTING ATTENDANCE MODE ELEMENTS
+        // ============================================================
+
+        const modeInput =
+            document.getElementById("attendanceMode");
+
+        const checkInContainer =
+            document.getElementById("checkInContainer");
+
+        const visitLocationContainer =
+            document.getElementById("visitLocationContainer");
+
+        const visitLocation =
+            document.getElementById("visitLocation");
+
+        const modeCards =
+            document.querySelectorAll(
+                ".attendance-mode-card[data-mode]"
+            );
+
+
+        // ============================================================
+        // ATTENDANCE MODE SELECTION
+        // ============================================================
+
+        if (modeInput &&
+            checkInContainer &&
+            visitLocationContainer &&
+            visitLocation &&
+            modeCards.length > 0) {
+
+            modeCards.forEach(function(card) {
+
+                card.addEventListener("click", function() {
+
+                    const selectedMode =
+                        card.getAttribute("data-mode");
+
+                    modeInput.value = selectedMode;
+
+                    modeCards.forEach(function(item) {
+                        item.classList.remove("selected");
+                    });
+
+                    card.classList.add("selected");
+
+
+                    // ------------------------------------------------
+                    // IN OFFICE
+                    // ------------------------------------------------
+
+                    if (selectedMode === "InOffice") {
+
+                        visitLocationContainer
+                            .classList.add("d-none");
+
+                        visitLocation.value = "";
+
+                        checkInContainer
+                            .classList.remove("d-none");
+                    }
+
+
+                    // ------------------------------------------------
+                    // VISIT
+                    // ------------------------------------------------
+
+                    else if (selectedMode === "Visit") {
+
+                        visitLocationContainer
+                            .classList.remove("d-none");
+
+                        checkInContainer
+                            .classList.add("d-none");
+
+                        visitLocation.focus();
+                    }
+
+                });
+
+            });
+
+
+            // ========================================================
+            // VISIT LOCATION INPUT
+            // ========================================================
+
+            visitLocation.addEventListener("input", function() {
+
+                if (modeInput.value !== "Visit") {
+                    return;
+                }
+
+                const location =
+                    visitLocation.value.trim();
+
+                if (location.length > 0) {
+
+                    checkInContainer
+                        .classList.remove("d-none");
+
+                }
+                else {
+
+                    checkInContainer
+                        .classList.add("d-none");
+                }
+
+            });
+
+        }
+
+
+        // ============================================================
+        // GPS / GEOLOCATION
+        // ============================================================
+
+        const geoForms =
+            document.querySelectorAll(
+                'form[data-geo-attendance="true"]'
+            );
+
+
+        geoForms.forEach(function(form) {
+
+            form.addEventListener("submit", async function(event) {
+
+                // Already collected GPS.
+                if (form.dataset.geoReady === "true") {
+                    return;
+                }
+
+                event.preventDefault();
+
+
+                // ----------------------------------------------------
+                // Get UI elements
+                // ----------------------------------------------------
+
+                const latitudeInput =
+                    form.querySelector(".geo-latitude");
+
+                const longitudeInput =
+                    form.querySelector(".geo-longitude");
+
+                const accuracyInput =
+                    form.querySelector(".geo-accuracy");
+
+                const locationNameInput =
+                    form.querySelector(".geo-location-name");
+
+                const statusElement =
+                    form.querySelector(".geo-status");
+
+                const submitButton =
+                    form.querySelector(
+                        'button[type="submit"]'
+                    );
+
+
+                if (!latitudeInput ||
+                    !longitudeInput ||
+                    !accuracyInput ||
+                    !locationNameInput) {
+
+                    form.submit();
+                    return;
+                }
+
+
+                // ----------------------------------------------------
+                // Visit validation
+                // ----------------------------------------------------
+
+                if (form.id === "attendanceCheckInForm" &&
+                    modeInput &&
+                    modeInput.value === "Visit" &&
+                    visitLocation &&
+                    visitLocation.value.trim().length === 0) {
+
+                    if (statusElement) {
+                        statusElement.textContent =
+                            "Please enter the visit location first.";
+                    }
+
+                    return;
+                }
+
+
+                // ----------------------------------------------------
+                // Browser support
+                // ----------------------------------------------------
+
+                if (!navigator.geolocation) {
+
+                    if (statusElement) {
+                        statusElement.textContent =
+                            "Location services are not supported by this browser.";
+                    }
+
+                    return;
+                }
+
+
+                // ----------------------------------------------------
+                // Prevent double submission
+                // ----------------------------------------------------
+
+                if (submitButton) {
+                    submitButton.disabled = true;
+                }
+
+
+                if (statusElement) {
+                    statusElement.textContent =
+                        "Getting your device location...";
+                }
+
+
+                // ----------------------------------------------------
+                // Request browser GPS
+                // ----------------------------------------------------
+
+                navigator.geolocation.getCurrentPosition(
+                    async function(position) {
+
+                        const latitude =
+                            position.coords.latitude;
+
+                        const longitude =
+                            position.coords.longitude;
+
+                        const accuracy =
+                            position.coords.accuracy;
+
+
+                        // ------------------------------------------------
+                        // Store GPS values
+                        // ------------------------------------------------
+
+                        latitudeInput.value =
+                            latitude.toFixed(6);
+
+                        longitudeInput.value =
+                            longitude.toFixed(6);
+
+                        accuracyInput.value =
+                            accuracy.toFixed(2);
+
+
+                        if (statusElement) {
+
+                            statusElement.textContent =
+                                "Location captured. Accuracy: ±" +
+                                Math.round(accuracy) +
+                                " m. Getting location name...";
+                        }
+
+
+                        // ------------------------------------------------
+                        // Reverse Geocoding
+                        // ------------------------------------------------
+
+                        let locationName = "";
+
+                        try {
+
+                            const url =
+                                "https://nominatim.openstreetmap.org/reverse" +
+                                "?format=jsonv2" +
+                                "&lat=" +
+                                encodeURIComponent(latitude) +
+                                "&lon=" +
+                                encodeURIComponent(longitude) +
+                                "&zoom=18" +
+                                "&addressdetails=1";
+
+                            const response =
+                                await fetch(url);
+
+                            if (response.ok) {
+
+                                const data =
+                                    await response.json();
+
+                                locationName =
+                                    data.display_name || "";
+                            }
+
+                        }
+                        catch (error) {
+
+                            console.warn(
+                                "Reverse geocoding failed:",
+                                error
+                            );
+
+                        }
+
+
+                        // ------------------------------------------------
+                        // Save location name when available
+                        // ------------------------------------------------
+
+                        locationNameInput.value =
+                            locationName;
+
+
+                        if (statusElement) {
+
+                            if (locationName) {
+
+                                statusElement.textContent =
+                                    "Location captured: " +
+                                    locationName +
+                                    " (±" +
+                                    Math.round(accuracy) +
+                                    " m)";
+                            }
+                            else {
+
+                                statusElement.textContent =
+                                    "GPS captured (±" +
+                                    Math.round(accuracy) +
+                                    " m).";
+                            }
+                        }
+
+
+                        // ------------------------------------------------
+                        // Submit form after GPS capture
+                        // ------------------------------------------------
+
+                        form.dataset.geoReady = "true";
+
+                        form.submit();
+
+                    },
+
+                    function(error) {
+
+                        if (submitButton) {
+                            submitButton.disabled = false;
+                        }
+
+                        let message =
+                            "Unable to get your location.";
+
+                        switch (error.code) {
+
+                            case error.PERMISSION_DENIED:
+                                message =
+                                    "Location permission was denied. Please allow location access and try again.";
+                                break;
+
+                            case error.POSITION_UNAVAILABLE:
+                                message =
+                                    "Your current location is unavailable. Please try again.";
+                                break;
+
+                            case error.TIMEOUT:
+                                message =
+                                    "Location request timed out. Please try again.";
+                                break;
+
+                        }
+
+                        if (statusElement) {
+                            statusElement.textContent = message;
+                        }
+
+                    },
+
+                    {
+                        enableHighAccuracy: true,
+                        timeout: 15000,
+                        maximumAge: 0
+                    }
+                );
+
+            });
+
+        });
+
+    });
+
+</script>
+<style>
+    .monthly-attendance-calendar {
+        width: 100%;
+        table-layout: fixed;
+    }
+
+        .monthly-attendance-calendar th {
+            height: 48px;
+            vertical-align: middle;
+        }
+
+        .monthly-attendance-calendar .calendar-week-row {
+            height: 170px;
+        }
+
+        .monthly-attendance-calendar .calendar-day-cell {
+            width: 14.285%;
+            height: 170px;
+            min-height: 170px;
+            vertical-align: top;
+            padding: 10px;
+        }
+
+    .calendar-day-content {
+        height: 145px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+    }
+
+        .calendar-day-content .calendar-view-button {
+            margin-top: auto;
+        }
+</style>

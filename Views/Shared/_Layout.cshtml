@@ -1,9 +1,28 @@
+@{
+    var currentPath = Context.Request.Path;
+
+    var isPortalPage = currentPath.StartsWithSegments("/Portal");
+
+    var isDocumentsPage =
+    currentPath.StartsWithSegments("/Documents");
+
+    var isHRMPage =
+    currentPath.StartsWithSegments("/HR") ||
+    currentPath.StartsWithSegments("/HRMEmployee") ||
+    currentPath.StartsWithSegments("/HRMManagement") ||
+    currentPath.StartsWithSegments("/Attendance") ||
+    currentPath.StartsWithSegments("/Leave") ||
+    currentPath.StartsWithSegments("/Payroll") ||
+    currentPath.StartsWithSegments("/Asset") ||
+    currentPath.StartsWithSegments("/Reports") ||
+    isDocumentsPage;
+}
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-    <title>@ViewData["Title"] - ExpenseTrack</title>
+    <title>@ViewData["Title"] - @(isHRMPage ? "HRM" : "ExpenseTrack")</title>
     <link rel="icon" type="image/png" href="/LOGO.png" />
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.2/css/bootstrap.min.css" />
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
@@ -13,20 +32,23 @@
             --sidebar-width: 260px; --topbar-h: 60px;
         }
         * { box-sizing: border-box; }
+        html { font-size: clamp(14px, 0.5vw + 12px, 16px); }
         body { font-family: 'Segoe UI', sans-serif; background: #f1f5f9; margin: 0; }
 
         /* ── Sidebar ── */
         .sidebar {
-            width: var(--sidebar-width); min-height: 100vh;
+            width: var(--sidebar-width);
+            height: 100vh;           /* exact viewport — never taller, footer always visible */
             background: linear-gradient(180deg, #1e3a5f 0%, #0f172a 100%);
             position: fixed; top: 0; left: 0;
             display: flex; flex-direction: column; z-index: 1040;
             transition: transform .3s ease;
+            overflow: hidden;        /* clip anything that might leak */
         }
-        .sidebar-brand { padding: 20px 20px; border-bottom: 1px solid rgba(255,255,255,.1); }
+        .sidebar-brand { padding: 20px 20px; border-bottom: 1px solid rgba(255,255,255,.1); flex-shrink: 0; }
         .sidebar-brand h5 { color: #fff; font-weight: 700; margin: 0; font-size: 1.05rem; }
         .sidebar-brand small { color: #94a3b8; font-size: .72rem; }
-        .sidebar-nav { flex: 1; padding: 12px 0; overflow-y: auto; }
+        .sidebar-nav { flex: 1; min-height: 0; padding: 12px 0; overflow-y: auto; }
         .sidebar-nav .nav-label {
             color: #64748b; font-size: .68rem; font-weight: 600;
             text-transform: uppercase; letter-spacing: 1px; padding: 10px 20px 4px;
@@ -40,8 +62,51 @@
             background: rgba(255,255,255,.08); color: #fff; border-left-color: var(--primary);
         }
         .sidebar-nav a i { width: 18px; text-align: center; }
-        .sidebar-footer { padding: 14px 20px; border-top: 1px solid rgba(255,255,255,.1); }
-        .sidebar-footer a { color: #94a3b8; text-decoration: none; font-size: .85rem; }
+            /* ── Payroll Dropdown ── */
+            .sidebar-dropdown {
+                position: relative;
+            }
+
+            .sidebar-dropdown-toggle {
+                position: relative;
+            }
+
+                .sidebar-dropdown-toggle .submenu-arrow {
+                    width: auto !important;
+                    margin-left: auto;
+                    font-size: .7rem;
+                    transition: transform .2s ease;
+                }
+
+            .sidebar-dropdown:hover .submenu-arrow {
+                transform: rotate(180deg);
+            }
+
+            .sidebar-submenu {
+                display: none;
+                background: rgba(0, 0, 0, .16);
+            }
+
+            .sidebar-dropdown:hover .sidebar-submenu {
+                display: block;
+            }
+
+            .sidebar-submenu a {
+                padding: 9px 20px 9px 50px !important;
+                font-size: .82rem !important;
+                border-left: 3px solid transparent;
+            }
+
+                .sidebar-submenu a:hover,
+                .sidebar-submenu a.active {
+                    background: rgba(255, 255, 255, .08);
+                    border-left-color: var(--primary);
+                    color: #fff;
+                }
+
+        .sidebar-footer { padding: 14px 20px; border-top: 1px solid rgba(255,255,255,.1); flex-shrink: 0; }
+        .sidebar-footer a { color: #94a3b8; text-decoration: none; font-size: .85rem; display: flex; align-items: center; gap: 8px; }
+        .sidebar-footer a:hover { color: #fff; }
 
         /* ── Main ── */
         .main-content { margin-left: var(--sidebar-width); min-height: 100vh; }
@@ -154,15 +219,363 @@
     @await RenderSectionAsync("Styles", required: false)
 </head>
 <body>
+
+    @{
+    var currentPath = Context.Request.Path;
+
+    var isPortalPage =
+        currentPath.StartsWithSegments("/Portal");
+
+    var isDocumentsPage =
+        currentPath.StartsWithSegments("/Documents");
+
+    var isHRMPage =
+    currentPath.StartsWithSegments("/HR") ||
+    currentPath.StartsWithSegments("/HRMEmployee") ||
+    currentPath.StartsWithSegments("/HRMManagement") ||
+    currentPath.StartsWithSegments("/Attendance") ||
+    currentPath.StartsWithSegments("/Leave") ||
+    currentPath.StartsWithSegments("/Payroll") ||
+    currentPath.StartsWithSegments("/Asset") ||
+    currentPath.StartsWithSegments("/Reports") ||
+    isDocumentsPage;
+
+    var isHR =
+        User.IsInRole("HR");
+
+    var isEmployee =
+        User.IsInRole("Employee");
+
+    var isManagement =
+        User.IsInRole("Management");
+
+    var hrProfile =
+        Context.Session.GetString("HRProfileName");
+
+    var companyName =
+        User.FindFirst("CompanyName")?.Value;
+}
+    
 <div class="sidebar-overlay" id="sidebarOverlay"></div>
 <div class="sidebar" id="sidebar">
-    <div class="sidebar-brand">
-        <h5><i class="fas fa-wallet me-2"></i>ExpenseTrack</h5>
-        <small>@User.Identity?.Name</small>
-    </div>
-    <nav class="sidebar-nav">
-        @await Html.PartialAsync("_SidebarNav")
-    </nav>
+        @if (!isPortalPage)
+        {
+            <div class="sidebar-brand">
+                <h5>
+                    <i class="fas @(isHRMPage ? "fa-users" : "fa-wallet") me-2"></i>
+                    @(isHRMPage ? "HRM" : "ExpenseTrack")
+                </h5>
+                <small>@User.Identity?.Name</small>
+
+                @{
+                    var _sidebarCompany = User.FindFirst("CompanyName")?.Value;
+                }
+
+                @if (!string.IsNullOrEmpty(_sidebarCompany))
+                {
+                    <div style="font-size:.64rem;color:#60a5fa;margin-top:3px;letter-spacing:.3px">
+                        <i class="fas fa-building me-1"></i>@_sidebarCompany
+                    </div>
+                }
+            </div>
+        }
+        <nav class="sidebar-nav">
+
+            @if (isPortalPage)
+            {
+                @await Html.PartialAsync("_PortalSidebarNav")
+            }
+           else if (isHRMPage)
+{
+    @if (isEmployee)
+                {
+                    <!-- ============================
+                 HRM - EMPLOYEE
+                 ============================ -->
+
+                    <div class="nav-label">
+                        HRM
+                    </div>
+
+                    <a href="/HRMEmployee/Dashboard"
+                       class="@(currentPath.StartsWithSegments("/HRMEmployee") ? "active" : "")">
+
+                        <i class="fas fa-home"></i>
+                        <span>Dashboard</span>
+
+                    </a>
+
+                    <div class="nav-label">
+                        My HR
+                    </div>
+
+                    <a href="/HRMEmployee/MyProfile">
+                        <i class="fas fa-user"></i>
+                        <span>My Profile</span>
+                    </a>
+
+                    <a href="/HRMEmployee/MyAttendance">
+                        <i class="fas fa-calendar-check"></i>
+                        <span>My Attendance</span>
+                    </a>
+
+                    <a href="/Leave/MyLeave">
+                        <i class="fas fa-calendar-days"></i>
+                        <span>My Leave</span>
+                    </a>
+
+                    <a href="/HRMEmployee/MyPayroll"
+                       class="@(currentPath.StartsWithSegments("/HRMEmployee/MyPayroll") ? "active" : "")">
+
+                        <i class="fas fa-money-check-dollar"></i>
+                        <span>My Payroll</span>
+
+                    </a>
+
+                    <a href="/Documents/Employee"
+                       class="@(currentPath.StartsWithSegments("/Documents/Employee") ? "active" : "")">
+
+                        <i class="fas fa-folder-open"></i>
+                        <span>Documents</span>
+
+                    </a>
+
+                                    <a href="/HRMEmployee/MyAssets"
+                   class="@(currentPath.StartsWithSegments("/HRMEmployee/MyAssets") ? "active" : "")">
+
+                    <i class="fas fa-laptop"></i>
+                    <span>My Assets</span>
+
+                </a>
+                    <div class="nav-label">Expense</div>
+
+                    <a href="/Employee/Dashboard">
+                        <i class="fas fa-wallet"></i>
+                        <span>Expense</span>
+                    </a>
+                }
+                else if (isHR)
+                {
+                    <!-- ============================
+                 HRM - HR
+                 ============================ -->
+
+                    <div class="nav-label">
+                        HRM
+                    </div>
+
+                    <a href="/HR/Dashboard"
+                       class="@(currentPath.StartsWithSegments("/HR/Dashboard") ? "active" : "")">
+
+                        <i class="fas fa-home"></i>
+                        <span>Dashboard</span>
+
+                    </a>
+
+                    <div class="nav-label">
+                        Employee Management
+                    </div>
+
+                    <a href="/HRMEmployee/Index">
+
+                        <i class="fas fa-users"></i>
+                        <span>Employees</span>
+
+                    </a>
+
+                    <a href="/Attendance/Index">
+
+                        <i class="fas fa-calendar-check"></i>
+                        <span>Attendance</span>
+
+                    </a>
+
+                    <a href="/Leave/Index">
+                        <i class="fas fa-calendar-days"></i>
+                        <span>Leave Management</span>
+                    </a>
+
+                    <div class="nav-label">
+                        Payroll
+                    </div>
+
+                    <div class="sidebar-dropdown">
+
+                        <a href="/Payroll/Index"
+                           class="sidebar-dropdown-toggle @(currentPath.StartsWithSegments("/Payroll") ? "active" : "")">
+
+                            <i class="fas fa-money-check-dollar"></i>
+
+                            <span>Payroll</span>
+
+                            <i class="fas fa-chevron-down submenu-arrow"></i>
+
+                        </a>
+
+                        <div class="sidebar-submenu">
+
+                            <a href="/Payroll/DeductionSettings"
+                               class="@(currentPath.StartsWithSegments("/Payroll/DeductionSettings") ? "active" : "")">
+
+                                <i class="fas fa-sliders"></i>
+                                <span>Deduction Settings</span>
+
+                            </a>
+
+                        </div>
+
+                    </div>
+
+                    <a href="/Documents/HR"
+                   class="@(currentPath.StartsWithSegments("/Documents/HR") ? "active" : "")">
+
+                    <i class="fas fa-folder-open"></i>
+                    <span>Documents</span>
+
+                </a>
+
+                                <div class="nav-label">
+                        Asset Management
+                    </div>
+
+                    <a href="/Asset/Index"
+                       class="@(currentPath.StartsWithSegments("/Asset") ? "active" : "")">
+
+                        <i class="fas fa-laptop"></i>
+                        <span>Assets</span>
+
+                    </a>
+
+                    <div class="nav-label">
+                        Performance
+                    </div>
+
+                    <a href="#">
+
+                        <i class="fas fa-chart-line"></i>
+                        <span>Performance</span>
+
+                    </a>
+                    <div class="nav-label">
+                        Reports
+                    </div>
+
+                    <a asp-controller="Reports"
+                       asp-action="Index"
+                       class="@(currentPath.StartsWithSegments("/Reports") ? "active" : "")">
+
+                        <i class="fas fa-chart-column"></i>
+
+                        <span>Reports</span>
+
+                    </a>
+
+                    <div class="nav-label">
+                        Profiles
+                    </div>
+
+                    <a href="/HR/ManageProfiles"
+                       class="@(currentPath.StartsWithSegments("/HR/ManageProfiles") ? "active" : "")">
+
+                        <i class="fas fa-users-gear"></i>
+                        <span>Manage Profiles</span>
+
+                    </a>
+                }
+                else if (isManagement)
+                {
+                    <!-- ============================
+                 HRM - MANAGEMENT
+                 ============================ -->
+
+                    <div class="nav-label">
+                        HRM
+                    </div>
+
+                    <a href="/HRMManagement/Dashboard"
+                       class="@(currentPath.StartsWithSegments("/HRMManagement/Dashboard") ? "active" : "")">
+
+                        <i class="fas fa-home"></i>
+                        <span>Dashboard</span>
+
+                    </a>
+
+                    <div class="nav-label">
+                        HR Management
+                    </div>
+
+                    <a href="/HRMManagement/Employees">
+
+                        <i class="fas fa-users"></i>
+                        <span>Employees</span>
+
+                    </a>
+
+                    <a href="/HRMManagement/Attendance">
+
+                        <i class="fas fa-calendar-check"></i>
+                        <span>Attendance</span>
+
+                    </a>
+
+                    <a href="/Leave/Management">
+
+                        <i class="fas fa-calendar-days"></i>
+                        <span>Leave Management</span>
+
+                    </a>
+
+                    <a href="/HRMManagement/Payroll">
+
+                        <i class="fas fa-money-check-dollar"></i>
+                        <span>Payroll</span>
+
+                    </a>
+
+                    <a href="/HRMManagement/Assets"
+                       class="@(currentPath.StartsWithSegments("/HRMManagement/Assets") ? "active" : "")">
+
+                        <i class="fas fa-laptop"></i>
+                        <span>Assets</span>
+
+                    </a>
+
+                    <a href="#">
+
+                        <i class="fas fa-chart-line"></i>
+                        <span>Performance</span>
+
+                    </a>
+                    <div class="nav-label">
+                        Reports
+                    </div>
+
+                    <a asp-controller="Reports"
+                       asp-action="Index"
+                       class="@(currentPath.StartsWithSegments("/Reports") ? "active" : "")">
+
+                        <i class="fas fa-chart-column"></i>
+
+                        <span>Reports</span>
+
+                    </a>
+
+                        <div class="nav-label">Expense</div>
+
+                        <a href="/Management/Dashboard">
+                            <i class="fas fa-wallet"></i>
+                            <span>Expense</span>
+                        
+
+                    </a>
+                }
+            }
+            else
+            {
+                @await Html.PartialAsync("_SidebarNav")
+            }
+
+        </nav>
     <div class="sidebar-footer">
         <a href="/Account/Logout"><i class="fas fa-sign-out-alt me-2"></i>Logout</a>
     </div>
@@ -180,13 +593,130 @@
                                 User.IsInRole("AccountTeam") ? "/AccountTeam/Notifications" : "/Management/Notifications";
                 var unreadCount = ViewBag.UnreadNotifications as int? ?? 0;
                 bool justLoggedIn = TempData.ContainsKey("JustLoggedIn");
+                var _topbarCompany = User.FindFirst("CompanyName")?.Value;
             }
-            <a href="@notifLink" class="text-secondary notif-badge">
-                <i class="fas fa-bell fs-5"></i>
-                @if(unreadCount > 0) {
-                    <span class="notif-count">@(unreadCount > 9 ? "9+" : unreadCount.ToString())</span>
+            @if (!string.IsNullOrEmpty(_topbarCompany) && !User.IsInRole("Management"))
+            {
+                <span class="d-none d-md-inline badge" style="background:#eff6ff;color:#2563eb;font-size:.72rem;font-weight:600;border-radius:8px;padding:5px 10px">
+                    <i class="fas fa-building me-1"></i>@_topbarCompany
+                </span>
+            }
+            @if (User.IsInRole("AccountTeam"))
+            {
+                var _atProfile = Context.Session.GetString("ATProfileName");
+                if (!string.IsNullOrEmpty(_atProfile))
+                {
+                    <span class="d-none d-md-inline" style="display:flex;align-items:center;gap:6px;background:linear-gradient(135deg,#065f46,#059669);color:#fff;border-radius:20px;padding:4px 12px 4px 8px;font-size:.75rem;font-weight:600">
+                        <span style="width:24px;height:24px;border-radius:50%;background:rgba(255,255,255,.22);display:inline-flex;align-items:center;justify-content:center;font-size:.65rem;font-weight:800">
+                            @(_atProfile.Length > 0 ? _atProfile[0].ToString().ToUpper() : "A")
+                        </span>
+                        @_atProfile
+                        <form method="post" action="/AccountTeam/SwitchProfile" style="margin:0;padding:0;display:inline">
+                            @Html.AntiForgeryToken()
+                            <button type="submit" title="Switch Profile" style="background:rgba(255,255,255,.2);border:none;color:#fff;border-radius:50%;width:16px;height:16px;padding:0;cursor:pointer;font-size:.55rem;display:inline-flex;align-items:center;justify-content:center;margin-left:2px;transition:background .2s" onmouseover="this.style.background='rgba(255,255,255,.4)'" onmouseout="this.style.background='rgba(255,255,255,.2)'">
+                                <i class="fas fa-sync-alt"></i>
+                            </button>
+                        </form>
+                    </span>
                 }
-            </a>
+            }
+                @if (User.IsInRole("HR"))
+                {
+                    var _hrProfileName =
+                        Context.Session.GetString("HRProfileName");
+
+                    if (!string.IsNullOrEmpty(_hrProfileName))
+                    {
+                        <span class="d-none d-md-inline"
+                              style="display:flex;align-items:center;gap:6px;
+                            background:linear-gradient(135deg,#1e3a5f,#1d4ed8);
+                            color:#fff;border-radius:20px;
+                            padding:4px 12px 4px 8px;
+                            font-size:.75rem;font-weight:600">
+
+                            <span style="
+                                width:24px;
+                                height:24px;
+                                border-radius:50%;
+                                background:rgba(255,255,255,.2);
+                                display:inline-flex;
+                                align-items:center;
+                                justify-content:center;
+                                font-size:.65rem;
+                                font-weight:800">
+
+                                @(_hrProfileName.Length > 0
+                                    ? _hrProfileName[0].ToString().ToUpper()
+                                    : "H")
+
+                            </span>
+
+                            @_hrProfileName
+
+                            <form method="post"
+                                  action="/HR/SwitchProfile"
+                                  style="margin:0;padding:0;display:inline">
+
+                                @Html.AntiForgeryToken()
+
+                                <button type="submit"
+                                        title="Switch HR Profile"
+                                        style="
+                                    background:rgba(255,255,255,.2);
+                                    border:none;
+                                    color:#fff;
+                                    border-radius:50%;
+                                    width:16px;
+                                    height:16px;
+                                    padding:0;
+                                    cursor:pointer;
+                                    font-size:.55rem;
+                                    display:inline-flex;
+                                    align-items:center;
+                                    justify-content:center;
+                                    margin-left:2px;">
+
+                                    <i class="fas fa-sync-alt"></i>
+
+                                </button>
+
+                            </form>
+
+                        </span>
+                    }
+                }
+            @if (User.IsInRole("Management"))
+            {
+                var _directorName = Context.Session.GetString("DirectorName");
+                if (!string.IsNullOrEmpty(_directorName))
+                {
+                    <span class="d-none d-md-inline" style="display:flex;align-items:center;gap:6px;background:linear-gradient(135deg,#1e3a5f,#1d4ed8);color:#fff;border-radius:20px;padding:4px 12px 4px 8px;font-size:.75rem;font-weight:600">
+                        <span style="width:24px;height:24px;border-radius:50%;background:rgba(255,255,255,.2);display:inline-flex;align-items:center;justify-content:center;font-size:.65rem;font-weight:800">
+                            @(_directorName.Length > 0 ? _directorName[0].ToString() : "D")
+                        </span>
+                        @_directorName
+                        <form method="post" action="/Management/SwitchDirector" style="margin:0;padding:0;display:inline">
+                            @Html.AntiForgeryToken()
+                            <button type="submit" title="Switch Director" style="background:rgba(255,255,255,.2);border:none;color:#fff;border-radius:50%;width:16px;height:16px;padding:0;cursor:pointer;font-size:.55rem;display:inline-flex;align-items:center;justify-content:center;margin-left:2px;transition:background .2s" onmouseover="this.style.background='rgba(255,255,255,.4)'" onmouseout="this.style.background='rgba(255,255,255,.2)'">
+                                <i class="fas fa-sync-alt"></i>
+                            </button>
+                        </form>
+                    </span>
+                }
+            }
+                @if (!isPortalPage)
+                {
+                    <a href="@notifLink" class="text-secondary notif-badge">
+                        <i class="fas fa-bell fs-5"></i>
+
+                        @if (unreadCount > 0)
+                        {
+                            <span class="notif-count">
+                                @(unreadCount > 9 ? "9+" : unreadCount.ToString())
+                            </span>
+                        }
+                    </a>
+                }
             <span class="text-muted d-none d-md-inline" style="font-size:.85rem">
                 <i class="fas fa-user-circle me-1"></i>@User.Identity?.Name
             </span>
@@ -227,8 +757,8 @@ overlay?.addEventListener('click', () => {
 });
 </script>
 
-@if (justLoggedIn && unreadCount > 0)
-{
+    @if (!isPortalPage && justLoggedIn && unreadCount > 0)
+    {
     var notifText = unreadCount == 1 ? "1 unread notification" : $"{unreadCount} unread notifications";
     <!-- Blurred backdrop overlay -->
     <div id="loginNotifOverlay" style="position:fixed;inset:0;background:rgba(15,23,42,.5);backdrop-filter:blur(7px);-webkit-backdrop-filter:blur(7px);z-index:9998;animation:fadeInOverlay .3s ease"></div>

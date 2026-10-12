@@ -1,0 +1,1381 @@
+﻿@using ExpenseManagement.Models
+@using System.Linq
+
+@model object
+@{
+    Layout = "~/Views/Shared/_Layout.cshtml";
+    ViewData["Title"] = "Asset Management";
+}
+@{
+    var page = ViewBag.AssetPage as string ?? "Index";
+
+    var assets = Model as IEnumerable<Asset>
+        ?? Enumerable.Empty<Asset>();
+
+    var asset = Model as Asset
+        ?? ViewBag.Asset as Asset;
+
+    var history = Model as IEnumerable<AssetHistory>
+        ?? (ViewBag.History as IEnumerable<AssetHistory>
+            ?? Enumerable.Empty<AssetHistory>());
+
+    var employees =
+        ViewBag.Employees as IEnumerable<Employee>
+        ?? Enumerable.Empty<Employee>();
+
+    ViewData["Title"] = page switch
+    {
+        "Create" => "Add Asset",
+        "Edit" => "Edit Asset",
+        "Assign" => "Assign Asset",
+        "Return" => "Return Asset",
+        "Details" => "Asset Details",
+        "History" => "Asset History",
+        _ => "Asset Management"
+    };
+}
+
+<div class="container-fluid py-3">
+
+    @* ============================================================
+       ALERTS
+       ============================================================ *@
+
+    @if (TempData["Success"] != null)
+    {
+        <div class="alert alert-success alert-dismissible fade show">
+            <i class="bi bi-check-circle me-2"></i>
+            @TempData["Success"]
+
+            <button type="button"
+                    class="btn-close"
+                    data-bs-dismiss="alert">
+            </button>
+        </div>
+    }
+
+    @if (TempData["Error"] != null)
+    {
+        <div class="alert alert-danger alert-dismissible fade show">
+            <i class="bi bi-exclamation-triangle me-2"></i>
+            @TempData["Error"]
+
+            <button type="button"
+                    class="btn-close"
+                    data-bs-dismiss="alert">
+            </button>
+        </div>
+    }
+
+    @if (!ViewData.ModelState.IsValid)
+    {
+        <div class="alert alert-danger">
+            <div asp-validation-summary="ModelOnly"></div>
+        </div>
+    }
+
+
+    @* ============================================================
+       HR ASSET DASHBOARD / LIST
+       ============================================================ *@
+
+    @if (page == "Index")
+    {
+        <div class="d-flex flex-wrap justify-content-between
+                    align-items-center gap-2 mb-4">
+
+            <div>
+                <h2 class="fw-bold mb-1">
+                    Asset Management
+                </h2>
+
+                <p class="text-muted mb-0">
+                    Manage company assets, assignments and history.
+                </p>
+            </div>
+
+            <a asp-controller="Asset"
+               asp-action="Create"
+               class="btn btn-primary">
+
+                <i class="bi bi-plus-lg me-1"></i>
+                Add Asset
+            </a>
+        </div>
+
+
+        <div class="row g-3 mb-4">
+
+            <div class="col-6 col-xl-3">
+                <div class="card border-0 shadow-sm h-100">
+                    <div class="card-body">
+                        <div class="text-muted small">
+                            Total Assets
+                        </div>
+
+                        <div class="fs-3 fw-bold">
+                            @ViewBag.TotalAssets
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+
+            <div class="col-6 col-xl-3">
+                <div class="card border-0 shadow-sm h-100">
+                    <div class="card-body">
+                        <div class="text-muted small">
+                            Available
+                        </div>
+
+                        <div class="fs-3 fw-bold text-success">
+                            @ViewBag.AvailableAssets
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+
+            <div class="col-6 col-xl-3">
+                <div class="card border-0 shadow-sm h-100">
+                    <div class="card-body">
+                        <div class="text-muted small">
+                            Assigned
+                        </div>
+
+                        <div class="fs-3 fw-bold text-primary">
+                            @ViewBag.AssignedAssets
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+
+            <div class="col-6 col-xl-3">
+                <div class="card border-0 shadow-sm h-100">
+                    <div class="card-body">
+                        <div class="text-muted small">
+                            Under Maintenance
+                        </div>
+
+                        <div class="fs-3 fw-bold text-warning">
+                            @ViewBag.MaintenanceAssets
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+
+
+        @* FILTERS *@
+
+        <div class="card border-0 shadow-sm mb-4">
+
+            <div class="card-body">
+
+                <form method="get"
+                      asp-controller="Asset"
+                      asp-action="Index"
+                      class="row g-2">
+
+                    <div class="col-lg-5">
+
+                        <input name="search"
+                               value="@ViewBag.Search"
+                               class="form-control"
+                               placeholder="Search asset code, name, type or serial number..." />
+
+                    </div>
+
+
+                    <div class="col-md-3 col-lg-2">
+
+                        <select name="status"
+                                class="form-select">
+
+                            <option value="">
+                                All Statuses
+                            </option>
+
+                            <option value="Available">
+                                Available
+                            </option>
+
+                            <option value="Assigned">
+                                Assigned
+                            </option>
+
+                            <option value="Under Maintenance">
+                                Under Maintenance
+                            </option>
+
+                            <option value="Lost/Damaged">
+                                Lost/Damaged
+                            </option>
+
+                            <option value="Retired/Disposed">
+                                Retired/Disposed
+                            </option>
+
+                        </select>
+
+                    </div>
+
+
+                    <div class="col-md-3 col-lg-3">
+
+                        <select name="assetType"
+                                class="form-select">
+
+                            <option value="">
+                                All Asset Types
+                            </option>
+
+                            @foreach (
+                                var type in
+                                (IEnumerable<string>)
+                                (ViewBag.AssetTypes
+                                    ?? Enumerable.Empty<string>()))
+                            {
+                                <option value="@type">
+                                    @type
+                                </option>
+                            }
+
+                        </select>
+
+                    </div>
+
+
+                    <div class="col-md-3 col-lg-2 d-flex gap-2">
+
+                        <button class="btn btn-outline-primary flex-fill">
+
+                            <i class="bi bi-search me-1"></i>
+                            Filter
+
+                        </button>
+
+                        <a href="@Url.Action("Index", "Asset")"
+   class="btn btn-outline-secondary"
+   title="Clear Filters"
+   aria-label="Clear Filters">
+    <i class="fas fa-rotate-left"></i>
+</a>
+
+                    </div>
+
+                </form>
+
+            </div>
+
+        </div>
+
+
+        @* ASSET TABLE *@
+
+        <div class="card border-0 shadow-sm">
+
+            <div class="card-header bg-white py-3">
+
+                <h5 class="mb-0 fw-semibold">
+                    Company Assets
+                </h5>
+
+            </div>
+
+            <div class="card-body p-0">
+
+                <div class="table-responsive">
+
+                    <table class="table table-hover align-middle mb-0">
+
+                        <thead class="table-light">
+
+                            <tr>
+
+                                <th>Asset Code</th>
+                                <th>Asset</th>
+                                <th>Type</th>
+                                <th>Serial Number</th>
+                                <th>Assigned To</th>
+                                <th>Status</th>
+                                <th class="text-end">
+                                    Actions
+                                </th>
+
+                            </tr>
+
+                        </thead>
+
+                        <tbody>
+
+                            @if (!assets.Any())
+                            {
+                                <tr>
+
+                                    <td colspan="7"
+                                        class="text-center py-5 text-muted">
+
+                                        No assets found.
+
+                                    </td>
+
+                                </tr>
+                            }
+                            else
+                            {
+                                @foreach (var item in assets)
+                                {
+                                    var badge = item.Status switch
+                                    {
+                                        "Available"
+                                            => "bg-success-subtle text-success",
+
+                                        "Assigned"
+                                            => "bg-primary-subtle text-primary",
+
+                                        "Under Maintenance"
+                                            => "bg-warning-subtle text-warning-emphasis",
+
+                                        "Lost/Damaged"
+                                            => "bg-danger-subtle text-danger",
+
+                                        _
+                                            => "bg-secondary-subtle text-secondary"
+                                    };
+
+                                    <tr>
+
+                                        <td class="fw-semibold">
+                                            @item.AssetCode
+                                        </td>
+
+                                        <td>
+                                            @item.AssetName
+                                        </td>
+
+                                        <td>
+                                            @(item.AssetType ?? "-")
+                                        </td>
+
+                                        <td>
+                                            @(item.SerialNumber ?? "-")
+                                        </td>
+
+                                        <td>
+                                            @(item.CurrentEmployee?
+                                                .User?
+                                                .FullName ?? "—")
+                                        </td>
+
+                                        <td>
+
+                                            <span class="badge @badge">
+                                                @item.Status
+                                            </span>
+
+                                        </td>
+
+                                        <td class="text-end">
+
+                                            <div class="btn-group btn-group-sm">
+
+                                                <a asp-action="Details"
+                                                   asp-route-id="@item.Id"
+                                                   class="btn btn-outline-primary">
+                                                    View
+                                                </a>
+
+                                                <a asp-action="Edit"
+                                                   asp-route-id="@item.Id"
+                                                   class="btn btn-outline-secondary">
+                                                    Edit
+                                                </a>
+
+                                                @if (item.Status == "Available" &&
+                                                     !item.CurrentEmployeeId.HasValue)
+                                                {
+                                                    <a asp-action="Assign"
+                                                       asp-route-id="@item.Id"
+                                                       class="btn btn-outline-success">
+                                                        Assign
+                                                    </a>
+                                                }
+
+                                                @if (item.Status == "Assigned" &&
+                                                     item.CurrentEmployeeId.HasValue)
+                                                {
+                                                    <a asp-action="Return"
+                                                       asp-route-id="@item.Id"
+                                                       class="btn btn-outline-warning">
+                                                        Return
+                                                    </a>
+                                                }
+
+                                            </div>
+
+                                        </td>
+
+                                    </tr>
+                                }
+                            }
+
+                        </tbody>
+
+                    </table>
+
+                </div>
+
+            </div>
+
+        </div>
+    }
+
+
+    @* ============================================================
+       CREATE / EDIT
+       ============================================================ *@
+
+    @if (page == "Create" || page == "Edit")
+    {
+        var isEdit = page == "Edit";
+
+        <div class="d-flex justify-content-between
+                    align-items-center mb-4">
+
+            <div>
+
+                <h2 class="fw-bold mb-1">
+                    @(isEdit ? "Edit Asset" : "Add Asset")
+                </h2>
+
+                <p class="text-muted mb-0">
+                    @(isEdit
+                        ? "Update the asset master information."
+                        : "Register a new company asset.")
+                </p>
+
+            </div>
+
+            <a asp-action="Index"
+               class="btn btn-outline-secondary">
+
+                <i class="bi bi-arrow-left me-1"></i>
+                Back
+
+            </a>
+
+        </div>
+
+
+        <div class="card border-0 shadow-sm">
+
+            <div class="card-body">
+
+                <form asp-action="@(isEdit ? "Edit" : "Create")"
+                      asp-route-id="@(isEdit ? asset?.Id : null)"
+                      method="post">
+
+                    @Html.AntiForgeryToken()
+
+
+                    <div class="row g-3">
+
+                        <div class="col-md-6">
+
+                            <label class="form-label">
+                                Asset Code
+                                <span class="text-danger">*</span>
+                            </label>
+
+                            <input name="AssetCode"
+                                   value="@asset?.AssetCode"
+                                   class="form-control"
+                                   maxlength="50"
+                                   required />
+
+                        </div>
+
+
+                        <div class="col-md-6">
+
+                            <label class="form-label">
+                                Asset Name
+                                <span class="text-danger">*</span>
+                            </label>
+
+                            <input name="AssetName"
+                                   value="@asset?.AssetName"
+                                   class="form-control"
+                                   maxlength="150"
+                                   required />
+
+                        </div>
+
+
+                        <div class="col-md-4">
+
+                            <label class="form-label">
+                                Asset Type
+                            </label>
+
+                            <input name="AssetType"
+                                   value="@asset?.AssetType"
+                                   class="form-control"
+                                   maxlength="100"
+                                   placeholder="Laptop, Monitor, Phone..." />
+
+                        </div>
+
+
+                        <div class="col-md-4">
+
+                            <label class="form-label">
+                                Serial Number
+                            </label>
+
+                            <input name="SerialNumber"
+                                   value="@asset?.SerialNumber"
+                                   class="form-control"
+                                   maxlength="150" />
+
+                        </div>
+
+
+                        <div class="col-md-4">
+
+                            <label class="form-label">
+                                Status
+                            </label>
+
+                            <input class="form-control"
+                                   value="@(isEdit
+                                       ? asset?.Status
+                                       : "Available")"
+                                   disabled />
+
+                        </div>
+
+
+                        <div class="col-12">
+
+                            <label class="form-label">
+                                Description
+                            </label>
+
+                            <textarea name="Description"
+                                      class="form-control"
+                                      rows="4">@asset?.Description</textarea>
+
+                        </div>
+
+
+                        <div class="col-12">
+
+                            <label class="form-label">
+                                Remarks
+                            </label>
+
+                            <textarea name="Remarks"
+                                      class="form-control"
+                                      rows="3">@asset?.Remarks</textarea>
+
+                        </div>
+
+                    </div>
+
+
+                    <div class="d-flex justify-content-end gap-2 mt-4">
+
+                        <a asp-action="Index"
+                           class="btn btn-outline-secondary">
+                            Cancel
+                        </a>
+
+                        <button class="btn btn-primary">
+
+                            <i class="bi bi-check-lg me-1"></i>
+
+                            @(isEdit
+                                ? "Save Changes"
+                                : "Create Asset")
+
+                        </button>
+
+                    </div>
+
+                </form>
+
+            </div>
+
+        </div>
+    }
+
+
+    @* ============================================================
+       DETAILS
+       ============================================================ *@
+
+    @if (page == "Details" && asset != null)
+    {
+        <div class="d-flex flex-wrap
+                    justify-content-between
+                    align-items-center
+                    gap-2 mb-4">
+
+            <div>
+
+                <h2 class="fw-bold mb-1">
+                    @asset.AssetName
+                </h2>
+
+                <p class="text-muted mb-0">
+                    @asset.AssetCode ·
+                    @(asset.AssetType ?? "Asset")
+                </p>
+
+            </div>
+
+
+            <div class="d-flex gap-2">
+
+                <a asp-action="Index"
+                   class="btn btn-outline-secondary">
+                    Back
+                </a>
+
+                <a asp-action="History"
+                   asp-route-id="@asset.Id"
+                   class="btn btn-outline-primary">
+                    History
+                </a>
+
+                <a asp-action="Edit"
+                   asp-route-id="@asset.Id"
+                   class="btn btn-outline-secondary">
+                    Edit
+                </a>
+
+                @if (asset.Status == "Available" &&
+                     !asset.CurrentEmployeeId.HasValue)
+                {
+                    <a asp-action="Assign"
+                       asp-route-id="@asset.Id"
+                       class="btn btn-success">
+                        Assign
+                    </a>
+                }
+
+                @if (asset.Status == "Assigned" &&
+                     asset.CurrentEmployeeId.HasValue)
+                {
+                    <a asp-action="Return"
+                       asp-route-id="@asset.Id"
+                       class="btn btn-warning">
+                        Return
+                    </a>
+                }
+
+            </div>
+
+        </div>
+
+
+        <div class="row g-3">
+
+            <div class="col-lg-8">
+
+                <div class="card border-0 shadow-sm h-100">
+
+                    <div class="card-header bg-white py-3">
+
+                        <h5 class="mb-0">
+                            Asset Information
+                        </h5>
+
+                    </div>
+
+                    <div class="card-body">
+
+                        <div class="row g-3">
+
+                            <div class="col-md-6">
+
+                                <div class="text-muted small">
+                                    Asset Code
+                                </div>
+
+                                <div class="fw-semibold">
+                                    @asset.AssetCode
+                                </div>
+
+                            </div>
+
+
+                            <div class="col-md-6">
+
+                                <div class="text-muted small">
+                                    Asset Type
+                                </div>
+
+                                <div>
+                                    @(asset.AssetType ?? "—")
+                                </div>
+
+                            </div>
+
+
+                            <div class="col-md-6">
+
+                                <div class="text-muted small">
+                                    Serial Number
+                                </div>
+
+                                <div>
+                                    @(asset.SerialNumber ?? "—")
+                                </div>
+
+                            </div>
+
+
+                            <div class="col-md-6">
+
+                                <div class="text-muted small">
+                                    Status
+                                </div>
+
+                                <div>
+                                    <span class="badge bg-primary-subtle text-primary">
+                                        @asset.Status
+                                    </span>
+                                </div>
+
+                            </div>
+
+
+                            <div class="col-md-6">
+
+                                <div class="text-muted small">
+                                    Current Employee
+                                </div>
+
+                                <div>
+                                    @(asset.CurrentEmployee?
+                                        .User?
+                                        .FullName ?? "Not assigned")
+                                </div>
+
+                            </div>
+
+
+                            <div class="col-md-6">
+
+                                <div class="text-muted small">
+                                    Assigned On
+                                </div>
+
+                                <div>
+                                    @(asset.AssignedOn?
+                                        .ToString("dd MMM yyyy") ?? "—")
+                                </div>
+
+                            </div>
+
+
+                            <div class="col-md-6">
+
+                                <div class="text-muted small">
+                                    Expected Return
+                                </div>
+
+                                <div>
+                                    @(asset.ExpectedReturnDate?
+                                        .ToString("dd MMM yyyy") ?? "—")
+                                </div>
+
+                            </div>
+
+
+                            <div class="col-md-6">
+
+                                <div class="text-muted small">
+                                    Returned On
+                                </div>
+
+                                <div>
+                                    @(asset.ReturnedOn?
+                                        .ToString("dd MMM yyyy") ?? "—")
+                                </div>
+
+                            </div>
+
+
+                            <div class="col-12">
+
+                                <div class="text-muted small">
+                                    Description
+                                </div>
+
+                                <div>
+                                    @(asset.Description ?? "—")
+                                </div>
+
+                            </div>
+
+
+                            <div class="col-12">
+
+                                <div class="text-muted small">
+                                    Remarks
+                                </div>
+
+                                <div>
+                                    @(asset.Remarks ?? "—")
+                                </div>
+
+                            </div>
+
+                        </div>
+
+                    </div>
+
+                </div>
+
+            </div>
+
+
+            <div class="col-lg-4">
+
+                <div class="card border-0 shadow-sm h-100">
+
+                    <div class="card-header bg-white py-3">
+
+                        <h5 class="mb-0">
+                            Assignment Condition
+                        </h5>
+
+                    </div>
+
+                    <div class="card-body">
+
+                        <div class="text-muted small">
+                            Condition on Assignment
+                        </div>
+
+                        <p>
+                            @(asset.ConditionOnAssignment ?? "—")
+                        </p>
+
+
+                        <div class="text-muted small">
+                            Condition on Return
+                        </div>
+
+                        <p>
+                            @(asset.ConditionOnReturn ?? "—")
+                        </p>
+
+                    </div>
+
+                </div>
+
+            </div>
+
+        </div>
+
+
+        <div class="card border-0 shadow-sm mt-3">
+
+            <div class="card-header bg-white py-3
+                        d-flex justify-content-between">
+
+                <h5 class="mb-0">
+                    Recent History
+                </h5>
+
+                <a asp-action="History"
+                   asp-route-id="@asset.Id">
+                    View all
+                </a>
+
+            </div>
+
+
+            <div class="card-body p-0">
+
+                <div class="table-responsive">
+
+                    <table class="table table-hover
+                                  align-middle mb-0">
+
+                        <thead class="table-light">
+
+                            <tr>
+                                <th>Action</th>
+                                <th>Employee</th>
+                                <th>Date</th>
+                                <th>Condition</th>
+                                <th>Performed By</th>
+                            </tr>
+
+                        </thead>
+
+                        <tbody>
+
+                            @foreach (var h in history.Take(5))
+                            {
+                                <tr>
+
+                                    <td class="fw-semibold">
+                                        @h.Action
+                                    </td>
+
+                                    <td>
+                                        @(h.Employee?
+                                            .User?
+                                            .FullName ?? "—")
+                                    </td>
+
+                                    <td>
+                                        @h.ActionDate.ToString(
+                                            "dd MMM yyyy")
+                                    </td>
+
+                                    <td>
+                                        @(h.Condition ?? "—")
+                                    </td>
+
+                                    <td>
+                                        @(h.PerformedByUser?
+                                            .FullName ?? "—")
+                                    </td>
+
+                                </tr>
+                            }
+
+                            @if (!history.Any())
+                            {
+                                <tr>
+
+                                    <td colspan="5"
+                                        class="text-center
+                                               text-muted py-4">
+
+                                        No history available.
+
+                                    </td>
+
+                                </tr>
+                            }
+
+                        </tbody>
+
+                    </table>
+
+                </div>
+
+            </div>
+
+        </div>
+    }
+
+
+    @* ============================================================
+       ASSIGN
+       ============================================================ *@
+
+    @if (page == "Assign" && asset != null)
+    {
+        <div class="mb-4">
+
+            <h2 class="fw-bold mb-1">
+                Assign Asset
+            </h2>
+
+            <p class="text-muted mb-0">
+                @asset.AssetCode ·
+                @asset.AssetName
+            </p>
+
+        </div>
+
+
+        <div class="card border-0 shadow-sm">
+
+            <div class="card-body">
+
+                <form asp-action="Assign"
+                      asp-route-id="@asset.Id"
+                      method="post">
+
+                    @Html.AntiForgeryToken()
+
+
+                    <div class="row g-3">
+
+                        <div class="col-md-6">
+
+                            <label class="form-label">
+                                Employee
+                                <span class="text-danger">*</span>
+                            </label>
+
+                            <select name="employeeId"
+                                    class="form-select"
+                                    required>
+
+                                <option value="">
+                                    Select employee
+                                </option>
+
+                                @foreach (var employee in employees)
+                                {
+                                    <option value="@employee.Id">
+                                        @employee.User.FullName
+                                        (@employee.EmployeeCode)
+                                    </option>
+                                }
+
+                            </select>
+
+                            <span class="text-danger">
+                                @Html.ValidationMessage(
+                                    "employeeId")
+                            </span>
+
+                        </div>
+
+
+                        <div class="col-md-3">
+
+                            <label class="form-label">
+                                Assigned On
+                            </label>
+
+                            <input type="date"
+                                   name="assignedOn"
+                                   value="@DateTime.UtcNow
+                                       .ToString("yyyy-MM-dd")"
+                                   class="form-control"
+                                   required />
+
+                        </div>
+
+
+                        <div class="col-md-3">
+
+                            <label class="form-label">
+                                Expected Return
+                            </label>
+
+                            <input type="date"
+                                   name="expectedReturnDate"
+                                   class="form-control" />
+
+                        </div>
+
+
+                        <div class="col-12">
+
+                            <label class="form-label">
+                                Condition on Assignment
+                            </label>
+
+                            <input name="condition"
+                                   class="form-control"
+                                   placeholder="New, Good, Used, etc." />
+
+                        </div>
+
+
+                        <div class="col-12">
+
+                            <label class="form-label">
+                                Remarks
+                            </label>
+
+                            <textarea name="remarks"
+                                      class="form-control"
+                                      rows="3"></textarea>
+
+                        </div>
+
+                    </div>
+
+
+                    <div class="d-flex
+                                justify-content-end
+                                gap-2 mt-4">
+
+                        <a asp-action="Details"
+                           asp-route-id="@asset.Id"
+                           class="btn btn-outline-secondary">
+                            Cancel
+                        </a>
+
+                        <button class="btn btn-success">
+
+                            <i class="bi bi-person-check me-1"></i>
+                            Assign Asset
+
+                        </button>
+
+                    </div>
+
+                </form>
+
+            </div>
+
+        </div>
+    }
+
+
+    @* ============================================================
+       RETURN
+       ============================================================ *@
+
+    @if (page == "Return" && asset != null)
+    {
+        <div class="mb-4">
+
+            <h2 class="fw-bold mb-1">
+                Return Asset
+            </h2>
+
+            <p class="text-muted mb-0">
+
+                @asset.AssetCode ·
+                @asset.AssetName ·
+
+                Currently assigned to
+                @(asset.CurrentEmployee?
+                    .User?
+                    .FullName ?? "Employee")
+
+            </p>
+
+        </div>
+
+
+        <div class="card border-0 shadow-sm">
+
+            <div class="card-body">
+
+                <form asp-action="Return"
+                      asp-route-id="@asset.Id"
+                      method="post">
+
+                    @Html.AntiForgeryToken()
+
+
+                    <div class="row g-3">
+
+                        <div class="col-md-4">
+
+                            <label class="form-label">
+                                Returned On
+                            </label>
+
+                            <input type="date"
+                                   name="returnedOn"
+                                   value="@DateTime.UtcNow
+                                       .ToString("yyyy-MM-dd")"
+                                   class="form-control"
+                                   required />
+
+                            <span class="text-danger">
+                                @Html.ValidationMessage(
+                                    "returnedOn")
+                            </span>
+
+                        </div>
+
+
+                        <div class="col-md-8">
+
+                            <label class="form-label">
+                                Condition on Return
+                            </label>
+
+                            <input name="condition"
+                                   class="form-control"
+                                   placeholder="Good, Damaged, Needs repair..." />
+
+                        </div>
+
+
+                        <div class="col-12">
+
+                            <label class="form-label">
+                                Remarks
+                            </label>
+
+                            <textarea name="remarks"
+                                      class="form-control"
+                                      rows="3"></textarea>
+
+                        </div>
+
+                    </div>
+
+
+                    <div class="d-flex
+                                justify-content-end
+                                gap-2 mt-4">
+
+                        <a asp-action="Details"
+                           asp-route-id="@asset.Id"
+                           class="btn btn-outline-secondary">
+                            Cancel
+                        </a>
+
+                        <button class="btn btn-warning">
+
+                            <i class="bi bi-box-arrow-in-left me-1"></i>
+                            Return Asset
+
+                        </button>
+
+                    </div>
+
+                </form>
+
+            </div>
+
+        </div>
+    }
+
+
+    @* ============================================================
+       HISTORY
+       ============================================================ *@
+
+    @if (page == "History")
+    {
+        <div class="d-flex flex-wrap
+                    justify-content-between
+                    align-items-center
+                    gap-2 mb-4">
+
+            <div>
+
+                <h2 class="fw-bold mb-1">
+                    Asset History
+                </h2>
+
+                <p class="text-muted mb-0">
+                    @asset?.AssetCode ·
+                    @asset?.AssetName
+                </p>
+
+            </div>
+
+
+            <div class="d-flex gap-2">
+
+                <a asp-action="Details"
+                   asp-route-id="@asset?.Id"
+                   class="btn btn-outline-primary">
+                    Details
+                </a>
+
+                <a asp-action="Index"
+                   class="btn btn-outline-secondary">
+                    Back
+                </a>
+
+            </div>
+
+        </div>
+
+
+        <div class="card border-0 shadow-sm">
+
+            <div class="card-body p-0">
+
+                <div class="table-responsive">
+
+                    <table class="table table-hover
+                                  align-middle mb-0">
+
+                        <thead class="table-light">
+
+                            <tr>
+
+                                <th>Action</th>
+                                <th>Employee</th>
+                                <th>Date</th>
+                                <th>Condition</th>
+                                <th>Remarks</th>
+                                <th>Performed By</th>
+
+                            </tr>
+
+                        </thead>
+
+                        <tbody>
+
+                            @foreach (var h in history)
+                            {
+                                <tr>
+
+                                    <td class="fw-semibold">
+                                        @h.Action
+                                    </td>
+
+                                    <td>
+                                        @(h.Employee?
+                                            .User?
+                                            .FullName ?? "—")
+                                    </td>
+
+                                    <td>
+                                        @h.ActionDate.ToString(
+                                            "dd MMM yyyy")
+                                    </td>
+
+                                    <td>
+                                        @(h.Condition ?? "—")
+                                    </td>
+
+                                    <td>
+                                        @(h.Remarks ?? "—")
+                                    </td>
+
+                                    <td>
+                                        @(h.PerformedByUser?
+                                            .FullName ?? "—")
+                                    </td>
+
+                                </tr>
+                            }
+
+                            @if (!history.Any())
+                            {
+                                <tr>
+
+                                    <td colspan="6"
+                                        class="text-center
+                                               text-muted py-5">
+
+                                        No history found.
+
+                                    </td>
+
+                                </tr>
+                            }
+
+                        </tbody>
+
+                    </table>
+
+                </div>
+
+            </div>
+
+        </div>
+    }
+
+</div>

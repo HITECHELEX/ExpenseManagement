@@ -1,0 +1,589 @@
+﻿@model ExpenseManagement.Models.Employee
+
+@{
+    ViewData["Title"] = "Employee Details";
+}
+
+<div class="container-fluid">
+
+    <!-- Header -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+
+        <div>
+            <h2 class="mb-1">Employee Details</h2>
+            <p class="text-muted mb-0">
+                View employee HR profile and employment information.
+            </p>
+        </div>
+
+        <div class="d-flex gap-2">
+
+            <a asp-controller="HRMEmployee"
+               asp-action="Edit"
+               asp-route-id="@Model.Id"
+               class="btn btn-primary">
+                <i class="fas fa-edit me-1"></i>
+                Edit
+            </a>
+
+            <a asp-controller="HRMEmployee"
+               asp-action="Index"
+               class="btn btn-secondary">
+                <i class="fas fa-arrow-left me-1"></i>
+                Back to Employees
+            </a>
+
+        </div>
+
+    </div>
+
+
+    <!-- Employee Header Card -->
+    <div class="card shadow-sm mb-4">
+
+        <div class="card-body">
+
+            <div class="row align-items-center">
+
+                <div class="col-md-8">
+
+                    <h3 class="mb-1">
+                        @Model.User.FullName
+                    </h3>
+
+                    <div class="text-muted mb-2">
+                        @Model.EmployeeCode
+                        @if (!string.IsNullOrWhiteSpace(Model.Designation))
+                        {
+                            <span> • @Model.Designation</span>
+                        }
+                    </div>
+
+                    <div>
+                        <span class="me-3">
+                            <i class="fas fa-envelope me-1"></i>
+                            @Model.User.Email
+                        </span>
+
+                        @if (!string.IsNullOrWhiteSpace(Model.Phone))
+                        {
+                            <span>
+                                <i class="fas fa-phone me-1"></i>
+                                @Model.Phone
+                            </span>
+                        }
+                    </div>
+
+                </div>
+
+                <div class="col-md-4 text-md-end mt-3 mt-md-0">
+
+                    @if (Model.EmploymentStatus == "Active")
+                    {
+                        <span class="badge bg-success fs-6">
+                            Active
+                        </span>
+                    }
+                    else if (Model.EmploymentStatus == "On Notice")
+                    {
+                        <span class="badge bg-warning text-dark fs-6">
+                            On Notice
+                        </span>
+                    }
+                    else
+                    {
+                        <span class="badge bg-secondary fs-6">
+                            @(Model.EmploymentStatus ?? "Inactive")
+                        </span>
+                    }
+
+                </div>
+
+            </div>
+
+        </div>
+
+    </div>
+
+
+    <div class="row">
+
+        <!-- Personal Information -->
+        <div class="col-lg-6 mb-4">
+
+            <div class="card shadow-sm h-100">
+
+                <div class="card-header bg-white">
+                    <h5 class="mb-0">
+                        <i class="fas fa-user me-2"></i>
+                        Personal Information
+                    </h5>
+                </div>
+
+                <div class="card-body">
+
+                    <div class="row">
+
+                        <div class="col-sm-6 mb-3">
+                            <small class="text-muted d-block">
+                                Full Name
+                            </small>
+                            <strong>
+                                @Model.User.FullName
+                            </strong>
+                        </div>
+
+                        <div class="col-sm-6 mb-3">
+                            <small class="text-muted d-block">
+                                Employee Code
+                            </small>
+                            <strong>
+                                @Model.EmployeeCode
+                            </strong>
+                        </div>
+
+                        <div class="col-sm-6 mb-3">
+                            <small class="text-muted d-block">
+                                Date of Birth
+                            </small>
+                            @(Model.DateOfBirth?.ToString("dd MMM yyyy") ?? "-")
+                        </div>
+
+                        <div class="col-sm-6 mb-3">
+                            <small class="text-muted d-block">
+                                Gender
+                            </small>
+                            @(Model.Gender ?? "-")
+                        </div>
+
+                        <div class="col-sm-6 mb-3">
+    <small class="text-muted d-block">
+        Aadhaar Number
+    </small>
+
+    @(string.IsNullOrWhiteSpace(Model.AadhaarNumber)
+        ? "-"
+        : Model.AadhaarNumber)
+</div>
+
+
+<div class="col-sm-6 mb-3">
+    <small class="text-muted d-block">
+        PAN Number
+    </small>
+
+    @(string.IsNullOrWhiteSpace(Model.PANNumber)
+        ? "-"
+        : Model.PANNumber)
+</div>
+<div class="mb-3">
+
+    <small class="text-muted d-block">
+        Medical History
+    </small>
+
+    <div class="mt-1">
+        @(string.IsNullOrWhiteSpace(Model.MedicalHistory)
+            ? "-"
+            : Model.MedicalHistory)
+    </div>
+
+</div>
+
+                        <div class="col-sm-6 mb-3">
+                            <small class="text-muted d-block">
+                                Department
+                            </small>
+                            @(Model.User.Department ?? "-")
+                        </div>
+
+                        <div class="col-sm-6 mb-3">
+                            <small class="text-muted d-block">
+                                Designation
+                            </small>
+                            @(Model.Designation ?? "-")
+                        </div>
+
+                    </div>
+
+                </div>
+
+            </div>
+
+        </div>
+
+
+        <!-- Contact Information -->
+        <div class="col-lg-6 mb-4">
+
+            <div class="card shadow-sm h-100">
+
+                <div class="card-header bg-white">
+                    <h5 class="mb-0">
+                        <i class="fas fa-address-book me-2"></i>
+                        Contact Information
+                    </h5>
+                </div>
+
+                <div class="card-body">
+
+                    <div class="row">
+
+                        <div class="col-sm-6 mb-3">
+                            <small class="text-muted d-block">
+                                Official Email
+                            </small>
+                            @Model.User.Email
+                        </div>
+
+                        <div class="col-sm-6 mb-3">
+                            <small class="text-muted d-block">
+                                Personal Email
+                            </small>
+                            @(Model.PersonalEmail ?? "-")
+                        </div>
+
+                        <div class="col-sm-6 mb-3">
+                            <small class="text-muted d-block">
+                                Phone
+                            </small>
+                            @(Model.Phone ?? "-")
+                        </div>
+
+                        <div class="col-sm-6 mb-3">
+                            <small class="text-muted d-block">
+                                Alternate Phone
+                            </small>
+                            @(Model.AlternatePhone ?? "-")
+                        </div>
+
+                        <div class="col-sm-6 mb-3">
+                            <small class="text-muted d-block">
+                                Emergency Contact
+                            </small>
+                            @(Model.EmergencyContactName ?? "-")
+                        </div>
+
+                        <div class="col-sm-6 mb-3">
+                            <small class="text-muted d-block">
+                                Emergency Contact Phone
+                            </small>
+                            @(Model.EmergencyContactPhone ?? "-")
+                        </div>
+
+                    </div>
+
+                </div>
+
+            </div>
+
+        </div>
+
+
+        <!-- Employment Information -->
+        <div class="col-lg-6 mb-4">
+
+            <div class="card shadow-sm h-100">
+
+                <div class="card-header bg-white">
+                    <h5 class="mb-0">
+                        <i class="fas fa-briefcase me-2"></i>
+                        Employment Information
+                    </h5>
+                </div>
+
+                <div class="card-body">
+
+                    <div class="row">
+
+                        <div class="col-sm-6 mb-3">
+                            <small class="text-muted d-block">
+                                Joining Date
+                            </small>
+                            @(Model.JoiningDate?.ToString("dd MMM yyyy") ?? "-")
+                        </div>
+
+                        <div class="col-sm-6 mb-3">
+                            <small class="text-muted d-block">
+                                Employment Type
+                            </small>
+                            @(Model.EmploymentType ?? "-")
+                        </div>
+
+                        <div class="col-sm-6 mb-3">
+                            <small class="text-muted d-block">
+                                Employment Status
+                            </small>
+                            @(Model.EmploymentStatus ?? "-")
+                        </div>
+
+                        <div class="col-sm-6 mb-3">
+                            <small class="text-muted d-block">
+                                Reporting Manager
+                            </small>
+                            @(Model.ReportingManager?.User?.FullName ?? "No Reporting Manager")
+                        </div>
+
+                        @if (Model.ExitDate.HasValue)
+                        {
+                            <div class="col-sm-6 mb-3">
+                                <small class="text-muted d-block">
+                                    Exit Date
+                                </small>
+                                @Model.ExitDate.Value.ToString("dd MMM yyyy")
+                            </div>
+                        }
+
+                        @if (!string.IsNullOrWhiteSpace(Model.ExitReason))
+                        {
+                            <div class="col-sm-6 mb-3">
+                                <small class="text-muted d-block">
+                                    Exit Reason
+                                </small>
+                                @Model.ExitReason
+                            </div>
+                        }
+
+                    </div>
+
+                </div>
+
+            </div>
+
+        </div>
+
+        <!-- Employee Category -->
+<div class="col-lg-6 mb-4">
+
+    <div class="card shadow-sm h-100">
+
+        <div class="card-header bg-white">
+            <h5 class="mb-0">
+                <i class="fas fa-tags me-2"></i>
+                Employee Category
+            </h5>
+        </div>
+
+        <div class="card-body">
+
+            <div class="mb-3">
+
+                <small class="text-muted d-block">
+                    Categories
+                </small>
+
+                <div class="d-flex flex-wrap gap-2 mt-2">
+
+                    @if (Model.IsIDBI)
+                    {
+                        <span class="badge bg-primary">
+                            IDBI
+                        </span>
+                    }
+
+                    @if (Model.IsNonIDBI)
+                    {
+                        <span class="badge bg-secondary">
+                            Non-IDBI
+                        </span>
+                    }
+
+                    @if (Model.IsOnSite)
+                    {
+                        <span class="badge bg-info text-dark">
+                            On Site
+                        </span>
+                    }
+
+                    @if (!Model.IsIDBI &&
+                         !Model.IsNonIDBI &&
+                         !Model.IsOnSite)
+                    {
+                        <span class="text-muted">
+                            No category selected
+                        </span>
+                    }
+
+                </div>
+
+            </div>
+
+        </div>
+
+    </div>
+
+</div>
+
+<!-- Bank Details -->
+
+<div class="col-lg-6 mb-4">
+
+    <div class="card shadow-sm h-100">
+
+        <div class="card-header bg-white">
+            <h5 class="mb-0">
+                <i class="fas fa-university me-2"></i>
+                Bank Details
+            </h5>
+        </div>
+
+        <div class="card-body">
+
+            <div class="row">
+
+                <div class="col-sm-6 mb-3">
+                    <small class="text-muted d-block">
+                        Bank Name
+                    </small>
+
+                    @(string.IsNullOrWhiteSpace(Model.BankName)
+                        ? "-"
+                        : Model.BankName)
+                </div>
+
+                <div class="col-sm-6 mb-3">
+                    <small class="text-muted d-block">
+                        Bank Branch
+                    </small>
+
+                    @(string.IsNullOrWhiteSpace(Model.BankBranch)
+                        ? "-"
+                        : Model.BankBranch)
+                </div>
+
+                <div class="col-sm-6 mb-3">
+                    <small class="text-muted d-block">
+                        Account Number
+                    </small>
+
+                    @(string.IsNullOrWhiteSpace(Model.BankAccountNumber)
+                        ? "-"
+                        : Model.BankAccountNumber)
+                </div>
+
+                <div class="col-sm-6 mb-3">
+                    <small class="text-muted d-block">
+                        IFSC Code
+                    </small>
+
+                    @(string.IsNullOrWhiteSpace(Model.BankIFSCCode)
+                        ? "-"
+                        : Model.BankIFSCCode)
+                </div>
+
+                <div class="col-sm-6 mb-3">
+                    <small class="text-muted d-block">
+                        Account Holder Name
+                    </small>
+
+                    @(string.IsNullOrWhiteSpace(Model.BankAccountHolderName)
+                        ? "-"
+                        : Model.BankAccountHolderName)
+                </div>
+
+            </div>
+
+        </div>
+
+    </div>
+
+</div>
+
+        <!-- Address Information -->
+        <div class="col-lg-6 mb-4">
+
+            <div class="card shadow-sm h-100">
+
+                <div class="card-header bg-white">
+                    <h5 class="mb-0">
+                        <i class="fas fa-map-marker-alt me-2"></i>
+                        Address Information
+                    </h5>
+                </div>
+
+                <div class="card-body">
+
+                    <div class="mb-3">
+                        <small class="text-muted d-block">
+                            Present Address
+                        </small>
+
+                        @(string.IsNullOrWhiteSpace(Model.PresentAddress)
+                            ? "-"
+                            : Model.PresentAddress)
+                    </div>
+
+                    <div class="mb-3">
+                        <small class="text-muted d-block">
+                            Aadhaar Address
+                        </small>
+
+                        @(string.IsNullOrWhiteSpace(Model.AadhaarAddress)
+                            ? "-"
+                            : Model.AadhaarAddress)
+                    </div>
+
+                    <div class="row">
+
+                        <div class="col-sm-4">
+                            <small class="text-muted d-block">
+                                City
+                            </small>
+                            @(Model.City ?? "-")
+                        </div>
+
+                        <div class="col-sm-4">
+                            <small class="text-muted d-block">
+                                State
+                            </small>
+                            @(Model.State ?? "-")
+                        </div>
+
+                        <div class="col-sm-4">
+                            <small class="text-muted d-block">
+                                Pincode
+                            </small>
+                            @(Model.Pincode ?? "-")
+                        </div>
+
+                    </div>
+
+                </div>
+
+            </div>
+
+        </div>
+
+    </div>
+
+
+    <!-- Record Information -->
+    <div class="card shadow-sm mb-4">
+
+        <div class="card-body">
+
+            <div class="row">
+
+                <div class="col-md-6">
+                    <small class="text-muted d-block">
+                        HR Profile Created
+                    </small>
+
+                    @Model.CreatedAt.ToLocalTime().ToString("dd MMM yyyy, hh:mm tt")
+                </div>
+
+                <div class="col-md-6">
+                    <small class="text-muted d-block">
+                        Last Updated
+                    </small>
+
+                    @Model.UpdatedAt.ToLocalTime().ToString("dd MMM yyyy, hh:mm tt")
+                </div>
+
+            </div>
+
+        </div>
+
+    </div>
+
+</div>

@@ -1,0 +1,201 @@
+﻿@model List<ExpenseManagement.Models.Employee>
+
+@{
+    ViewData["Title"] = "Employee Management";
+}
+
+<div class="container-fluid">
+
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2 class="mb-1">Employee Management</h2>
+            <p class="text-muted mb-0">
+                Manage employee records and HR profiles.
+            </p>
+        </div>
+
+        <a asp-controller="HRMEmployee"
+           asp-action="Create"
+           class="btn btn-primary">
+            <i class="fas fa-user-plus me-1"></i>
+            Add Employee
+        </a>
+    </div>
+
+    @if (TempData["Success"] != null)
+    {
+        <div class="alert alert-success">
+            <i class="fas fa-check-circle me-1"></i>
+            @TempData["Success"]
+        </div>
+    }
+
+    <div class="card shadow-sm">
+
+        <div class="card-body">
+
+            @if (!Model.Any())
+            {
+                <div class="text-center py-5">
+
+                    <i class="fas fa-users fa-3x text-muted mb-3"></i>
+
+                    <h5>No employees found</h5>
+
+                    <p class="text-muted">
+                        No HR employee profiles have been created for this company yet.
+                    </p>
+
+                    <a asp-controller="HRMEmployee"
+                       asp-action="Create"
+                       class="btn btn-primary">
+                        <i class="fas fa-user-plus me-1"></i>
+                        Add First Employee
+                    </a>
+
+                </div>
+            }
+            else
+            {
+                <div class="table-responsive">
+
+                    <table class="table table-hover align-middle">
+
+                        <thead>
+                            <tr>
+                                <th>Employee Code</th>
+                                <th>Employee Name</th>
+                                <th>Designation</th>
+                                <th>Department</th>
+                                <th>Joining Date</th>
+                                <th>Reporting Manager</th>
+                                <th>Category</th>
+                                <th>Status</th>
+                                <th class="text-end">Action</th>
+                            </tr>
+                        </thead>
+
+                        <tbody>
+
+                            @foreach (var employee in Model)
+                            {
+                                <tr>
+
+                                    <td>
+                                        <strong>
+                                            @employee.EmployeeCode
+                                        </strong>
+                                    </td>
+
+                                    <td>
+                                        <div class="fw-semibold">
+                                            @employee.User.FullName
+                                        </div>
+
+                                        <small class="text-muted">
+                                            @employee.User.Email
+                                        </small>
+                                    </td>
+
+                                    <td>
+                                        @(employee.Designation ?? "-")
+                                    </td>
+
+                                    <td>
+                                        @(employee.User.Department ?? "-")
+                                    </td>
+
+                                    <td>
+                                        @(employee.JoiningDate?.ToString("dd MMM yyyy") ?? "-")
+                                    </td>
+
+                                    <td>
+                                        @(employee.ReportingManager?.User?.FullName ?? "-")
+                                    </td>
+
+                                    <td>
+
+                                        <div class="d-flex flex-wrap gap-1">
+
+                                            @if (employee.IsIDBI)
+                                            {
+                                                <span class="badge bg-primary">
+                                                    IDBI
+                                                </span>
+                                            }
+
+                                            @if (employee.IsNonIDBI)
+                                            {
+                                                <span class="badge bg-secondary">
+                                                    Non-IDBI
+                                                </span>
+                                            }
+
+                                            @if (employee.IsOnSite)
+                                            {
+                                                <span class="badge bg-info text-dark">
+                                                    On Site
+                                                </span>
+                                            }
+
+                                            @if (!employee.IsIDBI &&
+                                                 !employee.IsNonIDBI &&
+                                                 !employee.IsOnSite)
+                                            {
+                                                <span class="text-muted">
+                                                    -
+                                                </span>
+                                            }
+
+                                        </div>
+
+                                    </td>
+
+                                    <td>
+                                        @if (employee.EmploymentStatus == "Active")
+                                        {
+                                            <span class="badge bg-success">
+                                                Active
+                                            </span>
+                                        }
+                                        else if (employee.EmploymentStatus == "On Notice")
+                                        {
+                                            <span class="badge bg-warning text-dark">
+                                                On Notice
+                                            </span>
+                                        }
+                                        else
+                                        {
+                                            <span class="badge bg-secondary">
+                                                @(employee.EmploymentStatus ?? "Inactive")
+                                            </span>
+                                        }
+                                    </td>
+
+                                    <td class="text-end">
+
+                                        <a asp-controller="HRMEmployee"
+                                           asp-action="Details"
+                                           asp-route-id="@employee.Id"
+                                           class="btn btn-sm btn-outline-primary">
+                                            <i class="fas fa-eye"></i>
+                                            View
+                                        </a>
+
+                                    </td>
+
+                                </tr>
+                            }
+
+                        </tbody>
+
+                    </table>
+
+                </div>
+            }
+
+        </div>
+
+    </div>
+
+</div>

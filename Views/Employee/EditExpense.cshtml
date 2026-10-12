@@ -58,8 +58,9 @@
                     <label class="form-label">Amount (₹) <span class="text-danger">*</span></label>
                     <div class="input-group">
                         <span class="input-group-text">₹</span>
-                        <input type="number" name="Amount" class="form-control" id="amtInput"
-                               value="@Model.Amount" step="0.01" min="0.01" required />
+                        <input type="number" name="Amount" class="form-control no-spinner" id="amtInput"
+                               value="@Model.Amount" step="any" min="0.01" required
+                               style="-webkit-appearance:none;-moz-appearance:textfield;" />
                     </div>
                     <small class="text-muted">Available balance: ₹@adjustedBal.ToString("N2") — you can exceed this limit</small>
                     <div id="overspendWarn" class="mt-1 p-2 rounded d-none" style="background:#fef9c3;border:1px solid #fbbf24;font-size:.8rem">
@@ -78,14 +79,14 @@
                     <label class="form-label">Category <span class="text-danger">*</span></label>
                     <select name="Category" class="form-select" required>
                         <option value="">Select category</option>
-                        @foreach (var cat in new[] { "Travel","Accommodation","Food & Meals","Communication","Office Supplies","Client Entertainment","Training","Medical","Miscellaneous" })
+                        @foreach (var cat in new[] { "Travel","Accommodation","Food & Meals","Communication","Office Supplies","Client Entertainment","Training","Medical","Miscellaneous","Tax Invoice","Others" })
                         {
                             <option value="@cat" selected="@(Model.Category == cat ? "selected" : null)">@cat</option>
                         }
                     </select>
                 </div>
                 <div class="col-md-6">
-                    <label class="form-label">Description</label>
+                    <label class="form-label">Description <span class="text-muted fw-normal">(optional)</span></label>
                     <input type="text" name="Description" class="form-control" value="@Model.Description"
                            placeholder="Brief description (optional)" />
                 </div>
@@ -119,63 +120,90 @@
                     </div>
                 </div>
 
-                <!-- Existing Receipt -->
-                @if (!string.IsNullOrEmpty(claim?.ReceiptPath))
-                {
-                    var ext = System.IO.Path.GetExtension(claim.ReceiptPath).ToLower();
-                    <div class="col-12">
-                        <label class="form-label fw-semibold">Current Bill / Receipt</label>
-                        <div class="d-flex align-items-center gap-3 p-3 rounded-3" style="background:#f8fafc;border:1px solid #e2e8f0">
-                            @if (ext == ".pdf")
-                            {
-                                <a href="@claim.ReceiptPath" target="_blank" class="btn btn-outline-danger btn-sm">
-                                    <i class="fas fa-file-pdf me-1"></i>View PDF
-                                </a>
-                            }
-                            else
-                            {
-                                <a href="@claim.ReceiptPath" target="_blank">
-                                    <img src="@claim.ReceiptPath" style="height:60px;width:60px;object-fit:cover;border-radius:8px;border:1px solid #e2e8f0" />
-                                </a>
-                            }
-                            <div>
-                                <div class="fw-semibold" style="font-size:.85rem">@(claim.ReceiptFileName ?? "Receipt")</div>
-                                <small class="text-muted">Upload a new file below to replace it, or leave blank to keep this one.</small>
-                            </div>
-                        </div>
-                    </div>
-                }
-
-                <!-- New Receipt Upload -->
+                <!-- Bill / Receipt Photos (up to 3) -->
                 <div class="col-12">
-                    <label class="form-label" id="receiptLabel">
-                        @(string.IsNullOrEmpty(claim?.ReceiptPath) ? "Bill / Receipt Photo" : "Replace Bill / Receipt")
+                    <label class="form-label fw-semibold">
+                        Bill / Receipt Photo
                         <span id="receiptRequired" class="d-none text-danger">*</span>
-                        <span id="receiptOptional" class="text-muted fw-normal" style="font-size:.8rem">
-                            @(string.IsNullOrEmpty(claim?.ReceiptPath) ? "(optional for cash)" : "(optional — leave blank to keep current)")
-                        </span>
+                        <span id="receiptOptional" class="text-muted fw-normal" style="font-size:.8rem">(optional for cash)</span>
                     </label>
-                    <div class="bill-upload-zone" id="uploadZone" onclick="document.getElementById('billFile').click()">
-                        <i class="fas fa-camera d-block"></i>
-                        <p class="mb-1 fw-semibold">Upload Bill Photo or PDF</p>
-                        <p class="text-muted mb-0" style="font-size:.82rem">Click or drag & drop · JPG, PNG, PDF · Max 10MB</p>
+                    <div style="font-size:.78rem;color:#64748b;margin-bottom:8px">
+                        <i class="fas fa-info-circle me-1 text-primary"></i>
+                        Up to <strong>3 photos</strong>. Leave blank to keep existing. UPI requires at least 1.
                     </div>
-                    <input type="file" name="Receipt" id="billFile" class="d-none" accept="image/*,.pdf" capture="environment" />
-                    <div id="previewContainer" class="text-center mt-2" style="display:none!important">
-                        <img id="billPreview" class="bill-preview d-none" />
-                        <div id="pdfPreview" class="d-none">
-                            <i class="fas fa-file-pdf fa-3x text-danger"></i>
-                            <p id="pdfName" class="mt-2 mb-0"></p>
-                        </div>
-                        <button type="button" class="btn btn-sm btn-outline-danger mt-2" onclick="clearFile()">
-                            <i class="fas fa-times me-1"></i>Remove
-                        </button>
+
+                    <div class="d-flex gap-2 flex-wrap">
+                        @{
+                            var slots = new[]
+                            {
+                                (1, "Receipt",  claim?.ReceiptPath,  claim?.ReceiptFileName,  "Photo 1"),
+                                (2, "Receipt2", claim?.Receipt2Path, claim?.Receipt2FileName, "Photo 2 (optional)"),
+                                (3, "Receipt3", claim?.Receipt3Path, claim?.Receipt3FileName, "Photo 3 (optional)"),
+                            };
+                        }
+                        @foreach (var (slotNum, inputName, existingPath, existingName, slotLabel) in slots)
+                        {
+                            string slotId  = slotNum == 1 ? "billFile" : $"billFile{slotNum}";
+                            string zoneId  = $"zone{slotNum}";
+                            string prevId  = $"prev{slotNum}";
+                            bool hasExisting = !string.IsNullOrEmpty(existingPath);
+                            string extE = hasExisting ? System.IO.Path.GetExtension(existingPath!).ToLower() : "";
+                            <div style="flex:1;min-width:140px;max-width:210px">
+                                @if (hasExisting)
+                                {
+                                    <div class="mb-1 p-2 rounded-2 text-center" style="background:#f0fdf4;border:1px solid #86efac;font-size:.72rem">
+                                        <div class="fw-semibold text-success mb-1">Current</div>
+                                        @if (extE == ".pdf")
+                                        {
+                                            <a href="@existingPath" target="_blank" class="btn btn-outline-danger btn-sm" style="font-size:.7rem;padding:2px 8px">
+                                                <i class="fas fa-file-pdf me-1"></i>View PDF
+                                            </a>
+                                        }
+                                        else
+                                        {
+                                            <a href="@existingPath" target="_blank">
+                                                <img src="@existingPath" style="height:50px;width:50px;object-fit:cover;border-radius:6px;border:1px solid #e2e8f0" />
+                                            </a>
+                                        }
+                                        <div class="text-muted mt-1" style="font-size:.68rem">@(existingName ?? "Receipt")</div>
+                                        <div class="text-muted" style="font-size:.65rem">Upload below to replace</div>
+                                    </div>
+                                }
+                                <div id="@zoneId"
+                                     onclick="document.getElementById('@slotId').click()"
+                                     style="border:2px dashed #cbd5e1;border-radius:12px;padding:12px 8px;text-align:center;cursor:pointer;background:#f8fafc;transition:.2s;min-height:90px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px">
+                                    <div class="d-flex gap-2 align-items-center justify-content-center">
+                                        <i class="fas fa-camera" style="font-size:1.15rem;color:#94a3b8"></i>
+                                        <span style="color:#cbd5e1;font-size:.75rem">|</span>
+                                        <i class="fas fa-file-pdf" style="font-size:1.05rem;color:#fca5a5"></i>
+                                    </div>
+                                    <div style="font-size:.7rem;color:#64748b;font-weight:600">@slotLabel</div>
+                                    <div style="font-size:.6rem;color:#94a3b8">Photo or PDF</div>
+                                </div>
+                                <input type="file" name="@inputName" id="@slotId" class="d-none"
+                                       accept="image/*,.pdf"
+                                       onchange="handleSlot(@slotNum, this)" />
+                                <div id="@prevId" class="d-none mt-1 text-center">
+                                    <img id="@(prevId)img" style="max-height:60px;max-width:100%;border-radius:8px;border:1px solid #e2e8f0" class="d-none" />
+                                    <div id="@(prevId)pdf" class="d-none">
+                                        <i class="fas fa-file-pdf text-danger" style="font-size:1.3rem"></i>
+                                        <div id="@(prevId)name" style="font-size:.65rem;color:#64748b;word-break:break-all"></div>
+                                    </div>
+                                    <button type="button" onclick="clearSlot(@slotNum)"
+                                            class="btn btn-sm btn-outline-danger mt-1"
+                                            style="font-size:.68rem;padding:2px 7px">
+                                        <i class="fas fa-times"></i> Remove
+                                    </button>
+                                </div>
+                            </div>
+                        }
                     </div>
                 </div>
             </div>
 
             <div class="d-flex gap-2 mt-4">
-                <button type="submit" class="btn btn-primary flex-fill">
+                <button type="button" class="btn btn-primary flex-fill"
+                        onclick="submitEdit(this)">
                     <i class="fas fa-save me-2"></i>Save Changes
                 </button>
                 <a href="/Employee/ReportDetail/@report?.Id" class="btn btn-outline-secondary">Cancel</a>
@@ -185,6 +213,17 @@
 </div>
 
 @section Scripts {
+<style>
+/* Hide up/down spinner arrows on number inputs */
+input[type=number].no-spinner::-webkit-inner-spin-button,
+input[type=number].no-spinner::-webkit-outer-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+}
+input[type=number].no-spinner {
+    -moz-appearance: textfield;
+}
+</style>
 <script>
 const adjustedBalance = @adjustedBal;
 const existingAmount  = @(claim?.Amount ?? 0);
@@ -217,8 +256,8 @@ function onPaymentChange() {
         reqSpan.classList.add('d-none');
         optSpan.classList.remove('d-none');
     } else {
-        // Only require receipt if there is no existing one
-        @if (string.IsNullOrEmpty(claim?.ReceiptPath))
+        // Only require receipt if no existing photo is already saved
+        @if (string.IsNullOrEmpty(claim?.ReceiptPath) && string.IsNullOrEmpty(claim?.Receipt2Path) && string.IsNullOrEmpty(claim?.Receipt3Path))
         {
             <text>document.getElementById('billFile').setAttribute('required', 'required');</text>
         }
@@ -230,44 +269,64 @@ function onPaymentChange() {
 }
 onPaymentChange();
 
-const billFile        = document.getElementById('billFile');
-const uploadZone      = document.getElementById('uploadZone');
-const previewContainer = document.getElementById('previewContainer');
-const billPreview     = document.getElementById('billPreview');
-const pdfPreview      = document.getElementById('pdfPreview');
-const pdfName         = document.getElementById('pdfName');
+// ── Form submit with UPI receipt validation ──
+function submitEdit(btn) {
+    const form = btn.closest('form');
+    const isUpi = document.getElementById('pmUpi').checked;
+    const receipt1 = document.getElementById('billFile');
+    // Only require upload if no existing receipt is saved AND no new file chosen
+    const hasExisting = @((!string.IsNullOrEmpty(claim?.ReceiptPath) || !string.IsNullOrEmpty(claim?.Receipt2Path) || !string.IsNullOrEmpty(claim?.Receipt3Path)) ? "true" : "false");
 
-billFile.addEventListener('change', function () {
-    const file = this.files[0];
-    if (!file) return;
-    previewContainer.style.display = 'block';
-    if (file.type === 'application/pdf') {
-        billPreview.classList.add('d-none');
-        pdfPreview.classList.remove('d-none');
-        pdfName.textContent = file.name;
-    } else {
-        pdfPreview.classList.add('d-none');
-        billPreview.classList.remove('d-none');
-        const reader = new FileReader();
-        reader.onload = e => billPreview.src = e.target.result;
-        reader.readAsDataURL(file);
+    if (isUpi && !hasExisting && receipt1.files.length === 0) {
+        receipt1.setCustomValidity('Please upload a receipt photo for UPI / Online payments.');
+        form.reportValidity();
+        receipt1.setCustomValidity('');
+        return;
     }
-    uploadZone.style.borderColor = '#2563eb';
-});
+    if (!form.checkValidity()) {
+        form.reportValidity();
+        return;
+    }
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Saving...';
+    form.submit();
+}
 
-uploadZone.addEventListener('dragover', e => { e.preventDefault(); uploadZone.classList.add('dragover'); });
-uploadZone.addEventListener('dragleave', () => uploadZone.classList.remove('dragover'));
-uploadZone.addEventListener('drop', e => {
-    e.preventDefault(); uploadZone.classList.remove('dragover');
-    const file = e.dataTransfer.files[0];
-    if (file) { billFile.files = e.dataTransfer.files; billFile.dispatchEvent(new Event('change')); }
-});
+// ── Multi-slot receipt upload ──
+function handleSlot(slot, input) {
+    const file = input.files[0];
+    if (!file) return;
+    const zone  = document.getElementById('zone'  + slot);
+    const prev  = document.getElementById('prev'  + slot);
+    const imgEl = document.getElementById('prev'  + slot + 'img');
+    const pdfEl = document.getElementById('prev'  + slot + 'pdf');
+    const nameEl = document.getElementById('prev' + slot + 'name');
 
-function clearFile() {
-    billFile.value = '';
-    previewContainer.style.display = 'none';
-    billPreview.src = '';
-    uploadZone.style.borderColor = '';
+    prev.classList.remove('d-none');
+    zone.style.borderColor = '#2563eb';
+    zone.style.background  = '#eff6ff';
+
+    if (file.type === 'application/pdf') {
+        if (imgEl) imgEl.classList.add('d-none');
+        if (pdfEl) pdfEl.classList.remove('d-none');
+        if (nameEl) nameEl.textContent = file.name;
+    } else {
+        if (pdfEl) pdfEl.classList.add('d-none');
+        if (imgEl) { imgEl.classList.remove('d-none'); const r = new FileReader(); r.onload = e => imgEl.src = e.target.result; r.readAsDataURL(file); }
+    }
+}
+
+function clearSlot(slot) {
+    const inputId = slot === 1 ? 'billFile' : 'billFile' + slot;
+    document.getElementById(inputId).value = '';
+    const prev = document.getElementById('prev' + slot);
+    if (prev) prev.classList.add('d-none');
+    const imgEl = document.getElementById('prev' + slot + 'img');
+    if (imgEl) imgEl.src = '';
+    const pdfEl = document.getElementById('prev' + slot + 'pdf');
+    if (pdfEl) pdfEl.classList.add('d-none');
+    const zone = document.getElementById('zone' + slot);
+    if (zone) { zone.style.borderColor = ''; zone.style.background = '#f8fafc'; }
 }
 </script>
 }
