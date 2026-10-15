@@ -27,6 +27,24 @@ namespace ExpenseManagement.Controllers
                 TempData["Error"] = "Invalid email or password.";
                 return View(model);
             }
+            if (user.Role == UserRole.Employee)
+            {
+                var emp = await _db.Employees
+                    .AsNoTracking()
+                    .Where(e => e.UserId == user.Id)
+                    .Select(e => new { e.EmploymentStatus, e.ExitDate })
+                    .FirstOrDefaultAsync();
+
+                var todayIst = DateTime.UtcNow.AddHours(5).AddMinutes(30).Date;
+
+                if (emp != null && (
+                    string.Equals(emp.EmploymentStatus, "Inactive", StringComparison.OrdinalIgnoreCase) ||
+                    (emp.ExitDate.HasValue && emp.ExitDate.Value.Date < todayIst)))
+                {
+                    TempData["Error"] = "Your account is no longer active. Please contact HR.";
+                    return View(model);
+                }
+            }
             var claims = new List<Claim>
             {
                 new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()),

@@ -55,18 +55,18 @@
     // ---------------------------------------------------------
 
     var uanNumber =
-        salary?.UANNumber ?? "-";
+        employee.UANNumber ?? "-";
 
     var esicNumber =
-        salary?.ESICNumber ?? "NA";
+        employee.ESICNumber ?? "NA";
 
     // ---------------------------------------------------------
     // PAYROLL DETAILS
     // ---------------------------------------------------------
 
     decimal workingDays = Convert.ToDecimal(payroll.WorkingDays);
-decimal payDays = Convert.ToDecimal(payroll.PayDays);
-decimal paidDays = Convert.ToDecimal(payroll.PaidDays);
+    decimal payDays = Convert.ToDecimal(payroll.PaidDays);
+    decimal paidDays = Convert.ToDecimal(payroll.PaidDays);
 decimal lop = Convert.ToDecimal(payroll.LOP);
 
 decimal basicSalary = Convert.ToDecimal(payroll.BasicSalary);
@@ -535,17 +535,34 @@ decimal netSalary = Convert.ToDecimal(payroll.NetSalary);
         {
             <div class="print-actions">
 
-                <a asp-controller="Payroll"
-                asp-action="Index"
-                asp-route-month="@month"
-                asp-route-year="@year"
-                class="print-button"
-                style="text-decoration: none; display: inline-block;">
+                                @if (User.IsInRole("Employee"))
+                {
+                    <a asp-controller="HRMEmployee"
+                       asp-action="MyPayroll"
+                       asp-route-month="@month"
+                       asp-route-year="@year"
+                       class="print-button"
+                       style="text-decoration: none; display: inline-block;">
 
-                    <i class="fas fa-arrow-left me-1"></i>
-                    Back to Payroll
+                        <i class="fas fa-arrow-left me-1"></i>
+                        Back to My Payroll
 
-                </a>
+                    </a>
+                }
+                else
+                {
+                    <a asp-controller="Payroll"
+                       asp-action="Index"
+                       asp-route-month="@month"
+                       asp-route-year="@year"
+                       class="print-button"
+                       style="text-decoration: none; display: inline-block;">
+
+                        <i class="fas fa-arrow-left me-1"></i>
+                        Back to Payroll
+
+                    </a>
+                }
 
                 <button type="button"
                 class="print-button"

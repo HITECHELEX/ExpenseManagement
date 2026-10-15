@@ -1,0 +1,141 @@
+﻿@using System.Globalization
+@{
+    ViewData["Title"] = "Payroll Reports";
+    var companies = ViewBag.Companies as IEnumerable<ExpenseManagement.Models.Company> ?? Enumerable.Empty<ExpenseManagement.Models.Company>();
+    var employees = ViewBag.Employees as IEnumerable<ExpenseManagement.Controllers.ReportsController.PayrollReportEmployeeOption> ?? Enumerable.Empty<ExpenseManagement.Controllers.ReportsController.PayrollReportEmployeeOption>();
+    int selectedCompanyId = ViewBag.SelectedCompanyId ?? 0;
+    int fromMonth = ViewBag.FromMonth ?? DateTime.UtcNow.AddHours(5).AddMinutes(30).Month;
+    int fromYear = ViewBag.FromYear ?? DateTime.UtcNow.AddHours(5).AddMinutes(30).Year;
+    int toMonth = ViewBag.ToMonth ?? fromMonth;
+    int toYear = ViewBag.ToYear ?? fromYear;
+    int? selectedEmployeeId = ViewBag.EmployeeId as int?;
+    bool hasActiveTemplate = ViewBag.HasActiveTemplate ?? false;
+    var monthNames = CultureInfo.InvariantCulture.DateTimeFormat.MonthNames.Take(12).ToArray();
+}
+
+<div class="container-fluid py-4">
+    <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
+        <div>
+            <h2 class="mb-1">Payroll Reports</h2>
+            <p class="text-muted mb-0">Generate reports from finalized payroll records using your company's active Excel template.</p>
+        </div>
+        <a asp-controller="Reports" asp-action="Index" asp-route-companyId="@selectedCompanyId" class="btn btn-outline-secondary">Back to Reports</a>
+    </div>
+
+    @if (TempData["Error"] != null)
+    {
+        <div class="alert alert-danger">@TempData["Error"]</div>
+    }
+
+    @if (!hasActiveTemplate)
+    {
+        <div class="alert alert-warning">
+            <strong>No active payroll report template found.</strong>
+            Upload an Excel template in Documents with Template Type <strong>Payroll Report</strong> and Template Code <code>PAYROLL_REPORT</code>. The template must contain a prototype data row with placeholders such as <code>{{EmployeeCode}}</code> and <code>{{NetSalary}}</code>.
+        </div>
+    }
+    else
+    {
+        <div class="alert alert-success">Active <code>PAYROLL_REPORT</code> template found. The generated workbook will follow its layout and formatting.</div>
+    }
+
+    <div class="card border-0 shadow-sm">
+        <div class="card-header bg-white py-3"><h5 class="mb-0">Report filters</h5></div>
+        <div class="card-body">
+            <form asp-controller="Reports" asp-action="PayrollReport" method="get" class="row g-3">
+                @if (User.IsInRole("Management"))
+                {
+                    <div class="col-12 col-md-4">
+                        <label class="form-label" for="companyId">Company</label>
+                        <select class="form-select" id="companyId" name="companyId" required>
+                            @foreach (var company in companies)
+                            {
+                                <option value="@company.Id" selected="@(company.Id == selectedCompanyId)">@company.Name</option>
+                            }
+                        </select>
+                    </div>
+                }
+                else
+                {
+                    <input type="hidden" name="companyId" value="@selectedCompanyId" />
+                    <div class="col-12 col-md-4">
+                        <label class="form-label">Company</label>
+                        <input class="form-control" value="@ViewBag.SelectedCompanyName" readonly />
+                    </div>
+                }
+
+                <div class="col-6 col-md-2">
+                    <label class="form-label" for="fromMonth">From month</label>
+                    <select class="form-select" id="fromMonth" name="fromMonth">
+                        @for (int m = 1; m <= 12; m++)
+                        {
+                            <option value="@m" selected="@(m == fromMonth)">@monthNames[m - 1]</option>
+                        }
+                    </select>
+                </div>
+                <div class="col-6 col-md-2">
+                    <label class="form-label" for="fromYear">From year</label>
+                    <input class="form-control" type="number" id="fromYear" name="fromYear" min="2000" max="2100" value="@fromYear" required />
+                </div>
+                <div class="col-6 col-md-2">
+                    <label class="form-label" for="toMonth">To month</label>
+                    <select class="form-select" id="toMonth" name="toMonth">
+                        @for (int m = 1; m <= 12; m++)
+                        {
+                            <option value="@m" selected="@(m == toMonth)">@monthNames[m - 1]</option>
+                        }
+                    </select>
+                </div>
+                <div class="col-6 col-md-2">
+                    <label class="form-label" for="toYear">To year</label>
+                    <input class="form-control" type="number" id="toYear" name="toYear" min="2000" max="2100" value="@toYear" required />
+                </div>
+                <div class="col-12 col-md-6">
+                    <label class="form-label" for="employeeId">Employee (optional)</label>
+                    <select class="form-select" id="employeeId" name="employeeId">
+                        <option value="">All employees</option>
+                        @foreach (var employee in employees)
+                        {
+                            <option value="@employee.Id" selected="@(selectedEmployeeId == employee.Id)">@employee.Code — @employee.Name</option>
+                        }
+                    </select>
+                </div>
+                <div class="col-12 d-flex flex-wrap gap-2 pt-2">
+                    <button type="submit" class="btn btn-outline-primary">Apply filters</button>
+                    <a asp-controller="Reports" asp-action="PayrollReport" asp-route-companyId="@selectedCompanyId" class="btn btn-outline-secondary">Reset</a>
+                </div>
+            </form>
+            <hr class="my-4" />
+            <form asp-controller="Reports" asp-action="GeneratePayrollExcel" method="get" class="d-flex flex-wrap align-items-center justify-content-between gap-3">
+                <input type="hidden" name="companyId" value="@selectedCompanyId" />
+                <input type="hidden" name="fromMonth" value="@fromMonth" />
+                <input type="hidden" name="fromYear" value="@fromYear" />
+                <input type="hidden" name="toMonth" value="@toMonth" />
+                <input type="hidden" name="toYear" value="@toYear" />
+                @if (selectedEmployeeId.HasValue)
+                {
+                    <input type="hidden" name="employeeId" value="@selectedEmployeeId.Value" />
+                }
+                <div>
+                    <div class="fw-semibold">Excel export</div>
+                    <div class="text-muted small">Only finalized payroll records are included. Maximum range: 36 months.</div>
+                </div>
+                <button type="submit" class="btn btn-primary" disabled="@(!hasActiveTemplate)"><span class="me-1">&#8681;</span> Generate Excel report</button>
+            </form>
+        </div>
+    </div>
+
+    <div class="card border-0 shadow-sm mt-4">
+        <div class="card-body">
+            <h6 class="mb-2">Template placeholder reference</h6>
+            <p class="text-muted small mb-2">Place these tokens in a single prototype data row. The generator repeats that row for each matching finalized payroll record and keeps the template's column arrangement.</p>
+            <div class="d-flex flex-wrap gap-2">
+                @foreach (var field in new[] { "EmployeeCode", "EmployeeName", "Department", "Designation", "MonthName", "Year", "WorkingDays", "PayDays", "PaidDays", "LOP", "BasicSalary", "HRA", "ConveyanceAllowance", "WashingAllowance", "OtherAllowances", "GrossSalary", "PF", "ESI", "ProfessionalTax", "LWF", "OtherDeductions", "TotalDeductions", "NetSalary", "Remarks" })
+                {
+                    <code class="border rounded px-2 py-1">{{@field}}</code>
+                }
+            </div>
+            <p class="text-muted small mt-3 mb-0">Optional summary tokens outside the prototype row: <code>{{CompanyName}}</code>, <code>{{PeriodFrom}}</code>, <code>{{PeriodTo}}</code>, <code>{{RecordCount}}</code>, <code>{{TotalGrossSalary}}</code>, <code>{{TotalDeductions}}</code>, <code>{{TotalNetSalary}}</code>, <code>{{TotalLOP}}</code>.</p>
+        </div>
+    </div>
+</div>

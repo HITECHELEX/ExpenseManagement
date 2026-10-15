@@ -368,6 +368,12 @@ namespace ExpenseManagement.Models
         [MaxLength(20)]
         public string? PANNumber { get; set; }
 
+        [MaxLength(30)]
+        public string? UANNumber { get; set; }
+
+        [MaxLength(30)]
+        public string? ESICNumber { get; set; }
+
         public string? MedicalHistory { get; set; }
 
         // Address
@@ -677,9 +683,6 @@ namespace ExpenseManagement.Models
         [Required]
         public int Year { get; set; }
 
-        public DateTime? PayrollPeriodFrom { get; set; }
-        public DateTime? PayrollPeriodTo { get; set; }
-
         [MaxLength(50)]
         public string? PayslipNumber { get; set; }
 
@@ -747,9 +750,6 @@ namespace ExpenseManagement.Models
         public decimal? WorkingDays { get; set; }
 
         [Column(TypeName = "decimal(5,2)")]
-        public decimal? PayDays { get; set; }
-
-        [Column(TypeName = "decimal(5,2)")]
         public decimal? LOP { get; set; }
 
         [Column(TypeName = "decimal(5,2)")]
@@ -776,8 +776,6 @@ namespace ExpenseManagement.Models
         [MaxLength(150)]
         public string? BankFileReference { get; set; }
 
-        public DateTime? PaidOn { get; set; }
-
         public string? Remarks { get; set; }
 
         // Audit
@@ -793,16 +791,6 @@ namespace ExpenseManagement.Models
 
         public int EmployeeId { get; set; }
         public Employee Employee { get; set; } = null!;
-
-        // Employee statutory information
-        [MaxLength(20)]
-        public string? PANNumber { get; set; }
-
-        [MaxLength(30)]
-        public string? UANNumber { get; set; }
-
-        [MaxLength(30)]
-        public string? ESICNumber { get; set; }
 
         // Monthly salary components
         [Column(TypeName = "numeric(12,2)")]

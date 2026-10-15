@@ -1,11 +1,11 @@
-﻿
-using Microsoft.AspNetCore.Authorization;
+﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using System.Security.Claims;
 using ExpenseManagement.Data;
 using ExpenseManagement.Models;
 
+using ExpenseManagement.Services;
 namespace ExpenseManagement.Controllers
 {
     [Authorize(Roles = "Employee,HR,Management")]
@@ -209,33 +209,28 @@ namespace ExpenseManagement.Controllers
             // Sunday = Weekly Off
             // ------------------------------------------------------------
 
-            var monthlyWorkingDays = 0;
+            var holidays = await WorkCalendar.LoadHolidaysAsync(
+                _db, CurrentCompanyId, monthStart, nextMonthStart.AddDays(-1));
 
+            var monthlyWorkingDays = 0;
             for (var day = monthStart;
                  day < nextMonthStart;
                  day = day.AddDays(1))
             {
-                var isSunday =
-                    day.DayOfWeek == DayOfWeek.Sunday;
+                // Not employed on this day.
+                if (employee.JoiningDate.HasValue &&
+                    day.Date < employee.JoiningDate.Value.Date)
+                {
+                    continue;
+                }
 
-                var isSaturday =
-                    day.DayOfWeek == DayOfWeek.Saturday;
+                if (employee.ExitDate.HasValue &&
+                    day.Date > employee.ExitDate.Value.Date)
+                {
+                    continue;
+                }
 
-                var weekOfMonth =
-                    ((day.Day - 1) / 7) + 1;
-
-                var isSecondSaturday =
-                    isSaturday && weekOfMonth == 2;
-
-                var isFourthSaturday =
-                    isSaturday && weekOfMonth == 4;
-
-                var isWeeklyOff =
-                    isSunday ||
-                    isSecondSaturday ||
-                    isFourthSaturday;
-
-                if (!isWeeklyOff)
+                if (!WorkCalendar.IsNonWorkingDay(day, holidays))
                 {
                     monthlyWorkingDays++;
                 }
@@ -651,7 +646,8 @@ namespace ExpenseManagement.Controllers
                     .AnyAsync(e =>
                         e.Id == model.ReportingManagerId.Value &&
                         e.User.CompanyId == CurrentCompanyId &&
-                        e.User.Role == UserRole.Employee);
+                        e.User.Role == UserRole.Employee &&
+                        e.EmploymentStatus != "Inactive");
 
                 if (!validManager)
                 {
@@ -743,7 +739,10 @@ namespace ExpenseManagement.Controllers
                 model.UpdatedAt = DateTime.UtcNow;
 
                 _db.Employees.Add(model);
+                await _db.SaveChangesAsync();
 
+                WriteAudit("Create", model.Id,
+                    $"Created employee profile {model.EmployeeCode} for user {model.UserId}.");
                 await _db.SaveChangesAsync();
 
                 // ====================================================
@@ -897,6 +896,89 @@ namespace ExpenseManagement.Controllers
                 }
             }
 
+            // ========================================================
+            // LIFECYCLE VALIDATIONS
+            // ========================================================
+            var allowedStatuses = new[] { "Active", "On Notice", "Inactive" };
+            var todayIst = DateTime.UtcNow.AddHours(5).AddMinutes(30).Date;
+
+            if (string.IsNullOrWhiteSpace(model.EmploymentStatus) ||
+                !allowedStatuses.Contains(model.EmploymentStatus))
+            {
+                ModelState.AddModelError(
+                    "",
+                    "Select a valid employment status.");
+            }
+
+            if (model.ExitDate.HasValue &&
+                model.JoiningDate.HasValue &&
+                model.ExitDate.Value.Date < model.JoiningDate.Value.Date)
+            {
+                ModelState.AddModelError(
+                    "",
+                    "Exit date cannot be earlier than the joining date.");
+            }
+
+            if (model.EmploymentStatus == "Inactive" && !model.ExitDate.HasValue)
+            {
+                ModelState.AddModelError(
+                    "",
+                    "Exit date is required when the employee is Inactive.");
+            }
+
+            if (model.EmploymentStatus != "Inactive" &&
+                model.ExitDate.HasValue &&
+                model.ExitDate.Value.Date < todayIst)
+            {
+                ModelState.AddModelError(
+                    "",
+                    "The exit date is in the past. Set the status to Inactive or clear the exit date.");
+            }
+
+            if (model.ReportingManagerId.HasValue &&
+                model.ReportingManagerId.Value != id)
+            {
+                // The new manager must be active (only checked when changed).
+                if (model.ReportingManagerId != employee.ReportingManagerId)
+                {
+                    var managerIsActive = await _db.Employees.AnyAsync(e =>
+                        e.Id == model.ReportingManagerId.Value &&
+                        e.EmploymentStatus != "Inactive");
+
+                    if (!managerIsActive)
+                    {
+                        ModelState.AddModelError(
+                    "",
+                            "The selected reporting manager is not active.");
+                    }
+                }
+
+                // Block circular reporting lines (A -> B -> A).
+                var reportingLines = await _db.Employees
+                    .AsNoTracking()
+                    .Where(e => e.User.CompanyId == CurrentCompanyId)
+                    .Select(e => new { e.Id, e.ReportingManagerId })
+                    .ToDictionaryAsync(e => e.Id, e => e.ReportingManagerId);
+
+                var cursor = model.ReportingManagerId;
+                var steps = 0;
+
+                while (cursor.HasValue && steps++ < 100)
+                {
+                    if (cursor.Value == id)
+                    {
+                        ModelState.AddModelError(
+                    "",
+                            "This selection creates a circular reporting line.");
+                        break;
+                    }
+
+                    cursor = reportingLines.TryGetValue(cursor.Value, out var nextManager)
+                        ? nextManager
+                        : null;
+                }
+            }
+
             if (!ModelState.IsValid)
             {
                 var managers = await _db.Employees
@@ -916,6 +998,25 @@ namespace ExpenseManagement.Controllers
                     "~/Views/HR/EditEmployee.cshtml",
                     model);
             }
+
+            // Track key changes for the audit trail (no personal/bank data).
+            var previousStatus = employee.EmploymentStatus;
+            var changes = new List<string>();
+
+            void Track(string label, object? before, object? after)
+            {
+                var b = before?.ToString() ?? "";
+                var a = after?.ToString() ?? "";
+                if (b != a) changes.Add($"{label}: '{b}' -> '{a}'");
+            }
+
+            Track("Employee code", employee.EmployeeCode, model.EmployeeCode);
+            Track("Designation", employee.Designation, model.Designation);
+            Track("Reporting manager id", employee.ReportingManagerId, model.ReportingManagerId);
+            Track("Status", employee.EmploymentStatus, model.EmploymentStatus);
+            Track("Employment type", employee.EmploymentType, model.EmploymentType);
+            Track("Joining date", employee.JoiningDate?.ToString("yyyy-MM-dd"), model.JoiningDate?.ToString("yyyy-MM-dd"));
+            Track("Exit date", employee.ExitDate?.ToString("yyyy-MM-dd"), model.ExitDate?.ToString("yyyy-MM-dd"));
 
             // Update HR profile fields only.
             // Update HR profile fields only.
@@ -967,19 +1068,85 @@ namespace ExpenseManagement.Controllers
             // Employee Category
             employee.IsIDBI = model.IsIDBI;
             employee.IsNonIDBI = model.IsNonIDBI;
-            employee.IsOnSite = model.IsOnSite;
 
-            employee.UpdatedAt = DateTime.UtcNow;
+            // ========================================================
+            // EXIT HANDLING (status changed to Inactive)
+            // ========================================================
+            var exitNote = "";
+
+            if (previousStatus != "Inactive" &&
+                employee.EmploymentStatus == "Inactive" &&
+                employee.ExitDate.HasValue)
+            {
+                var exitDate = employee.ExitDate.Value.Date;
+                var now = DateTime.UtcNow;
+
+                // Pending leave, and approved leave starting after the exit date.
+                var leavesToCancel = await _db.Leaves
+                    .Where(l =>
+                        l.EmployeeId == employee.Id &&
+                        l.CancelledOn == null &&
+                        (l.Status == "Pending" ||
+                         (l.Status == "Approved" && l.FromDate.Date > exitDate)))
+                    .ToListAsync();
+
+                foreach (var leave in leavesToCancel)
+                {
+                    leave.Status = "Cancelled";
+                    leave.CancelledOn = now;
+                    leave.UpdatedAt = now;
+                }
+
+                // Direct reports move to the leaving employee's own manager.
+                var directReports = await _db.Employees
+                    .Where(e => e.ReportingManagerId == employee.Id)
+                    .ToListAsync();
+
+                foreach (var report in directReports)
+                {
+                    report.ReportingManagerId = employee.ReportingManagerId;
+                    report.UpdatedAt = now;
+                }
+
+                changes.Add(
+                    $"Exit processing: {leavesToCancel.Count} leave application(s) cancelled, " +
+                    $"{directReports.Count} direct report(s) reassigned");
+
+                exitNote =
+                    $" Leave cancelled: {leavesToCancel.Count}. " +
+                    $"Direct reports reassigned: {directReports.Count}.";
+            }
+
+            if (changes.Count > 0)
+            {
+                WriteAudit("Update", employee.Id,
+                    $"Updated employee {employee.User.FullName}: {string.Join("; ", changes)}");
+            }
 
             await _db.SaveChangesAsync();
 
             TempData["Success"] =
                 $"Employee profile for " +
-                $"{employee.User.FullName} updated successfully.";
+                $"{employee.User.FullName} updated successfully." +
+                exitNote;
 
             return RedirectToAction(
                 nameof(Details),
                 new { id = employee.Id });
+        }
+
+        private void WriteAudit(string action, int? entityId, string description)
+        {
+            _db.AuditLogs.Add(new AuditLog
+            {
+                CompanyId = CurrentCompanyId,
+                UserId = int.Parse(User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? "0"),
+                Action = action,
+                EntityName = "Employee",
+                EntityId = entityId,
+                Description = description,
+                CreatedAt = DateTime.UtcNow
+            });
         }
 
         // ============================================================

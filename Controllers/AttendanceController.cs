@@ -5,6 +5,7 @@ using ExpenseManagement.Data;
 using ExpenseManagement.Models;
 using System.Security.Claims;
 
+using ExpenseManagement.Services;
 namespace ExpenseManagement.Controllers
 {
     [Authorize(Roles = "Employee,HR,Management")]
@@ -147,6 +148,10 @@ namespace ExpenseManagement.Controllers
 
             var nextMonthStart = monthStart.AddMonths(1);
 
+            // Company holidays for the selected month.
+            var holidays = await WorkCalendar.LoadHolidaysAsync(
+                _db, CurrentCompanyId, monthStart, nextMonthStart.AddDays(-1));
+
             // Convert India month boundaries to the UTC representation
             // used by Attendance.AttendanceDate.
             var monthStartUtc = GetIndiaAttendanceDate(monthStart);
@@ -200,25 +205,15 @@ namespace ExpenseManagement.Controllers
                             continue;
                         }
 
-                        var isSunday =
-                            day.DayOfWeek == DayOfWeek.Sunday;
+                        // Days after the exit date are not counted.
+                        if (employee.ExitDate.HasValue &&
+                            day.Date > employee.ExitDate.Value.Date)
+                        {
+                            continue;
+                        }
 
-                        var isSaturday =
-                            day.DayOfWeek == DayOfWeek.Saturday;
-
-                        var weekOfMonth =
-                            ((day.Day - 1) / 7) + 1;
-
-                        var isSecondSaturday =
-                            isSaturday && weekOfMonth == 2;
-
-                        var isFourthSaturday =
-                            isSaturday && weekOfMonth == 4;
-
-                        var isWeeklyOff =
-                            isSunday ||
-                            isSecondSaturday ||
-                            isFourthSaturday;
+                        // Weekly off OR company holiday.
+                        var isWeeklyOff = WorkCalendar.IsNonWorkingDay(day, holidays);
 
                         if (!isWeeklyOff)
                         {
@@ -321,21 +316,15 @@ namespace ExpenseManagement.Controllers
                                 continue;
                             }
 
-                            var isSunday = day.DayOfWeek == DayOfWeek.Sunday;
-                            var isSaturday = day.DayOfWeek == DayOfWeek.Saturday;
+                            // Days after the exit date are not counted.
+                            if (employee.ExitDate.HasValue &&
+                                day.Date > employee.ExitDate.Value.Date)
+                            {
+                                continue;
+                            }
 
-                            var weekOfMonth = ((day.Day - 1) / 7) + 1;
-
-                            var isSecondSaturday =
-                                isSaturday && weekOfMonth == 2;
-
-                            var isFourthSaturday =
-                                isSaturday && weekOfMonth == 4;
-
-                            var isWeeklyOff =
-                                isSunday ||
-                                isSecondSaturday ||
-                                isFourthSaturday;
+                            // Weekly off OR company holiday.
+                            var isWeeklyOff = WorkCalendar.IsNonWorkingDay(day, holidays);
 
                             if (isWeeklyOff)
                                 continue;
@@ -583,6 +572,13 @@ namespace ExpenseManagement.Controllers
                 // Approved late reviews do not count.
                 // --------------------------------------------------------
 
+                // Late marks reset every calendar month (India date).
+                var lateMonthStartUtc = GetIndiaAttendanceDate(
+                    new DateTime(
+                        attendanceDate.AddHours(5).AddMinutes(30).Year,
+                        attendanceDate.AddHours(5).AddMinutes(30).Month,
+                        1));
+
                 var previousValidLateCount =
                     await _db.Attendances
                         .CountAsync(a =>
@@ -590,7 +586,8 @@ namespace ExpenseManagement.Controllers
                             a.AttendanceMode == "InOffice" &&
                             a.IsLate &&
                             a.LateReviewStatus != "Approved" &&
-                            a.AttendanceDate < attendanceDate);
+                            a.AttendanceDate < attendanceDate &&
+                            a.AttendanceDate >= lateMonthStartUtc);
 
                 attendance.LateMarkNumber =
                     previousValidLateCount + 1;
@@ -655,14 +652,22 @@ namespace ExpenseManagement.Controllers
                 attendance.Status = "No Out-Punch";
             }
 
+            try
+            {
+                await _db.SaveChangesAsync();
+            }
+            catch (DbUpdateException)
+            {
+                // Unique (employee, date) index: a double-click or a second
+                // device already recorded today's attendance.
+                TempData["AttendanceMessage"] =
+                    "Your attendance for today has already been recorded.";
 
-            // ------------------------------------------------------------
-            // Existing attendance status
-            // ------------------------------------------------------------
-
-            attendance.Status = "No Out-Punch";
-
-            await _db.SaveChangesAsync();
+                return RedirectToAction(
+                    "MyAttendance",
+                    "HRMEmployee",
+                    new { date = today });
+            }
 
             TempData["AttendanceMessage"] =
                 "Check-In recorded successfully.";
@@ -1231,6 +1236,9 @@ namespace ExpenseManagement.Controllers
 
             attendance.UpdatedAt = DateTime.UtcNow;
 
+            WriteAudit("LateReview", attendance.Id,
+                $"Late attendance review {decision} for employee {attendance.EmployeeId} on {attendance.AttendanceDate.AddHours(5).AddMinutes(30):dd-MMM-yyyy}.");
+
             await _db.SaveChangesAsync();
 
 
@@ -1399,6 +1407,13 @@ namespace ExpenseManagement.Controllers
 
                     // Recalculate the late mark number based on
                     // currently valid late records.
+                    // Late marks reset every calendar month (India date).
+                    var lateMonthStartUtc = GetIndiaAttendanceDate(
+                        new DateTime(
+                            attendance.AttendanceDate.AddHours(5).AddMinutes(30).Year,
+                            attendance.AttendanceDate.AddHours(5).AddMinutes(30).Month,
+                            1));
+
                     var previousValidLateCount =
                         await _db.Attendances
                             .CountAsync(a =>
@@ -1407,7 +1422,8 @@ namespace ExpenseManagement.Controllers
                                 a.AttendanceMode == "InOffice" &&
                                 a.IsLate &&
                                 a.LateReviewStatus != "Approved" &&
-                                a.AttendanceDate < attendance.AttendanceDate);
+                                a.AttendanceDate < attendance.AttendanceDate &&
+                                a.AttendanceDate >= lateMonthStartUtc);
 
                     attendance.LateMarkNumber =
                         previousValidLateCount + 1;
@@ -1554,6 +1570,9 @@ namespace ExpenseManagement.Controllers
             attendance.ApprovedOn = DateTime.UtcNow;
             attendance.UpdatedAt = DateTime.UtcNow;
 
+            WriteAudit("Correction", attendance.Id,
+                $"HR corrected attendance for employee {attendance.EmployeeId} on {attendance.AttendanceDate.AddHours(5).AddMinutes(30):dd-MMM-yyyy}. Status: {attendance.Status}.");
+
             await _db.SaveChangesAsync();
 
             TempData["AttendanceMessage"] =
@@ -1601,6 +1620,20 @@ namespace ExpenseManagement.Controllers
             return DateTime.SpecifyKind(
                 utcTime,
                 DateTimeKind.Utc);
+        }
+
+        private void WriteAudit(string action, int? entityId, string description)
+        {
+            _db.AuditLogs.Add(new AuditLog
+            {
+                CompanyId = CurrentCompanyId,
+                UserId = CurrentUserId,
+                Action = action,
+                EntityName = "Attendance",
+                EntityId = entityId,
+                Description = description,
+                CreatedAt = DateTime.UtcNow
+            });
         }
 
         // ============================================================

@@ -1,10 +1,12 @@
 ﻿using ClosedXML.Excel;
 using System.Globalization;
+using System.Text.RegularExpressions;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using ExpenseManagement.Data;
 using ExpenseManagement.Models;
+using ExpenseManagement.Services;
 
 namespace ExpenseManagement.Controllers
 {
@@ -12,7 +14,8 @@ namespace ExpenseManagement.Controllers
     public class ReportsController : Controller
     {
         private readonly AppDbContext _db;
-
+        private const string PayrollTemplateCode = "PAYROLL_REPORT";
+        private const int MaximumReportMonths = 12;
         public ReportsController(AppDbContext db)
         {
             _db = db;
@@ -265,6 +268,17 @@ namespace ExpenseManagement.Controllers
                 .ToListAsync();
 
             // --------------------------------------------------------
+            // Company holidays for the report month
+            // --------------------------------------------------------
+
+            // --------------------------------------------------------
+            // COMPANY HOLIDAYS
+            // --------------------------------------------------------
+
+            var holidays = await WorkCalendar.LoadHolidaysAsync(
+                  _db, selectedCompanyId, monthStart, nextMonthStart.AddDays(-1));
+
+            // --------------------------------------------------------
             // Department list
             // --------------------------------------------------------
 
@@ -341,7 +355,7 @@ namespace ExpenseManagement.Controllers
                         continue;
                     }
 
-                    if (!IsWorkingDay(day))
+                    if (!IsWorkingDay(day, holidays))
                         continue;
 
                     workingDays++;
@@ -443,7 +457,7 @@ namespace ExpenseManagement.Controllers
                             continue;
                         }
 
-                        if (!IsWorkingDay(day))
+                        if (!IsWorkingDay(day, holidays))
                             continue;
 
                         var attendanceDate =
@@ -944,6 +958,14 @@ namespace ExpenseManagement.Controllers
                 .ToListAsync();
 
             // --------------------------------------------------------
+            // COMPANY HOLIDAYS
+            // --------------------------------------------------------
+
+            var holidays = await WorkCalendar.LoadHolidaysAsync(
+                _db, selectedCompanyId, monthStart, nextMonthStart.AddDays(-1));
+
+
+            // --------------------------------------------------------
             // COMPANY
             // --------------------------------------------------------
 
@@ -1166,11 +1188,20 @@ namespace ExpenseManagement.Controllers
                     // ------------------------------------------------
                     // WEEKLY OFF
                     // ------------------------------------------------
-
-                    else if (!IsWorkingDay(date))
+                    else if (WorkCalendar.IsWeeklyOff(date))
                     {
                         dayStatus = "WeeklyOff";
                         weeklyOffDays++;
+                    }
+
+                    // ------------------------------------------------
+                    // COMPANY HOLIDAY
+                    // ------------------------------------------------
+
+                    else if (holidays.Contains(date.Date))
+                    {
+                        dayStatus = "Holiday";
+                        holidayDays++;
                     }
 
                     // ------------------------------------------------
@@ -1451,34 +1482,411 @@ namespace ExpenseManagement.Controllers
 
 
         // ============================================================
+        // PAYROLL REPORT GENERATION (TEMPLATE-DRIVEN)
+        // ============================================================
+
+        [HttpGet]
+        public async Task<IActionResult> PayrollReport(
+            int? companyId,
+            int? fromMonth,
+            int? fromYear,
+            int? toMonth,
+            int? toYear,
+            int? employeeId)
+        {
+            var company = await ResolvePayrollReportCompanyAsync(companyId);
+            if (company == null) return Forbid();
+
+            var now = DateTime.UtcNow.AddHours(5).AddMinutes(30);
+            var startMonth = fromMonth ?? now.Month;
+            var startYear = fromYear ?? now.Year;
+            var endMonth = toMonth ?? startMonth;
+            var endYear = toYear ?? startYear;
+
+            await PopulatePayrollReportPageAsync(company.Id, startMonth, startYear, endMonth, endYear, employeeId);
+            ViewBag.SelectedCompanyId = company.Id;
+            ViewBag.SelectedCompanyName = company.Name;
+            ViewBag.FromMonth = startMonth;
+            ViewBag.FromYear = startYear;
+            ViewBag.ToMonth = endMonth;
+            ViewBag.ToYear = endYear;
+            ViewBag.EmployeeId = employeeId;
+            ViewBag.TemplateCode = PayrollTemplateCode;
+            return View("~/Views/Reports/PayrollReport.cshtml");
+        }
+
+        [HttpGet]
+        public async Task<IActionResult> GeneratePayrollExcel(
+            int? companyId,
+            int fromMonth,
+            int fromYear,
+            int toMonth,
+            int toYear,
+            int? employeeId)
+        {
+            var company = await ResolvePayrollReportCompanyAsync(companyId);
+            if (company == null) return Forbid();
+
+            if (!IsValidMonthYear(fromMonth, fromYear) ||
+                !IsValidMonthYear(toMonth, toYear))
+                return BadRequest("Please select a valid start and end payroll period.");
+
+            var startPeriod = fromYear * 100 + fromMonth;
+            var endPeriod = toYear * 100 + toMonth;
+            if (startPeriod > endPeriod)
+                return BadRequest("The start period cannot be after the end period.");
+
+            var startDate = new DateTime(fromYear, fromMonth, 1);
+            var endDate = new DateTime(toYear, toMonth, 1);
+            var monthCount = ((endDate.Year - startDate.Year) * 12) + endDate.Month - startDate.Month + 1;
+            if (monthCount > MaximumReportMonths)
+                return BadRequest($"Please select a range of {MaximumReportMonths} months or less.");
+
+            if (employeeId.HasValue)
+            {
+                var employeeExists = await _db.Employees
+                    .AsNoTracking()
+                    .AnyAsync(e => e.Id == employeeId.Value &&
+                                   e.User.CompanyId == company.Id &&
+                                   e.User.Role == UserRole.Employee);
+                if (!employeeExists) return NotFound("The selected employee was not found in this company.");
+            }
+
+            // Official payroll reports use finalized payroll records as their source of truth.
+            var payrolls = await _db.Payrolls
+                .AsNoTracking()
+                .Include(p => p.Employee)
+                    .ThenInclude(e => e.User)
+                .Where(p =>
+                    p.Employee.User.CompanyId == company.Id &&
+                    p.Employee.User.Role == UserRole.Employee &&
+                    p.Status == "Finalized" &&
+                    (p.Year * 100 + p.Month) >= startPeriod &&
+                    (p.Year * 100 + p.Month) <= endPeriod &&
+                    (!employeeId.HasValue || p.EmployeeId == employeeId.Value))
+                .OrderBy(p => p.Year)
+                .ThenBy(p => p.Month)
+                .ThenBy(p => p.Employee.EmployeeCode)
+                .ToListAsync();
+
+            if (payrolls.Count == 0)
+                return BadRequest("No finalized payroll records were found for the selected filters.");
+
+            var template = await _db.Documents
+                .AsNoTracking()
+                .Where(d => d.CompanyId == company.Id &&
+                            d.DocumentKind == "Template" &&
+                            d.DocumentType == "Payroll Report" &&
+                            d.TemplateCode == PayrollTemplateCode &&
+                            d.DocumentStatus == "Active")
+                .OrderByDescending(d => d.TemplateVersion)
+                .FirstOrDefaultAsync();
+
+            if (template == null || string.IsNullOrWhiteSpace(template.FilePath))
+                return BadRequest($"No active payroll report template was found for {company.Name}. Upload an Excel template with Template Code '{PayrollTemplateCode}'.");
+
+            if (!string.Equals(Path.GetExtension(template.FilePath), ".xlsx", StringComparison.OrdinalIgnoreCase))
+                return BadRequest("The active payroll report template must be an .xlsx workbook. Please upload an Excel .xlsx template.");
+
+            var templatePath = ResolveTemplatePath(template.FilePath);
+            if (templatePath == null || !System.IO.File.Exists(templatePath))
+                return BadRequest("The active payroll report template file could not be found. Please upload the template again.");
+
+            try
+            {
+                using var workbook = new XLWorkbook(templatePath);
+                var worksheet = workbook.Worksheets.FirstOrDefault();
+                if (worksheet == null)
+                    return BadRequest("The payroll report template does not contain a worksheet.");
+
+                var usedRange = worksheet.RangeUsed();
+                if (usedRange == null)
+                    return BadRequest("The payroll report template is empty.");
+
+                // The template controls the layout. Put row-level placeholders in one prototype data row.
+                // Example: {{EmployeeCode}}, {{EmployeeName}}, {{GrossSalary}}, {{NetSalary}}.
+                var prototypeRow = FindPrototypeRow(usedRange);
+                if (prototypeRow == 0)
+                    return BadRequest("The template needs one data prototype row containing placeholders such as {{EmployeeCode}} and {{NetSalary}}.");
+
+                var prototypeLastColumn = Math.Max(usedRange.LastColumn().ColumnNumber(), worksheet.Row(prototypeRow).LastCellUsed()?.Address.ColumnNumber ?? 1);
+                var rowPlaceholders = FindPlaceholdersInRow(worksheet, prototypeRow, prototypeLastColumn);
+                if (rowPlaceholders.Count == 0)
+                    return BadRequest("No supported payroll field placeholders were found in the template data row.");
+
+                var supportedFields = GetSupportedFieldNames();
+                var unsupported = rowPlaceholders.Where(p => !supportedFields.Contains(p)).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+                if (unsupported.Count > 0)
+                    return BadRequest("The template contains unsupported row placeholders: " + string.Join(", ", unsupported));
+
+                // Preserve the prototype row's style and formulas when more records are required.
+                if (payrolls.Count > 1)
+                {
+                    worksheet.Row(prototypeRow).InsertRowsBelow(payrolls.Count - 1);
+                    for (var i = 1; i < payrolls.Count; i++)
+                    {
+                        worksheet.Row(prototypeRow).CopyTo(worksheet.Row(prototypeRow + i));
+                    }
+                }
+
+                var reportRows = payrolls.Select(p => new
+                {
+                    Payroll = p,
+                    Values = BuildPayrollValues(p, company.Name)
+                }).ToList();
+
+                for (var i = 0; i < reportRows.Count; i++)
+                {
+                    var targetRow = prototypeRow + i;
+                    for (var col = 1; col <= prototypeLastColumn; col++)
+                    {
+                        var cell = worksheet.Cell(targetRow, col);
+                        var original = cell.GetString();
+                        if (string.IsNullOrEmpty(original)) continue;
+
+                        var exact = Regex.Match(original, @"^\s*\{\{([A-Za-z0-9_]+)\}\}\s*$");
+                        if (exact.Success)
+                        {
+                            var field = exact.Groups[1].Value;
+                            if (reportRows[i].Values.TryGetValue(field, out var value))
+                                SetCellValue(cell, value);
+                            else
+                                cell.Clear(XLClearOptions.Contents);
+                            continue;
+                        }
+
+                        cell.Value = ReplaceInlineTokens(original, reportRows[i].Values);
+                    }
+                }
+
+                // Report-level placeholders can be placed anywhere outside the repeated data row.
+                var allValues = BuildSummaryValues(company.Name, fromMonth, fromYear, toMonth, toYear, payrolls);
+                var finalRange = worksheet.RangeUsed();
+                if (finalRange != null)
+                {
+                    foreach (var cell in finalRange.CellsUsed())
+                    {
+                        if (cell.Address.RowNumber >= prototypeRow &&
+                            cell.Address.RowNumber < prototypeRow + payrolls.Count)
+                            continue;
+
+                        var text = cell.GetString();
+                        if (text.Contains("{{", StringComparison.Ordinal))
+                            cell.Value = ReplaceInlineTokens(text, allValues);
+                    }
+                }
+
+                worksheet.Columns().AdjustToContents(1, 60);
+                using var stream = new MemoryStream();
+                workbook.SaveAs(stream);
+                stream.Position = 0;
+
+                var fileName = $"Payroll_Report_{SanitizeFileName(company.Name)}_{fromYear}{fromMonth:00}-{toYear}{toMonth:00}.xlsx";
+                return File(stream.ToArray(), "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", fileName);
+            }
+            catch (Exception ex) when (ex is not OutOfMemoryException)
+            {
+                // Do not leak filesystem paths or implementation details to the caller.
+                return BadRequest("The payroll report could not be generated. Please verify the active Excel template and its placeholders.");
+            }
+        }
+
+        private async Task<Company?> ResolvePayrollReportCompanyAsync(int? requestedCompanyId)
+        {
+            if (User.IsInRole("HR"))
+            {
+                if (!CurrentCompanyId.HasValue) return null;
+                return await _db.Companies.AsNoTracking()
+                    .FirstOrDefaultAsync(c => c.Id == CurrentCompanyId.Value);
+            }
+
+            if (!User.IsInRole("Management")) return null;
+            var id = requestedCompanyId ?? await _db.Companies.AsNoTracking()
+                .OrderBy(c => c.Id).Select(c => (int?)c.Id).FirstOrDefaultAsync();
+            if (!id.HasValue) return null;
+            return await _db.Companies.AsNoTracking().FirstOrDefaultAsync(c => c.Id == id.Value);
+        }
+
+        private async Task PopulatePayrollReportPageAsync(int companyId, int fromMonth, int fromYear, int toMonth, int toYear, int? employeeId)
+        {
+            ViewBag.Companies = await _db.Companies.AsNoTracking().OrderBy(c => c.Name).ToListAsync();
+            ViewBag.Employees = await _db.Employees.AsNoTracking()
+                .Include(e => e.User)
+                .Where(e => e.User.CompanyId == companyId && e.User.Role == UserRole.Employee)
+                .OrderBy(e => e.User.FullName)
+                .Select(e => new PayrollReportEmployeeOption { Id = e.Id, Name = e.User.FullName, Code = e.EmployeeCode })
+                .ToListAsync();
+
+            ViewBag.HasActiveTemplate = await _db.Documents.AsNoTracking().AnyAsync(d =>
+                d.CompanyId == companyId && d.DocumentKind == "Template" &&
+                d.DocumentType == "Payroll Report" && d.TemplateCode == PayrollTemplateCode &&
+                d.DocumentStatus == "Active");
+        }
+
+        private string? ResolveTemplatePath(string relativePath)
+        {
+            var root = Path.GetFullPath(Directory.GetCurrentDirectory());
+            var normalizedRelative = relativePath.Replace('/', Path.DirectorySeparatorChar).Replace('\\', Path.DirectorySeparatorChar);
+            var fullPath = Path.GetFullPath(Path.Combine(root, normalizedRelative));
+            var rootPrefix = root.EndsWith(Path.DirectorySeparatorChar) ? root : root + Path.DirectorySeparatorChar;
+            if (!fullPath.StartsWith(rootPrefix, StringComparison.OrdinalIgnoreCase)) return null;
+            return fullPath;
+        }
+
+        private static bool IsValidMonthYear(int month, int year) => month >= 1 && month <= 12 && year >= 2000 && year <= 2100;
+
+        private static int FindPrototypeRow(IXLRange range)
+        {
+            // Summary tokens (for example {{CompanyName}} in a title) do not make a row a data row.
+            var rowLevelTokens = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+            {
+                "EmployeeCode", "EmployeeName", "Department", "Designation", "Month",
+                "MonthName", "Year", "PayrollPeriod", "PayrollStatus", "WorkingDays",
+                "PayDays", "PaidDays", "LOP", "BasicSalary", "HRA", "ConveyanceAllowance",
+                "WashingAllowance", "OtherAllowances", "GrossSalary", "PF", "ESI",
+                "ProfessionalTax", "LWF", "OtherDeductions", "TotalDeductions", "NetSalary", "Remarks"
+            };
+
+            foreach (var row in range.Rows())
+            {
+                foreach (var cell in row.Cells())
+                {
+                    foreach (Match match in Regex.Matches(cell.GetString(), @"\{\{([A-Za-z0-9_]+)\}\}"))
+                    {
+                        if (rowLevelTokens.Contains(match.Groups[1].Value))
+                            return row.RowNumber();
+                    }
+                }
+            }
+            return 0;
+        }
+
+        private static HashSet<string> FindPlaceholdersInRow(IXLWorksheet worksheet, int rowNumber, int lastColumn)
+        {
+            var result = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            for (var col = 1; col <= lastColumn; col++)
+            {
+                foreach (Match match in Regex.Matches(worksheet.Cell(rowNumber, col).GetString(), @"\{\{([A-Za-z0-9_]+)\}\}"))
+                    result.Add(match.Groups[1].Value);
+            }
+            return result;
+        }
+
+        private static HashSet<string> GetSupportedFieldNames() => new(StringComparer.OrdinalIgnoreCase)
+        {
+            "CompanyName", "EmployeeCode", "EmployeeName", "Department", "Designation",
+            "Month", "MonthName", "Year", "PayrollPeriod", "PayrollStatus", "WorkingDays",
+            "PayDays", "PaidDays", "LOP", "BasicSalary", "HRA", "ConveyanceAllowance",
+            "WashingAllowance", "OtherAllowances", "GrossSalary", "PF", "ESI",
+            "ProfessionalTax", "LWF", "OtherDeductions", "TotalDeductions", "NetSalary", "Remarks"
+        };
+
+        private static Dictionary<string, object?> BuildPayrollValues(Payroll p, string companyName)
+        {
+            var employee = p.Employee;
+            var monthName = CultureInfo.InvariantCulture.DateTimeFormat.GetMonthName(p.Month);
+            return new Dictionary<string, object?>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["CompanyName"] = companyName,
+                ["EmployeeCode"] = employee.EmployeeCode ?? "",
+                ["EmployeeName"] = employee.User?.FullName ?? "",
+                ["Department"] = employee.User?.Department ?? "",
+                ["Designation"] = employee.Designation ?? "",
+                ["Month"] = p.Month,
+                ["MonthName"] = monthName,
+                ["Year"] = p.Year,
+                ["PayrollPeriod"] = $"{monthName} {p.Year}",
+                ["PayrollStatus"] = p.Status ?? "",
+                ["WorkingDays"] = p.WorkingDays,
+                ["PayDays"] = p.PaidDays,
+                ["PaidDays"] = p.PaidDays,
+                ["LOP"] = p.LOP,
+                ["BasicSalary"] = p.BasicSalary,
+                ["HRA"] = p.HRA,
+                ["ConveyanceAllowance"] = p.ConveyanceAllowance,
+                ["WashingAllowance"] = p.WashingAllowance,
+                ["OtherAllowances"] = p.OtherAllowances,
+                ["GrossSalary"] = p.GrossSalary,
+                ["PF"] = p.PF,
+                ["ESI"] = p.ESI,
+                ["ProfessionalTax"] = p.ProfessionalTax,
+                ["LWF"] = p.LWF,
+                ["OtherDeductions"] = p.OtherDeductions,
+                ["TotalDeductions"] = p.TotalDeductions,
+                ["NetSalary"] = p.NetSalary,
+                ["Remarks"] = p.Remarks ?? ""
+            };
+        }
+
+        private static Dictionary<string, object?> BuildSummaryValues(string companyName, int fromMonth, int fromYear, int toMonth, int toYear, List<Payroll> payrolls)
+        {
+            var rows = payrolls.Select(p => BuildPayrollValues(p, companyName)).ToList();
+            return new Dictionary<string, object?>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["CompanyName"] = companyName,
+                ["PeriodFrom"] = $"{CultureInfo.InvariantCulture.DateTimeFormat.GetMonthName(fromMonth)} {fromYear}",
+                ["PeriodTo"] = $"{CultureInfo.InvariantCulture.DateTimeFormat.GetMonthName(toMonth)} {toYear}",
+                ["RecordCount"] = payrolls.Count,
+                ["TotalGrossSalary"] = payrolls.Sum(p => p.GrossSalary),
+                ["TotalDeductions"] = payrolls.Sum(p => p.TotalDeductions),
+                ["TotalNetSalary"] = payrolls.Sum(p => p.NetSalary),
+                ["TotalLOP"] = payrolls.Sum(p => p.LOP)
+            };
+        }
+
+        private static string ReplaceInlineTokens(string text, IReadOnlyDictionary<string, object?> values)
+        {
+            return Regex.Replace(text, @"\{\{([A-Za-z0-9_]+)\}\}", match =>
+            {
+                if (!values.TryGetValue(match.Groups[1].Value, out var value)) return match.Value;
+                return value switch
+                {
+                    null => string.Empty,
+                    decimal amount => amount.ToString("0.00", CultureInfo.InvariantCulture),
+                    double number => number.ToString("0.##", CultureInfo.InvariantCulture),
+                    _ => Convert.ToString(value, CultureInfo.InvariantCulture) ?? string.Empty
+                };
+            });
+        }
+
+        private static void SetCellValue(IXLCell cell, object? value)
+        {
+            switch (value)
+            {
+                case null: cell.Clear(XLClearOptions.Contents); break;
+                case string text: cell.Value = text; break;
+                case decimal amount: cell.Value = amount; break;
+                case int number: cell.Value = number; break;
+                case long number: cell.Value = number; break;
+                case double number: cell.Value = number; break;
+                case DateTime date: cell.Value = date; break;
+                case bool flag: cell.Value = flag; break;
+                default: cell.Value = Convert.ToString(value, CultureInfo.InvariantCulture) ?? string.Empty; break;
+            }
+        }
+
+        private static string SanitizeFileName(string value)
+        {
+            var invalid = Path.GetInvalidFileNameChars();
+            var safe = new string(value.Select(ch => invalid.Contains(ch) ? '_' : ch).ToArray());
+            return string.IsNullOrWhiteSpace(safe) ? "Company" : safe.Replace(' ', '_');
+        }
+
+        public sealed class PayrollReportEmployeeOption
+        {
+            public int Id { get; set; }
+            public string? Name { get; set; }
+            public string? Code { get; set; }
+        }
+
+        // ============================================================
         // WORKING DAY RULE
         // ============================================================
 
-        private static bool IsWorkingDay(DateTime date)
+        private static bool IsWorkingDay(DateTime date, ISet<DateTime> holidays)
         {
-            // Sunday = weekly off
-            if (date.DayOfWeek == DayOfWeek.Sunday)
-                return false;
-
-            // Saturday
-            if (date.DayOfWeek == DayOfWeek.Saturday)
-            {
-                var weekOfMonth =
-                    ((date.Day - 1) / 7) + 1;
-
-                // 2nd and 4th Saturday = weekly off
-                if (weekOfMonth == 2 ||
-                    weekOfMonth == 4)
-                {
-                    return false;
-                }
-
-                // 1st, 3rd and 5th Saturday = working
-                return true;
-            }
-
-            // Monday-Friday
-            return true;
+            // Weekly off (Sunday, 2nd and 4th Saturday) or company holiday.
+            return !WorkCalendar.IsNonWorkingDay(date, holidays);
         }
 
         // ============================================================

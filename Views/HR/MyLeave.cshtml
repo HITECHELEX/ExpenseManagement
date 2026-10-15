@@ -264,8 +264,9 @@
 
                                     <td class="text-end">
 
-                                        @if (leave.Status == "Pending" ||
-                                             leave.Status == "Approved")
+                                        @if ((leave.Status == "Pending" ||
+                                          leave.Status == "Approved") &&
+                                         leave.FromDate.Date >= DateTime.UtcNow.AddHours(5).AddMinutes(30).Date)
                                         {
                                             <form asp-controller="Leave"
                                                   asp-action="Cancel"

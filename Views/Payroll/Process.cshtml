@@ -26,9 +26,7 @@ var lastDayOfMonth = new DateTime(
     month,
     DateTime.DaysInMonth(year, month));
 
-bool isLastThreeDays =
-    isCurrentMonth &&
-    todayIndia >= lastDayOfMonth.AddDays(-2);
+bool isLastThreeDays = isCurrentMonth;
 
 bool isProcessed =
     payroll?.Status == "Processed";
@@ -161,33 +159,33 @@ bool isProcessed =
             <h5 class="mb-0 fw-bold">
                 Attendance & Pay Calculation
             </h5>
-
             @if (isCurrentMonth)
-{
-    <div class="alert alert-info mb-3">
-        <i class="fas fa-info-circle me-1"></i>
+            {
+                <div class="alert alert-info mb-3">
+                    <i class="fas fa-info-circle me-1"></i>
+                    <strong>Payroll can be processed at any time.</strong>
+                    <span>
+                        Attendance and leave are evaluated through
+                        <strong>@todayIndia.ToString("dd-MMM-yyyy")</strong>.
+                        Days after today are not included. If attendance or leave changes later,
+                        reprocess before finalizing, or reopen the payroll if it is already finalized.
+                    </span>
+                </div>
+            }
 
-        @if (isLastThreeDays)
-        {
-            <strong>Payroll processing is now open.</strong>
-            <span>
-                Attendance and leave are evaluated through
-                <strong>@todayIndia.ToString("dd-MMM-yyyy")</strong>.
-                The payroll can be processed and finalized during the last 3 days of the month.
-            </span>
-        }
-        else
-        {
-            <strong>This is a payroll preview.</strong>
-            <span>
-                Attendance and leave are evaluated through
-                <strong>@todayIndia.ToString("dd-MMM-yyyy")</strong>.
-                Payroll processing opens during the last 3 days of the month.
-            </span>
-        }
+            @{
+                var noOutPunchDays = (int)(ViewBag.NoOutPunchDays ?? 0);
+            }
 
-    </div>
-}
+            @if (noOutPunchDays > 0)
+            {
+                <div class="alert alert-warning mb-3">
+                    <i class="fas fa-exclamation-triangle me-1"></i>
+                    <strong>@noOutPunchDays day(s)</strong> have a missing punch and are paid as full days.
+                    Review them on the attendance page before processing.
+                </div>
+            }
+        </div>
         </div>
 
         <div class="card-body">
@@ -694,40 +692,22 @@ bool isProcessed =
             }
             else
             {
-                @if (isCurrentMonth && isLastThreeDays)
-{
-    <button type="submit"
-            name="action"
-            value="Process"
-            class="btn btn-primary">
-
-        <i class="fas fa-calculator me-1"></i>
-        Process Payroll
-
-    </button>
-}
-else if (isCurrentMonth)
+                @if (isCurrentMonth || isPastMonth)
 {
     <button type="submit"
             name="action"
             value="Preview"
-            class="btn btn-primary">
-
+            class="btn btn-outline-primary">
         <i class="fas fa-eye me-1"></i>
         Preview Payroll
-
     </button>
-}
-else if (isPastMonth)
-{
+
     <button type="submit"
             name="action"
             value="Process"
             class="btn btn-primary">
-
         <i class="fas fa-calculator me-1"></i>
         Process Payroll
-
     </button>
 }
 else
@@ -735,9 +715,7 @@ else
     <button type="button"
             class="btn btn-secondary"
             disabled>
-
         Payroll Not Available
-
     </button>
 }
             }

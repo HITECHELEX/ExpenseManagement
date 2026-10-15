@@ -1,0 +1,115 @@
+﻿@model List<ExpenseManagement.Models.Holiday>
+@{
+    ViewData["Title"] = "Holidays";
+    int year = ViewBag.Year;
+}
+
+<div class="container-fluid py-4">
+
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2 class="fw-bold mb-1">Company Holidays</h2>
+            <p class="text-muted mb-0">
+                Holidays are not counted as working days in leave and payroll.
+            </p>
+        </div>
+
+        <div class="d-flex align-items-center gap-2">
+            <a href="/Holiday/Index?year=@(year - 1)" class="btn btn-outline-secondary btn-sm">
+                <i class="fas fa-chevron-left"></i>
+            </a>
+            <span class="fw-bold px-2">@year</span>
+            <a href="/Holiday/Index?year=@(year + 1)" class="btn btn-outline-secondary btn-sm">
+                <i class="fas fa-chevron-right"></i>
+            </a>
+        </div>
+    </div>
+
+    <div class="alert alert-warning">
+        <i class="fas fa-info-circle me-1"></i>
+        Adding or removing a holiday does not change payroll that is already processed
+        or leave already applied. Reprocess the payroll (reopen it first if finalized)
+        to apply the change.
+    </div>
+
+    <div class="row g-4">
+
+        <div class="col-lg-4">
+            <div class="card shadow-sm">
+                <div class="card-header bg-white py-3">
+                    <h5 class="mb-0 fw-bold">Add Holiday</h5>
+                </div>
+                <div class="card-body">
+                    <form method="post" action="/Holiday/Create">
+                        @Html.AntiForgeryToken()
+
+                        <div class="mb-3">
+                            <label class="form-label">Date</label>
+                            <input type="date" name="holidayDate" class="form-control" required />
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">Name</label>
+                            <input type="text" name="name" class="form-control" maxlength="150" required />
+                        </div>
+
+                        <button type="submit" class="btn btn-primary w-100">
+                            <i class="fas fa-plus me-1"></i>Add Holiday
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-8">
+            <div class="card shadow-sm">
+                <div class="card-header bg-white py-3">
+                    <h5 class="mb-0 fw-bold">Holidays in @year (@Model.Count)</h5>
+                </div>
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Date</th>
+                                <th>Day</th>
+                                <th>Holiday</th>
+                                <th class="text-end">Action</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @if (!Model.Any())
+                            {
+                                <tr>
+                                    <td colspan="4" class="text-center text-muted py-4">
+                                        No holidays added for @year.
+                                    </td>
+                                </tr>
+                            }
+
+                            @foreach (var holiday in Model)
+                            {
+                                <tr>
+                                    <td>@holiday.HolidayDate.ToString("dd-MMM-yyyy")</td>
+                                    <td>@holiday.HolidayDate.DayOfWeek</td>
+                                    <td>@holiday.Name</td>
+                                    <td class="text-end">
+                                        <form method="post"
+                                              action="/Holiday/Delete/@holiday.Id"
+                                              class="d-inline"
+                                              onsubmit="return confirm('Remove this holiday?');">
+                                            @Html.AntiForgeryToken()
+                                            <button type="submit" class="btn btn-sm btn-outline-danger">
+                                                <i class="fas fa-trash me-1"></i>Remove
+                                            </button>
+                                        </form>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+    </div>
+</div>

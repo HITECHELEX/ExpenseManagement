@@ -3,6 +3,7 @@ using ExpenseManagement.Models;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using ExpenseManagement.Services;
 using System.Text.Json;
 
 namespace ExpenseManagement.Controllers
@@ -11,10 +12,26 @@ namespace ExpenseManagement.Controllers
     public class PayrollController : Controller
     {
         private readonly AppDbContext _db;
+        private readonly LeavePolicyService _leavePolicy;
 
-        public PayrollController(AppDbContext db)
+        private void WriteAudit(string action, int? entityId, string description, string entityName = "Payroll")
+        {
+            _db.AuditLogs.Add(new AuditLog
+            {
+                CompanyId = CurrentCompanyId,
+                UserId = CurrentUserId,
+                Action = action,
+                EntityName = entityName,
+                EntityId = entityId,
+                Description = description,
+                CreatedAt = DateTime.UtcNow
+            });
+        }
+
+        public PayrollController(AppDbContext db, LeavePolicyService leavePolicy)
         {
             _db = db;
+            _leavePolicy = leavePolicy;
         }
 
         private int CurrentCompanyId =>
@@ -103,9 +120,9 @@ namespace ExpenseManagement.Controllers
             var selectedYear = year ?? today.Year;
 
             var todayIndia = DateTime.UtcNow
-    .AddHours(5)
-    .AddMinutes(30)
-    .Date;
+                .AddHours(5)
+                .AddMinutes(30)
+                .Date;
 
             if (selectedMonth < 1 || selectedMonth > 12)
                 selectedMonth = today.Month;
@@ -132,7 +149,7 @@ namespace ExpenseManagement.Controllers
                 .ToListAsync();
 
             var selectedMonthStart =
-    new DateTime(selectedYear, selectedMonth, 1);
+            new DateTime(selectedYear, selectedMonth, 1);
 
             var nextMonthStart =
                 selectedMonthStart.AddMonths(1);
@@ -212,11 +229,6 @@ namespace ExpenseManagement.Controllers
             if (employee == null)
                 return NotFound();
 
-            var salary = await _db.SalaryMasters
-     .AsNoTracking()
-     .FirstOrDefaultAsync(s =>
-         s.EmployeeId == employee.Id &&
-         s.IsActive);
 
             var salaryHistory = await _db.SalaryMasters
                 .AsNoTracking()
@@ -224,9 +236,16 @@ namespace ExpenseManagement.Controllers
                 .OrderByDescending(s => s.EffectiveFrom)
                 .ToListAsync();
 
+            var todayIst = DateTime.UtcNow.AddHours(5).AddMinutes(30).Date;
+
+            var effectiveSalary =
+                salaryHistory.FirstOrDefault(s => s.EffectiveFrom.Date <= todayIst)
+                ?? salaryHistory.FirstOrDefault();
+
             ViewBag.Employee = employee;
-            ViewBag.Salary = salary;
+            ViewBag.Salary = effectiveSalary;
             ViewBag.SalaryHistory = salaryHistory;
+            ViewBag.EffectiveSalaryId = effectiveSalary?.Id;
 
             return View();
         }
@@ -235,23 +254,23 @@ namespace ExpenseManagement.Controllers
         [Authorize(Roles = "HR")]
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> Salary(
-    int employeeId,
-    int? salaryId,
-    string? panNumber,
-    string? uanNumber,
-    string? esicNumber,
-    decimal basicSalary,
-    decimal hra,
-    decimal conveyanceAllowance,
-    decimal washingAllowance,
-    decimal otherAllowances,
-    bool pfApplicable,
-    bool esicApplicable,
-    bool professionalTaxApplicable,
-    bool lwfApplicable,
-    DateTime effectiveFrom)
-        {
+            public async Task<IActionResult> Salary(
+            int employeeId,
+            int? salaryId,
+            string? panNumber,
+            string? uanNumber,
+            string? esicNumber,
+            decimal basicSalary,
+            decimal hra,
+            decimal conveyanceAllowance,
+            decimal washingAllowance,
+            decimal otherAllowances,
+            bool pfApplicable,
+            bool esicApplicable,
+            bool professionalTaxApplicable,
+            bool lwfApplicable,
+            DateTime effectiveFrom)
+             {
             var employee = await _db.Employees
                 .Include(e => e.User)
                 .FirstOrDefaultAsync(e =>
@@ -297,98 +316,133 @@ namespace ExpenseManagement.Controllers
             // ---------------------------------------------------------
             // SALARY REVISION
             // ---------------------------------------------------------
+            var todayIst = DateTime.UtcNow.AddHours(5).AddMinutes(30).Date;
+            var now = DateTime.UtcNow;
+            var revisionDate = DateTime.SpecifyKind(effectiveFrom.Date, DateTimeKind.Utc);
 
-            // Find the currently active salary for this employee.
-            var currentSalary = await _db.SalaryMasters
-                .FirstOrDefaultAsync(s =>
-                    s.EmployeeId == employee.Id &&
-                    s.IsActive);
+            var revisions = await _db.SalaryMasters
+                .Where(s => s.EmployeeId == employee.Id)
+                .ToListAsync();
 
-            // If an existing salary is being edited/revised,
-            // make sure the new effective date is not earlier
-            // than the current salary's effective date.
-            if (currentSalary != null &&
-                effectiveFrom.Date < currentSalary.EffectiveFrom.Date)
+            string? revisionError = null;
+
+            if (revisions.Any(s => s.EffectiveFrom.Date == revisionDate.Date))
             {
-                ModelState.AddModelError(
-                    "",
-                    $"The new Effective From date cannot be earlier than " +
-                    $"{currentSalary.EffectiveFrom:dd-MMM-yyyy}.");
+                revisionError =
+                    $"A salary revision effective {revisionDate:dd-MMM-yyyy} already exists for this employee.";
+            }
+            else if (employee.JoiningDate.HasValue &&
+                     revisionDate.Date < employee.JoiningDate.Value.Date)
+            {
+                revisionError = "The Effective From date cannot be before the joining date.";
+            }
+
+            if (revisionError != null)
+            {
+                var history = revisions.OrderByDescending(s => s.EffectiveFrom).ToList();
+                var inForce = history.FirstOrDefault(s => s.EffectiveFrom.Date <= todayIst)
+                              ?? history.FirstOrDefault();
+
+                ModelState.AddModelError("", revisionError);
 
                 ViewBag.Employee = employee;
-                ViewBag.Salary = currentSalary;
+                ViewBag.Salary = inForce;
+                ViewBag.SalaryHistory = history;
+                ViewBag.EffectiveSalaryId = inForce?.Id;
 
                 return View();
             }
 
-            // The existing salary is historical after a revision.
-            if (currentSalary != null)
+            // The revision with the latest effective date is the only one
+            // flagged IsActive. A backdated revision does not take that flag.
+            var head = revisions.OrderByDescending(s => s.EffectiveFrom).FirstOrDefault();
+            var becomesHead = head == null || revisionDate.Date > head.EffectiveFrom.Date;
+
+            await using var tx = await _db.Database.BeginTransactionAsync();
+
+            // PAN, UAN and ESIC belong to the employee and are stored once,
+            // on the employee profile.
+            static string? Clean(string? value) =>
+                string.IsNullOrWhiteSpace(value) ? null : value.Trim();
+
+            var newPan = Clean(panNumber);
+            var newUan = Clean(uanNumber);
+            var newEsic = Clean(esicNumber);
+
+            var statutoryChanged =
+                employee.PANNumber != newPan ||
+                employee.UANNumber != newUan ||
+                employee.ESICNumber != newEsic;
+
+            if (statutoryChanged)
             {
-                currentSalary.IsActive = false;
-                currentSalary.UpdatedAt = DateTime.UtcNow;
+                employee.PANNumber = newPan;
+                employee.UANNumber = newUan;
+                employee.ESICNumber = newEsic;
+                employee.UpdatedAt = now;
             }
 
-            // Always create a NEW SalaryMaster record.
-            // Never overwrite the old salary structure.
+            if (becomesHead && head != null)
+            {
+                head.IsActive = false;
+                head.UpdatedAt = now;
+                await _db.SaveChangesAsync();
+            }
+
             var salary = new SalaryMaster
             {
                 EmployeeId = employee.Id,
-
-                PANNumber = string.IsNullOrWhiteSpace(panNumber)
-                    ? null
-                    : panNumber.Trim(),
-
-                UANNumber = string.IsNullOrWhiteSpace(uanNumber)
-                    ? null
-                    : uanNumber.Trim(),
-
-                ESICNumber = string.IsNullOrWhiteSpace(esicNumber)
-                    ? null
-                    : esicNumber.Trim(),
-
                 BasicSalary = basicSalary,
                 HRA = hra,
                 ConveyanceAllowance = conveyanceAllowance,
                 WashingAllowance = washingAllowance,
                 OtherAllowances = otherAllowances,
-
                 PFApplicable = pfApplicable,
                 ESICApplicable = esicApplicable,
-                ProfessionalTaxApplicable =
-                    professionalTaxApplicable,
+                ProfessionalTaxApplicable = professionalTaxApplicable,
                 LWFApplicable = lwfApplicable,
-
-                EffectiveFrom = DateTime.SpecifyKind(
-                    effectiveFrom.Date,
-                    DateTimeKind.Utc),
-
-                IsActive = true,
-
-                CreatedAt = DateTime.UtcNow,
-                UpdatedAt = DateTime.UtcNow
+                EffectiveFrom = revisionDate,
+                IsActive = becomesHead,
+                CreatedAt = now,
+                UpdatedAt = now
             };
 
             _db.SalaryMasters.Add(salary);
-
-            // Store the date as UTC midnight.
-            salary.EffectiveFrom = DateTime.SpecifyKind(
-                effectiveFrom.Date,
-                DateTimeKind.Utc);
-
-            salary.IsActive = true;
-            salary.UpdatedAt = DateTime.UtcNow;
-
             await _db.SaveChangesAsync();
 
-            TempData["Success"] =
-                "Salary configuration saved successfully.";
+            WriteAudit("Create", salary.Id,
+                $"Salary revision effective {revisionDate:dd-MMM-yyyy} for employee {employee.Id}: " +
+                $"gross {basicSalary + hra + conveyanceAllowance + washingAllowance + otherAllowances}",
+                "SalaryMaster");
+            if (statutoryChanged)
+            {
+                WriteAudit("Update", employee.Id,
+                    "Statutory numbers (PAN/UAN/ESIC) updated from the salary configuration screen.",
+                    "Employee");
+            }
+            await _db.SaveChangesAsync();
+
+            await tx.CommitAsync();
+
+            // Payroll already processed from the effective month is not recalculated.
+            var affectedPayrolls = await _db.Payrolls.CountAsync(p =>
+                p.EmployeeId == employee.Id &&
+                (p.Year > revisionDate.Year ||
+                 (p.Year == revisionDate.Year && p.Month >= revisionDate.Month)) &&
+                (p.Status == "Processed" || p.Status == "Finalized"));
+
+            TempData["Success"] = affectedPayrolls > 0
+                ? $"Salary configuration saved. {affectedPayrolls} processed or finalized payroll(s) " +
+                  "from the effective month were not recalculated. Reopen and reprocess them to apply " +
+                  "this revision; arrears are not calculated automatically."
+                : "Salary configuration saved successfully.";
 
             return RedirectToAction(
                 nameof(Index),
                 new
                 {
-                    month = DateTime.UtcNow.AddHours(5).AddMinutes(30).Month,
-                    year = DateTime.UtcNow.AddHours(5).AddMinutes(30).Year
+                    month = todayIst.Month,
+                    year = todayIst.Year
                 });
         }
 
@@ -399,10 +453,10 @@ namespace ExpenseManagement.Controllers
 
         [HttpGet]
         public async Task<IActionResult> Process(
-    int employeeId,
-    int? month,
-    int? year)
-        {
+            int employeeId,
+            int? month,
+            int? year)
+            {
             var today = DateTime.UtcNow
                 .AddHours(5)
                 .AddMinutes(30);
@@ -427,7 +481,7 @@ namespace ExpenseManagement.Controllers
                 return NotFound();
 
             var monthStart =
-     new DateTime(selectedYear, selectedMonth, 1);
+            new DateTime(selectedYear, selectedMonth, 1);
 
             var nextMonthStart =
                 monthStart.AddMonths(1);
@@ -514,12 +568,16 @@ namespace ExpenseManagement.Controllers
                     l.ToDate.Date >= monthStart)
                 .ToListAsync();
 
-            // ---------------------------------------------------------
-            // PAID LEAVE ENTITLEMENT
-            // ---------------------------------------------------------
-
+            var monthEnd = nextMonthStart.AddDays(-1);
             var leaveYearStart = new DateTime(selectedYear, 1, 1);
             var leaveYearEnd = leaveYearStart.AddYears(1);
+
+            var leavePolicy = await _leavePolicy.GetAsync(CurrentCompanyId);
+            var annualPaidLeaveEntitlement = LeavePolicyService.GetAnnualEntitlement(
+                employee.JoiningDate, leavePolicy, monthEnd);
+
+            var holidays = await WorkCalendar.LoadHolidaysAsync(
+                _db, CurrentCompanyId, leaveYearStart, monthEnd);
 
             var approvedLeavesForYear = await _db.Leaves
                 .AsNoTracking()
@@ -533,247 +591,18 @@ namespace ExpenseManagement.Controllers
                 .ThenBy(l => l.Id)
                 .ToListAsync();
 
-            decimal paidLeaveUsedBeforeMonth = 0m;
+            var days = PayrollDaysCalculator.Calculate(
+                employee, monthStart, lastDateToEvaluate,
+                attendance, approvedLeaves, approvedLeavesForYear,
+                holidays, annualPaidLeaveEntitlement, GetIndiaAttendanceDate, leavePolicy);
 
-            foreach (var leave in approvedLeavesForYear)
-            {
-                // Ignore leaves that start in the current/future month.
-                if (leave.FromDate.Date >= monthStart)
-                    continue;
-
-                // Calculate only the portion of this leave
-                // that occurred before the current payroll month.
-                var leaveStart = leave.FromDate.Date;
-                var leaveEnd = leave.ToDate.Date;
-
-                var effectiveEnd = leaveEnd < monthStart
-                    ? leaveEnd
-                    : monthStart.AddDays(-1);
-
-                if (effectiveEnd < leaveStart)
-                    continue;
-
-                var leaveDaysBeforeMonth = 0m;
-
-                for (
-                    var leaveDay = leaveStart;
-                    leaveDay <= effectiveEnd;
-                    leaveDay = leaveDay.AddDays(1))
-                {
-                    // Weekly offs are not counted as leave days.
-                    var isSunday =
-                        leaveDay.DayOfWeek == DayOfWeek.Sunday;
-
-                    var isSaturday =
-                        leaveDay.DayOfWeek == DayOfWeek.Saturday;
-
-                    var weekOfMonth =
-                        ((leaveDay.Day - 1) / 7) + 1;
-
-                    var isSecondSaturday =
-                        isSaturday && weekOfMonth == 2;
-
-                    var isFourthSaturday =
-                        isSaturday && weekOfMonth == 4;
-
-                    if (isSunday ||
-                        isSecondSaturday ||
-                        isFourthSaturday)
-                    {
-                        continue;
-                    }
-
-                    leaveDaysBeforeMonth += 1m;
-                }
-
-                // Preserve half-day leave.
-                if (leave.TotalDays == 0.5m &&
-                    leaveStart < monthStart)
-                {
-                    leaveDaysBeforeMonth = 0.5m;
-                }
-
-                paidLeaveUsedBeforeMonth += leaveDaysBeforeMonth;
-            }
-
-            decimal paidLeaveUsed = paidLeaveUsedBeforeMonth;
-
-            const decimal annualPaidLeaveEntitlement = 10m;
-
-            decimal workingDays = 0;
-            decimal paidDays = 0;
-            decimal lop = 0;
-
-            if (lastDateToEvaluate >= monthStart)
-            {
-                for (
-                    var day = monthStart;
-                    day <= lastDateToEvaluate;
-                    day = day.AddDays(1))
-                {
-                    // Employee had not joined yet.
-                    if (employee.JoiningDate.HasValue &&
-                        day.Date < employee.JoiningDate.Value.Date)
-                    {
-                        continue;
-                    }
-
-                    var isSunday =
-                        day.DayOfWeek == DayOfWeek.Sunday;
-
-                    var isSaturday =
-                        day.DayOfWeek == DayOfWeek.Saturday;
-
-                    var weekOfMonth =
-                        ((day.Day - 1) / 7) + 1;
-
-                    var isSecondSaturday =
-                        isSaturday && weekOfMonth == 2;
-
-                    var isFourthSaturday =
-                        isSaturday && weekOfMonth == 4;
-
-                    var isWeeklyOff =
-                        isSunday ||
-                        isSecondSaturday ||
-                        isFourthSaturday;
-
-                    if (isWeeklyOff)
-                        continue;
-
-                    workingDays++;
-
-                    var attendanceDate =
-                        GetIndiaAttendanceDate(day);
-
-                    var dayAttendance =
-                        attendance.FirstOrDefault(a =>
-                            a.AttendanceDate == attendanceDate);
-
-                    // -------------------------------------------------
-                    // ATTENDANCE EXISTS
-                    // -------------------------------------------------
-
-                    if (dayAttendance != null)
-                    {
-                        if (dayAttendance.Status == "Present")
-                        {
-                            paidDays += 1;
-                            continue;
-                        }
-
-                        if (dayAttendance.Status == "Half Day")
-                        {
-                            paidDays += 0.5m;
-                            continue;
-                        }
-
-                        if (dayAttendance.Status == "No Punch-In" ||
-                            dayAttendance.Status == "No Out-Punch")
-                        {
-                            // Existing rule:
-                            // one missing punch still counts as present.
-                            paidDays += 1;
-                            continue;
-                        }
-
-                        if (dayAttendance.Status == "On Leave")
-                        {
-                            var approvedLeaveForAttendance = approvedLeaves
-                                .FirstOrDefault(l =>
-                                    l.FromDate.Date <= day.Date &&
-                                    l.ToDate.Date >= day.Date);
-
-                            if (approvedLeaveForAttendance != null)
-                            {
-                                var leaveDayValue =
-    approvedLeaveForAttendance.TotalDays == 0.5m
-        ? 0.5m
-        : 1m;
-
-                                var paidLeaveRemaining =
-                                    Math.Max(
-                                        0m,
-                                        annualPaidLeaveEntitlement - paidLeaveUsed);
-
-                                var paidLeaveForDay =
-                                    Math.Min(
-                                        leaveDayValue,
-                                        paidLeaveRemaining);
-
-                                paidDays += paidLeaveForDay;
-
-                                var unpaidLeaveForDay =
-                                    leaveDayValue - paidLeaveForDay;
-
-                                lop += unpaidLeaveForDay;
-
-                                paidLeaveUsed += paidLeaveForDay;
-                            }
-                            else
-                            {
-                                // On Leave without an approved leave record
-                                // is not automatically treated as paid leave.
-                                lop += 1;
-                            }
-
-                            continue;
-                        }
-                    }
-
-                    // ---------------------------------------------------------
-                    // APPROVED LEAVE WITHOUT ATTENDANCE
-                    // ---------------------------------------------------------
-
-                    var approvedLeaveWithoutAttendance =
-                        approvedLeaves.FirstOrDefault(l =>
-                            l.FromDate.Date <= day.Date &&
-                            l.ToDate.Date >= day.Date);
-
-                    if (approvedLeaveWithoutAttendance != null)
-                    {
-                        var leaveDayValue =
-                            approvedLeaveWithoutAttendance.TotalDays == 0.5m
-                                ? 0.5m
-                                : 1m;
-
-                        var paidLeaveRemaining =
-                            Math.Max(
-                                0m,
-                                annualPaidLeaveEntitlement - paidLeaveUsed);
-
-                        var paidLeaveForDay =
-                            Math.Min(
-                                leaveDayValue,
-                                paidLeaveRemaining);
-
-                        paidDays += paidLeaveForDay;
-
-                        var unpaidLeaveForDay =
-                            leaveDayValue - paidLeaveForDay;
-
-                        lop += unpaidLeaveForDay;
-
-                        paidLeaveUsed += paidLeaveForDay;
-                    }
-                    else
-                    {
-                        // No attendance and no approved leave.
-                        lop += 1;
-                    }
-                }
-            }
-
-            // ---------------------------------------------------------
-            // FUTURE MONTH
-            // ---------------------------------------------------------
-
-            if (lastDateToEvaluate < monthStart)
-            {
-                workingDays = 0;
-                paidDays = 0;
-                lop = 0;
-            }
+            decimal workingDays = days.WorkingDays;
+            decimal paidDays = days.PaidDays;
+            decimal lop = days.Lop;
+            // Days paid in full despite a missing punch (shown to HR as a warning).
+            ViewBag.NoOutPunchDays = attendance.Count(a =>
+                (a.Status == "No Out-Punch" || a.Status == "No Punch-In") &&
+                a.AttendanceDate < GetIndiaAttendanceDate(todayIndia));
 
             // ---------------------------------------------------------
             // GROSS MONTHLY SALARY
@@ -831,9 +660,9 @@ namespace ExpenseManagement.Controllers
                 MidpointRounding.AwayFromZero);
 
             ViewBag.PF =
-    salary.PFApplicable
-        ? deductionSettings?.PF ?? 0m
-        : 0m;
+                salary.PFApplicable
+                ? deductionSettings?.PF ?? 0m
+                : 0m;
 
             ViewBag.ESI =
                 salary.ESICApplicable
@@ -859,25 +688,27 @@ namespace ExpenseManagement.Controllers
 
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> Process(
-    int employeeId,
-    int month,
-    int year,
-    decimal pf,
-    decimal esi,
-    decimal professionalTax,
-    decimal lwf,
-    decimal otherDeductions,
-    string? remarks,
-    string? action)
-        {
+            public async Task<IActionResult> Process(
+            int employeeId,
+            int month,
+            int year,
+            decimal pf,
+            decimal esi,
+            decimal professionalTax,
+            decimal lwf,
+            decimal otherDeductions,
+            string? remarks,
+            string? action)
+            {
             if (!User.IsInRole("HR"))
                 return Forbid();
+            if (action != "Preview" && action != "Process")
+                return BadRequest("Invalid action.");
 
             var todayIndia = DateTime.UtcNow
-    .AddHours(5)
-    .AddMinutes(30)
-    .Date;
+            .AddHours(5)
+            .AddMinutes(30)
+            .Date;
 
             var isCurrentMonth =
                 year == todayIndia.Year &&
@@ -904,34 +735,18 @@ namespace ExpenseManagement.Controllers
             }
 
             var lastDayOfMonth = new DateTime(
-    year,
-    month,
-    DateTime.DaysInMonth(year, month));
+                year,
+                month,
+                DateTime.DaysInMonth(year, month));
 
             var isLastThreeDays =
                 year == todayIndia.Year &&
                 month == todayIndia.Month &&
                 todayIndia.Date >= lastDayOfMonth.AddDays(-2);
 
-            var canProcessPayroll =
-                isPastMonth || isLastThreeDays;
+            var canProcessPayroll = true;
 
-            
 
-            if (action == "Process" && !canProcessPayroll)
-            {
-                TempData["Error"] =
-                    "Payroll can only be processed during the last 3 days of the month or after the month is complete.";
-
-                return RedirectToAction(
-                    nameof(Process),
-                    new
-                    {
-                        employeeId,
-                        month,
-                        year
-                    });
-            }
 
             var employee = await _db.Employees
                 .Include(e => e.User)
@@ -944,7 +759,7 @@ namespace ExpenseManagement.Controllers
                 return NotFound();
 
             var monthStart =
-    new DateTime(year, month, 1);
+            new DateTime(year, month, 1);
 
             var nextMonthStart =
                 monthStart.AddMonths(1);
@@ -967,7 +782,7 @@ namespace ExpenseManagement.Controllers
             }
 
             var deductionSettings =
-    await GetActivePayrollDeductionSettingsAsync();
+            await GetActivePayrollDeductionSettingsAsync();
 
             if (deductionSettings == null)
             {
@@ -1027,26 +842,25 @@ namespace ExpenseManagement.Controllers
                 .ToListAsync();
 
             var approvedLeaves = await _db.Leaves
-    .AsNoTracking()
-    .Where(l =>
-        l.EmployeeId == employee.Id &&
-        l.Status == "Approved" &&
-        l.CancelledOn == null &&
-        l.FromDate.Date < nextMonthStart &&
-        l.ToDate.Date >= monthStart)
-    .ToListAsync();
+                .AsNoTracking()
+                .Where(l =>
+                    l.EmployeeId == employee.Id &&
+                    l.Status == "Approved" &&
+                    l.CancelledOn == null &&
+                    l.FromDate.Date < nextMonthStart &&
+                    l.ToDate.Date >= monthStart)
+                .ToListAsync();
 
-            // ---------------------------------------------------------
-            // PAID LEAVE ENTITLEMENT
-            // ---------------------------------------------------------
+            var monthEnd = nextMonthStart.AddDays(-1);
+            var leaveYearStart = new DateTime(year, 1, 1);
+            var leaveYearEnd = leaveYearStart.AddYears(1);
 
-            const decimal annualPaidLeaveEntitlement = 10m;
+            var leavePolicy = await _leavePolicy.GetAsync(CurrentCompanyId);
+            var annualPaidLeaveEntitlement = LeavePolicyService.GetAnnualEntitlement(
+                employee.JoiningDate, leavePolicy, monthEnd);
 
-            var leaveYearStart =
-                new DateTime(year, 1, 1);
-
-            var leaveYearEnd =
-                leaveYearStart.AddYears(1);
+            var holidays = await WorkCalendar.LoadHolidaysAsync(
+                _db, CurrentCompanyId, leaveYearStart, monthEnd);
 
             var approvedLeavesForYear = await _db.Leaves
                 .AsNoTracking()
@@ -1060,234 +874,18 @@ namespace ExpenseManagement.Controllers
                 .ThenBy(l => l.Id)
                 .ToListAsync();
 
-            decimal paidLeaveUsedBeforeMonth = 0m;
+            var days = PayrollDaysCalculator.Calculate(
+                employee, monthStart, lastDateToEvaluate,
+                attendance, approvedLeaves, approvedLeavesForYear,
+                holidays, annualPaidLeaveEntitlement, GetIndiaAttendanceDate, leavePolicy);
 
-            foreach (var leave in approvedLeavesForYear)
-            {
-                // Ignore leaves that start in the current/future month.
-                if (leave.FromDate.Date >= monthStart)
-                    continue;
-
-                // Calculate only the portion of this leave
-                // that occurred before the current payroll month.
-                var leaveStart = leave.FromDate.Date;
-                var leaveEnd = leave.ToDate.Date;
-
-                var effectiveEnd = leaveEnd < monthStart
-                    ? leaveEnd
-                    : monthStart.AddDays(-1);
-
-                if (effectiveEnd < leaveStart)
-                    continue;
-
-                var leaveDaysBeforeMonth = 0m;
-
-                for (
-                    var leaveDay = leaveStart;
-                    leaveDay <= effectiveEnd;
-                    leaveDay = leaveDay.AddDays(1))
-                {
-                    // Weekly offs are not counted as leave days.
-                    var isSunday =
-                        leaveDay.DayOfWeek == DayOfWeek.Sunday;
-
-                    var isSaturday =
-                        leaveDay.DayOfWeek == DayOfWeek.Saturday;
-
-                    var weekOfMonth =
-                        ((leaveDay.Day - 1) / 7) + 1;
-
-                    var isSecondSaturday =
-                        isSaturday && weekOfMonth == 2;
-
-                    var isFourthSaturday =
-                        isSaturday && weekOfMonth == 4;
-
-                    if (isSunday ||
-                        isSecondSaturday ||
-                        isFourthSaturday)
-                    {
-                        continue;
-                    }
-
-                    leaveDaysBeforeMonth += 1m;
-                }
-
-                // Preserve half-day leave.
-                if (leave.TotalDays == 0.5m &&
-                    leaveStart < monthStart)
-                {
-                    leaveDaysBeforeMonth = 0.5m;
-                }
-
-                paidLeaveUsedBeforeMonth += leaveDaysBeforeMonth;
-            }
-
-            decimal paidLeaveUsed = paidLeaveUsedBeforeMonth;
-
-            decimal workingDays = 0;
-            decimal paidDays = 0;
-            decimal lop = 0;
-
-            if (lastDateToEvaluate >= monthStart)
-            {
-                for (
-                    var day = monthStart;
-                    day <= lastDateToEvaluate;
-                    day = day.AddDays(1))
-                {
-                    if (employee.JoiningDate.HasValue &&
-                        day.Date < employee.JoiningDate.Value.Date)
-                    {
-                        continue;
-                    }
-
-                    var isSunday =
-                        day.DayOfWeek == DayOfWeek.Sunday;
-
-                    var isSaturday =
-                        day.DayOfWeek == DayOfWeek.Saturday;
-
-                    var weekOfMonth =
-                        ((day.Day - 1) / 7) + 1;
-
-                    var isSecondSaturday =
-                        isSaturday && weekOfMonth == 2;
-
-                    var isFourthSaturday =
-                        isSaturday && weekOfMonth == 4;
-
-                    if (isSunday ||
-                        isSecondSaturday ||
-                        isFourthSaturday)
-                    {
-                        continue;
-                    }
-
-                    workingDays++;
-
-                    var attendanceDate =
-                        GetIndiaAttendanceDate(day);
-
-                    var dayAttendance =
-                        attendance.FirstOrDefault(a =>
-                            a.AttendanceDate == attendanceDate);
-
-                    // ---------------------------------------------------------
-                    // ATTENDANCE EXISTS
-                    // ---------------------------------------------------------
-
-                    if (dayAttendance != null)
-                    {
-                        if (dayAttendance.Status == "Present")
-                        {
-                            paidDays += 1m;
-                            continue;
-                        }
-
-                        if (dayAttendance.Status == "Half Day")
-                        {
-                            paidDays += 0.5m;
-                            continue;
-                        }
-
-                        if (dayAttendance.Status == "No Punch-In" ||
-                            dayAttendance.Status == "No Out-Punch")
-                        {
-                            // Existing attendance rule:
-                            // one missing punch still counts as present.
-                            paidDays += 1m;
-                            continue;
-                        }
-
-                        if (dayAttendance.Status == "On Leave")
-                        {
-                            var approvedLeaveForAttendance = approvedLeaves
-                                .FirstOrDefault(l =>
-                                    l.FromDate.Date <= day.Date &&
-                                    l.ToDate.Date >= day.Date);
-
-                            if (approvedLeaveForAttendance != null)
-                            {
-                                // A normal leave day = 1 day.
-                                // A half-day leave = 0.5 day.
-                                var leaveDayValue =
-                                    approvedLeaveForAttendance.TotalDays == 0.5m
-                                        ? 0.5m
-                                        : 1m;
-
-                                var paidLeaveRemaining =
-                                    Math.Max(
-                                        0m,
-                                        annualPaidLeaveEntitlement - paidLeaveUsed);
-
-                                var paidLeaveForDay =
-                                    Math.Min(
-                                        leaveDayValue,
-                                        paidLeaveRemaining);
-
-                                var unpaidLeaveForDay =
-                                    leaveDayValue - paidLeaveForDay;
-
-                                paidDays += paidLeaveForDay;
-                                lop += unpaidLeaveForDay;
-
-                                paidLeaveUsed += paidLeaveForDay;
-                            }
-                            else
-                            {
-                                // "On Leave" attendance without an approved
-                                // leave application is unpaid.
-                                lop += 1m;
-                            }
-
-                            continue;
-                        }
-                    }
-
-                    // ---------------------------------------------------------
-                    // APPROVED LEAVE WITHOUT ATTENDANCE
-                    // ---------------------------------------------------------
-
-                    var approvedLeave =
-                        approvedLeaves.FirstOrDefault(l =>
-                            l.FromDate.Date <= day.Date &&
-                            l.ToDate.Date >= day.Date);
-
-                    if (approvedLeave != null)
-                    {
-                        // A normal leave day = 1 day.
-                        // A half-day leave = 0.5 day.
-                        var leaveDayValue =
-                            approvedLeave.TotalDays == 0.5m
-                                ? 0.5m
-                                : 1m;
-
-                        var paidLeaveRemaining =
-                            Math.Max(
-                                0m,
-                                annualPaidLeaveEntitlement - paidLeaveUsed);
-
-                        var paidLeaveForDay =
-                            Math.Min(
-                                leaveDayValue,
-                                paidLeaveRemaining);
-
-                        var unpaidLeaveForDay =
-                            leaveDayValue - paidLeaveForDay;
-
-                        paidDays += paidLeaveForDay;
-                        lop += unpaidLeaveForDay;
-
-                        paidLeaveUsed += paidLeaveForDay;
-                    }
-                    else
-                    {
-                        // No attendance and no approved leave.
-                        lop += 1m;
-                    }
-                }
-            }
+            decimal workingDays = days.WorkingDays;
+            decimal paidDays = days.PaidDays;
+            decimal lop = days.Lop;
+            // Days paid in full despite a missing punch (shown to HR as a warning).
+            ViewBag.NoOutPunchDays = attendance.Count(a =>
+                (a.Status == "No Out-Punch" || a.Status == "No Punch-In") &&
+                a.AttendanceDate < GetIndiaAttendanceDate(todayIndia));
 
             // ---------------------------------------------------------
             // SALARY
@@ -1427,19 +1025,15 @@ namespace ExpenseManagement.Controllers
             existingPayroll.WorkingDays =
                 workingDays;
 
-            existingPayroll.PayDays =
-                paidDays;
-
             existingPayroll.PaidDays =
                 paidDays;
 
             existingPayroll.LOP =
                 lop;
-
             existingPayroll.Status =
-     action == "Preview"
-         ? "Draft"
-         : "Processed";
+                action == "Process"
+                    ? "Processed"
+                    : (existingPayroll.Status ?? "Draft");
 
             existingPayroll.Remarks =
                 string.IsNullOrWhiteSpace(remarks)
@@ -1492,11 +1086,20 @@ namespace ExpenseManagement.Controllers
 
                 ViewBag.IsPreview = true;
 
-                await _db.SaveChangesAsync();
+                _db.ChangeTracker.Clear();   // preview must never persist anything
 
                 return View();
             }
 
+            if (netSalary < 0)
+            {
+                TempData["Error"] =
+                    $"Net salary would be negative ({netSalary:N2}). Reduce the deductions before processing.";
+
+                return RedirectToAction(
+                    nameof(Process),
+                    new { employeeId, month, year });
+            }
 
             // ---------------------------------------------------------
             // SAVE / PROCESS PAYROLL
@@ -1557,9 +1160,6 @@ namespace ExpenseManagement.Controllers
             existingPayroll.WorkingDays =
                 workingDays;
 
-            existingPayroll.PayDays =
-                paidDays;
-
             existingPayroll.PaidDays =
                 paidDays;
 
@@ -1578,6 +1178,9 @@ namespace ExpenseManagement.Controllers
                 DateTime.UtcNow;
 
             await _db.SaveChangesAsync();
+            WriteAudit("Process", existingPayroll.Id,
+            $"Processed payroll {month:00}/{year} for employee {employee.Id}: gross {earnedGross}, net {netSalary}, LOP {lop}");
+            await _db.SaveChangesAsync();
 
             TempData["Success"] =
                 "Payroll processed successfully.";
@@ -1589,7 +1192,8 @@ namespace ExpenseManagement.Controllers
                     month,
                     year
                 });
-        }
+             }
+
         // ---------------------------------------------------------
         // FINALIZE PAYROLL
         // ---------------------------------------------------------
@@ -1625,8 +1229,7 @@ namespace ExpenseManagement.Controllers
                 month == todayIndia.Month &&
                 todayIndia.Date >= lastDayOfMonth.AddDays(-2);
 
-            var canFinalizePayroll =
-                isPastMonth || isLastThreeDays;
+            var canFinalizePayroll = true;
 
             if (!canFinalizePayroll)
             {
@@ -1724,7 +1327,8 @@ namespace ExpenseManagement.Controllers
 
             payroll.Status = "Finalized";
             payroll.UpdatedAt = DateTime.UtcNow;
-
+            WriteAudit("Finalize", payroll.Id,
+            $"Finalized payroll {month:00}/{year} for employee {employee.Id}: net {payroll.NetSalary}");
             await _db.SaveChangesAsync();
 
             TempData["Success"] =
@@ -1736,8 +1340,51 @@ namespace ExpenseManagement.Controllers
                 {
                     month,
                     year
-                });
-        }
+                }); }
+
+            // ---------------------------------------------------------
+            // REOPEN FINALIZED PAYROLL (correction path)
+            // ---------------------------------------------------------
+            [Authorize(Roles = "HR")]
+            [HttpPost]
+            [ValidateAntiForgeryToken]
+            public async Task<IActionResult> Reopen(int employeeId, int month, int year, string? reason)
+            {
+                if (string.IsNullOrWhiteSpace(reason) || reason.Trim().Length < 5)
+                {
+                    TempData["Error"] = "A reason (at least 5 characters) is required to reopen a finalized payroll.";
+                    return RedirectToAction(nameof(Index), new { month, year });
+                }
+
+                var employee = await _db.Employees
+                    .Include(e => e.User)
+                    .FirstOrDefaultAsync(e =>
+                        e.Id == employeeId &&
+                        e.User.CompanyId == CurrentCompanyId &&
+                        e.User.Role == UserRole.Employee);
+
+                if (employee == null) return NotFound();
+
+                var payroll = await _db.Payrolls.FirstOrDefaultAsync(p =>
+                    p.EmployeeId == employee.Id && p.Month == month && p.Year == year);
+
+                if (payroll == null || payroll.Status != "Finalized")
+                {
+                    TempData["Error"] = "Only a finalized payroll can be reopened.";
+                    return RedirectToAction(nameof(Index), new { month, year });
+                }
+
+                payroll.Status = "Processed";
+                payroll.UpdatedAt = DateTime.UtcNow;
+
+                WriteAudit("Reopen", payroll.Id,
+                    $"Reopened payroll {month:00}/{year} for employee {employee.Id}. Reason: {reason.Trim()}");
+
+                await _db.SaveChangesAsync();
+
+                TempData["Success"] = "Payroll reopened. Reprocess it, then finalize again.";
+                return RedirectToAction(nameof(Index), new { month, year });
+            }
 
         // ---------------------------------------------------------
         // PAYSLIP
@@ -1902,7 +1549,7 @@ namespace ExpenseManagement.Controllers
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> DeductionSettings(
-    PayrollDeductionSettings settings)
+        PayrollDeductionSettings settings)
         {
             if (!ModelState.IsValid)
             {
@@ -2015,8 +1662,4 @@ namespace ExpenseManagement.Controllers
         }
 
     }
-
-
-
-
 }

@@ -87,14 +87,14 @@ namespace ExpenseManagement.Controllers
 
             var allowedDocumentTypes = new[]
             {
-        "Aadhaar Card",
-        "PAN Card",
-        "Passport",
-        "Driving License",
-        "Education Certificate",
-        "Experience Letter",
-        "Other"
-    };
+                "Aadhaar Card",
+                "PAN Card",
+                "Passport",
+                "Driving License",
+                "Education Certificate",
+                "Experience Letter",
+                "Other"
+            };
 
             if (string.IsNullOrWhiteSpace(documentType) ||
                 !allowedDocumentTypes.Contains(documentType))
@@ -146,12 +146,12 @@ namespace ExpenseManagement.Controllers
 
             var allowedExtensions = new HashSet<string>(
                 StringComparer.OrdinalIgnoreCase)
-    {
-        ".pdf",
-        ".jpg",
-        ".jpeg",
-        ".png"
-    };
+                {
+                    ".pdf",
+                    ".jpg",
+                    ".jpeg",
+                    ".png"
+                };
 
             var extension =
                 Path.GetExtension(file.FileName);
@@ -393,15 +393,15 @@ namespace ExpenseManagement.Controllers
 
             var allowedTemplateTypes = new[]
             {
-        "Offer Letter",
-        "Appointment Letter",
-        "Salary Slip",
-        "Monthly Attendance Summary",
-        "Payroll Report",
-        "Bank Letter",
-        "On-Site Payroll",
-        "Other"
-    };
+                "Offer Letter",
+                "Appointment Letter",
+                "Salary Slip",
+                "Monthly Attendance Summary",
+                "Payroll Report",
+                "Bank Letter",
+                "On-Site Payroll",
+                "Other"
+            };
 
             if (string.IsNullOrWhiteSpace(templateType) ||
                 !allowedTemplateTypes.Contains(templateType))
@@ -499,13 +499,13 @@ namespace ExpenseManagement.Controllers
                 new HashSet<string>(
                     StringComparer.OrdinalIgnoreCase)
                 {
-            ".pdf",
-            ".doc",
-            ".docx",
-            ".xls",
-            ".xlsx",
-            ".ppt",
-            ".pptx"
+                    ".pdf",
+                    ".doc",
+                    ".docx",
+                    ".xls",
+                    ".xlsx",
+                    ".ppt",
+                    ".pptx"
                 };
 
 
@@ -838,16 +838,16 @@ namespace ExpenseManagement.Controllers
 
             var allowedDocumentTypes = new[]
             {
-        "Aadhaar Card",
-        "PAN Card",
-        "Passport",
-        "Driving License",
-        "Education Certificate",
-        "Experience Letter",
-        "Offer Letter",
-        "Appointment Letter",
-        "Other"
-    };
+                "Aadhaar Card",
+                "PAN Card",
+                "Passport",
+                "Driving License",
+                "Education Certificate",
+                "Experience Letter",
+                "Offer Letter",
+                "Appointment Letter",
+                "Other"
+            };
 
             if (string.IsNullOrWhiteSpace(documentType) ||
                 !allowedDocumentTypes.Contains(documentType))
@@ -907,12 +907,12 @@ namespace ExpenseManagement.Controllers
 
             var allowedExtensions = new HashSet<string>(
                 StringComparer.OrdinalIgnoreCase)
-    {
-        ".pdf",
-        ".jpg",
-        ".jpeg",
-        ".png"
-    };
+                {
+                    ".pdf",
+                    ".jpg",
+                    ".jpeg",
+                    ".png"
+                };
 
             var extension =
                 Path.GetExtension(file.FileName);

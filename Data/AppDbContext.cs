@@ -52,6 +52,8 @@ namespace ExpenseManagement.Data
         public DbSet<Leave> Leaves => Set<Leave>();
         public DbSet<Payroll> Payrolls => Set<Payroll>();
 
+        public DbSet<Holiday> Holidays => Set<Holiday>();
+
         public DbSet<SalaryMaster> SalaryMasters => Set<SalaryMaster>();
         public DbSet<HRMConfiguration> HRMConfigurations => Set<HRMConfiguration>();
         public DbSet<Document> Documents => Set<Document>();
@@ -621,6 +623,14 @@ namespace ExpenseManagement.Data
 
             modelBuilder.Entity<AuditLog>()
                 .HasIndex(a => new { a.EntityName, a.EntityId });
+
+            modelBuilder.Entity<Holiday>()
+            .HasOne(h => h.Company).WithMany()
+             .HasForeignKey(h => h.CompanyId).OnDelete(DeleteBehavior.Restrict);
+            modelBuilder.Entity<Holiday>()
+                .Property(h => h.HolidayDate).HasColumnType("date");
+            modelBuilder.Entity<Holiday>()
+                .HasIndex(h => new { h.CompanyId, h.HolidayDate }).IsUnique();
         }
     }
 }

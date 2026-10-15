@@ -576,6 +576,10 @@ namespace ExpenseManagement.Migrations
                         .HasMaxLength(150)
                         .HasColumnType("character varying(150)");
 
+                    b.Property<string>("ESICNumber")
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)");
+
                     b.Property<string>("EmergencyContactName")
                         .HasMaxLength(150)
                         .HasColumnType("character varying(150)");
@@ -657,6 +661,10 @@ namespace ExpenseManagement.Migrations
                     b.Property<string>("State")
                         .HasMaxLength(100)
                         .HasColumnType("character varying(100)");
+
+                    b.Property<string>("UANNumber")
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)");
 
                     b.Property<DateTime>("UpdatedAt")
                         .HasColumnType("timestamp with time zone");
@@ -919,6 +927,36 @@ namespace ExpenseManagement.Migrations
                     b.ToTable("HRMConfigurations");
                 });
 
+            modelBuilder.Entity("ExpenseManagement.Models.Holiday", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("CompanyId")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime>("HolidayDate")
+                        .HasColumnType("date");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(150)
+                        .HasColumnType("character varying(150)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CompanyId", "HolidayDate")
+                        .IsUnique();
+
+                    b.ToTable("Holidays");
+                });
+
             modelBuilder.Entity("ExpenseManagement.Models.Leave", b =>
                 {
                     b.Property<int>("Id")
@@ -1146,12 +1184,6 @@ namespace ExpenseManagement.Migrations
                     b.Property<decimal?>("PaidDays")
                         .HasColumnType("decimal(5,2)");
 
-                    b.Property<DateTime?>("PaidOn")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<decimal?>("PayDays")
-                        .HasColumnType("decimal(5,2)");
-
                     b.Property<DateTime?>("PaymentDate")
                         .HasColumnType("timestamp with time zone");
 
@@ -1162,12 +1194,6 @@ namespace ExpenseManagement.Migrations
                     b.Property<string>("PaymentStatus")
                         .HasMaxLength(30)
                         .HasColumnType("character varying(30)");
-
-                    b.Property<DateTime?>("PayrollPeriodFrom")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<DateTime?>("PayrollPeriodTo")
-                        .HasColumnType("timestamp with time zone");
 
                     b.Property<string>("PayslipNumber")
                         .HasMaxLength(50)
@@ -1320,10 +1346,6 @@ namespace ExpenseManagement.Migrations
                     b.Property<bool>("ESICApplicable")
                         .HasColumnType("boolean");
 
-                    b.Property<string>("ESICNumber")
-                        .HasMaxLength(30)
-                        .HasColumnType("character varying(30)");
-
                     b.Property<DateTime>("EffectiveFrom")
                         .HasColumnType("timestamp with time zone");
 
@@ -1342,19 +1364,11 @@ namespace ExpenseManagement.Migrations
                     b.Property<decimal>("OtherAllowances")
                         .HasColumnType("numeric(12,2)");
 
-                    b.Property<string>("PANNumber")
-                        .HasMaxLength(20)
-                        .HasColumnType("character varying(20)");
-
                     b.Property<bool>("PFApplicable")
                         .HasColumnType("boolean");
 
                     b.Property<bool>("ProfessionalTaxApplicable")
                         .HasColumnType("boolean");
-
-                    b.Property<string>("UANNumber")
-                        .HasMaxLength(30)
-                        .HasColumnType("character varying(30)");
 
                     b.Property<DateTime>("UpdatedAt")
                         .HasColumnType("timestamp with time zone");
@@ -1422,7 +1436,7 @@ namespace ExpenseManagement.Migrations
                             Department = "Management",
                             Email = "management@company.com",
                             FullName = "Admin Management",
-                            PasswordHash = "$2a$11$/CKljMKPbuAINv7UX/Y.MeYyG7KOnXASoq/7OZHm.I.8NQird/0Q6",
+                            PasswordHash = "$2a$11$6yaoHNVEkXF7MJbjeEnreuLY/cZJvR0.QPT.zrBZzAsPBJWgV8c0e",
                             Role = 2
                         },
                         new
@@ -1433,7 +1447,7 @@ namespace ExpenseManagement.Migrations
                             Department = "Finance",
                             Email = "accounts@company.com",
                             FullName = "Accounts Team",
-                            PasswordHash = "$2a$11$BOXyGqROUYgwnqBKMKj6GOwtxCTX94OAaVQMygKUo03CvCXi2iqkW",
+                            PasswordHash = "$2a$11$dKxph3l6zOogH.vvymDXSeKU/bRhVMfRlQSQ4KofxTlnIehWvHqxK",
                             Role = 1
                         },
                         new
@@ -1444,7 +1458,7 @@ namespace ExpenseManagement.Migrations
                             Department = "Sales",
                             Email = "employee@company.com",
                             FullName = "John Employee",
-                            PasswordHash = "$2a$11$Q.JnPmBFF0Zdf/C5kNH/su8DqBsuuDD0zFhHvWdBP9SBKLBwiCR1C",
+                            PasswordHash = "$2a$11$MuWTQ1RRgoTabEOsokR/aOe6C1XAlu543D./8TarQK8EnpJ8GFO4y",
                             Role = 0
                         },
                         new
@@ -1455,7 +1469,7 @@ namespace ExpenseManagement.Migrations
                             Department = "Finance",
                             Email = "accounts.ceyone@company.com",
                             FullName = "Ceyone Accounts",
-                            PasswordHash = "$2a$11$bbpsf4qrTPXkY2sDCp/wQ.gJ2C4K9S.24ThZ2Udg6maRq0aFnmx7G",
+                            PasswordHash = "$2a$11$yxcvYSu6ZxUR4CI9t0PPj..iReIFIEX740LNygYPt9fr.oxATNW6W",
                             Role = 1
                         },
                         new
@@ -1466,7 +1480,7 @@ namespace ExpenseManagement.Migrations
                             Department = "Operations",
                             Email = "employee.ceyone@company.com",
                             FullName = "Ceyone Employee",
-                            PasswordHash = "$2a$11$9D5d75Ce8vvwH58vehhFSOSJOg3IiKUD05agIfe9Qvlrxv0PCD3ly",
+                            PasswordHash = "$2a$11$mNavLriTXoIRJjMSB/G0t.L1SO77O40FM2lYkH3Og/KdcTFBvLFY6",
                             Role = 0
                         });
                 });
@@ -1767,6 +1781,17 @@ namespace ExpenseManagement.Migrations
                 });
 
             modelBuilder.Entity("ExpenseManagement.Models.HRMConfiguration", b =>
+                {
+                    b.HasOne("ExpenseManagement.Models.Company", "Company")
+                        .WithMany()
+                        .HasForeignKey("CompanyId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Company");
+                });
+
+            modelBuilder.Entity("ExpenseManagement.Models.Holiday", b =>
                 {
                     b.HasOne("ExpenseManagement.Models.Company", "Company")
                         .WithMany()

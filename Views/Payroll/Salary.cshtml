@@ -151,7 +151,7 @@
                                name="panNumber"
                                class="form-control"
                                maxlength="20"
-                               value="@salary?.PANNumber" />
+                               value="@employee?.PANNumber" />
 
                     </div>
 
@@ -165,7 +165,7 @@
                                name="uanNumber"
                                class="form-control"
                                maxlength="30"
-                               value="@salary?.UANNumber" />
+                               value="@employee?.UANNumber" />
 
                     </div>
 
@@ -179,7 +179,7 @@
                                name="esicNumber"
                                class="form-control"
                                maxlength="30"
-                               value="@salary?.ESICNumber" />
+                               value="@employee?.ESICNumber" />
 
                     </div>
 
@@ -593,17 +593,17 @@
 
                                     <td>
 
-                                        @if (item.IsActive)
+                                        @if (item.Id == (int?)ViewBag.EffectiveSalaryId)
                                         {
-                                            <span class="badge bg-success">
-                                                Current
-                                            </span>
+                                            <span class="badge bg-success">Current</span>
+                                        }
+                                        else if (item.EffectiveFrom.Date > DateTime.UtcNow.AddHours(5).AddMinutes(30).Date)
+                                        {
+                                            <span class="badge bg-info">Scheduled</span>
                                         }
                                         else
                                         {
-                                            <span class="badge bg-secondary">
-                                                Historical
-                                            </span>
+                                            <span class="badge bg-secondary">Historical</span>
                                         }
 
                                     </td>

@@ -15,6 +15,7 @@
     currentPath.StartsWithSegments("/Payroll") ||
     currentPath.StartsWithSegments("/Asset") ||
     currentPath.StartsWithSegments("/Reports") ||
+    currentPath.StartsWithSegments("/Holiday") ||
     isDocumentsPage;
 }
 <!DOCTYPE html>
@@ -238,6 +239,7 @@
     currentPath.StartsWithSegments("/Payroll") ||
     currentPath.StartsWithSegments("/Asset") ||
     currentPath.StartsWithSegments("/Reports") ||
+    currentPath.StartsWithSegments("/Holiday") ||
     isDocumentsPage;
 
     var isHR =
@@ -433,6 +435,14 @@
                     <span>Documents</span>
 
                 </a>
+
+                                    <a href="/Holiday/Index"
+                       class="@(currentPath.StartsWithSegments("/Holiday") ? "active" : "")">
+
+                        <i class="fas fa-calendar-day"></i>
+                        <span>Holidays</span>
+
+                    </a>
 
                                 <div class="nav-label">
                         Asset Management

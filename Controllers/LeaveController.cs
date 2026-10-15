@@ -1,8 +1,9 @@
-﻿using Microsoft.AspNetCore.Authorization;
+﻿using ExpenseManagement.Data;
+using ExpenseManagement.Models;
+using ExpenseManagement.Services;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using ExpenseManagement.Data;
-using ExpenseManagement.Models;
 using System.Security.Claims;
 using System.Text.Json;
 
@@ -12,137 +13,20 @@ namespace ExpenseManagement.Controllers
     public class LeaveController : Controller
     {
         private readonly AppDbContext _db;
+        private readonly LeavePolicyService _policy;
 
-        // Leave policy is company-specific and stored in HRMConfiguration.
-        // These values are the safe defaults used when no LeavePolicy
-        // configuration has been created yet.
-        private const decimal DefaultAnnualPaidLeave = 10m;
-        private const decimal DefaultLongServiceAnnualPaidLeave = 15m;
-        private const int DefaultLongServiceAfterYears = 5;
-
-
-
-        public LeaveController(AppDbContext db)
+        public LeaveController(AppDbContext db, LeavePolicyService policy)
         {
             _db = db;
-
-
-        }
-        // ============================================================
-        // LEAVE POLICY
-        // ============================================================
-
-        private sealed class LeavePolicySettings
-        {
-            public decimal BaseAnnualPaidLeave { get; set; }
-                = DefaultAnnualPaidLeave;
-
-            public decimal LongServiceAnnualPaidLeave { get; set; }
-                = DefaultLongServiceAnnualPaidLeave;
-
-            public int LongServiceAfterYears { get; set; }
-                = DefaultLongServiceAfterYears;
-
-            public Dictionary<string, string> LeaveTypes { get; set; }
-                = new(StringComparer.OrdinalIgnoreCase)
-                {
-                    ["CL"] = "Casual Leave",
-                    ["SL"] = "Sick Leave",
-                    ["C/Off"] = "Compensatory Off",
-                    ["Paternity"] = "Paternity Leave",
-                    ["Maternity"] = "Maternity Leave",
-                    ["Medical"] = "Medical Leave"
-                };
+            _policy = policy;
         }
 
-        private async Task<LeavePolicySettings> GetLeavePolicyAsync()
-        {
-            var now = DateTime.UtcNow;
+        private Task<LeavePolicySettings> GetLeavePolicyAsync()
+            => _policy.GetAsync(CurrentCompanyId);
 
-            var configuration = await _db.HRMConfigurations
-                .AsNoTracking()
-                .Where(c =>
-                    c.CompanyId == CurrentCompanyId &&
-                    c.ConfigurationType == "LeavePolicy" &&
-                    c.ConfigurationCode == "DEFAULT" &&
-                    c.IsActive &&
-                    c.EffectiveFrom <= now &&
-                    (
-                        c.EffectiveTo == null ||
-                        c.EffectiveTo >= now
-                    ))
-                .OrderByDescending(c => c.Version)
-                .FirstOrDefaultAsync();
-
-            if (configuration == null ||
-                string.IsNullOrWhiteSpace(configuration.ConfigurationJson))
-            {
-                return new LeavePolicySettings();
-            }
-
-            try
-            {
-                var policy =
-                    JsonSerializer.Deserialize<LeavePolicySettings>(
-                        configuration.ConfigurationJson,
-                        new JsonSerializerOptions
-                        {
-                            PropertyNameCaseInsensitive = true
-                        });
-
-                if (policy == null)
-                    return new LeavePolicySettings();
-
-                policy.LeaveTypes =
-                    policy.LeaveTypes != null &&
-                    policy.LeaveTypes.Count > 0
-                        ? new Dictionary<string, string>(
-                            policy.LeaveTypes,
-                            StringComparer.OrdinalIgnoreCase)
-                        : new LeavePolicySettings().LeaveTypes;
-
-                if (policy.BaseAnnualPaidLeave <= 0)
-                    policy.BaseAnnualPaidLeave = DefaultAnnualPaidLeave;
-
-                if (policy.LongServiceAnnualPaidLeave <= 0)
-                    policy.LongServiceAnnualPaidLeave =
-                        DefaultLongServiceAnnualPaidLeave;
-
-                if (policy.LongServiceAfterYears < 0)
-                    policy.LongServiceAfterYears =
-                        DefaultLongServiceAfterYears;
-
-                return policy;
-            }
-            catch
-            {
-                // Invalid configuration should never break Leave management.
-                return new LeavePolicySettings();
-            }
-        }
-
-
-
-        private static int CalculateCompletedYears(
-    DateTime? joiningDate,
-    DateTime asOfDate)
-        {
-            if (!joiningDate.HasValue)
-                return 0;
-
-            var joined = joiningDate.Value.Date;
-            var today = asOfDate.Date;
-
-            if (joined > today)
-                return 0;
-
-            var years = today.Year - joined.Year;
-
-            if (today < joined.AddYears(years))
-                years--;
-
-            return Math.Max(0, years);
-        }
+        private static decimal GetAnnualLeaveEntitlement(
+            Employee employee, LeavePolicySettings policy, DateTime asOfDate)
+            => LeavePolicyService.GetAnnualEntitlement(employee.JoiningDate, policy, asOfDate);
 
         private static Dictionary<string, string> GetAllowedLeaveTypesForEmployee(
     Employee employee,
@@ -170,20 +54,7 @@ namespace ExpenseManagement.Controllers
             return allowedLeaveTypes;
         }
 
-        private static decimal GetAnnualLeaveEntitlement(
-    Employee employee,
-    LeavePolicySettings policy,
-    DateTime asOfDate)
-        {
-            var completedYears =
-                CalculateCompletedYears(
-                    employee.JoiningDate,
-                    asOfDate);
 
-            return completedYears > policy.LongServiceAfterYears
-                ? policy.LongServiceAnnualPaidLeave
-                : policy.BaseAnnualPaidLeave;
-        }
         // ============================================================
         // CURRENT USER / COMPANY
         // ============================================================
@@ -194,7 +65,7 @@ namespace ExpenseManagement.Controllers
         private int CurrentCompanyId =>
             int.Parse(User.FindFirstValue("CompanyId")!);
 
-        
+
 
         // ============================================================
         // EMPLOYEE - MY LEAVE
@@ -228,11 +99,11 @@ namespace ExpenseManagement.Controllers
                     DateTime.UtcNow.AddHours(5).AddMinutes(30).Date);
 
             var approvedUsed = leaves
-                .Where(l => l.Status == "Approved")
+                .Where(l => l.Status == "Approved" && policy.GetRule(l.LeaveType).UsesAnnualBalance)
                 .Sum(l => l.TotalDays ?? 0m);
 
             var pendingDays = leaves
-                .Where(l => l.Status == "Pending")
+                .Where(l => l.Status == "Pending" && policy.GetRule(l.LeaveType).UsesAnnualBalance)
                 .Sum(l => l.TotalDays ?? 0m);
 
             var availableBalance =
@@ -341,14 +212,49 @@ namespace ExpenseManagement.Controllers
                 return RedirectToAction(nameof(Apply));
             }
 
+            if (fromDate.Year != toDate.Year)
+            {
+                TempData["Error"] =
+                    "A leave application cannot span two calendar years. Please apply separately for each year.";
+
+                return RedirectToAction(nameof(Apply));
+            }
+
+            if (employee.JoiningDate.HasValue &&
+                fromDate < employee.JoiningDate.Value.Date)
+            {
+                TempData["Error"] =
+                    "Leave cannot start before your joining date.";
+
+                return RedirectToAction(nameof(Apply));
+            }
+
+            // Past dates: employees may backdate only within the current month.
+            var backdateToday = DateTime.UtcNow.AddHours(5).AddMinutes(30).Date;
+
+            if (fromDate < new DateTime(backdateToday.Year, backdateToday.Month, 1))
+            {
+                TempData["Error"] =
+                    "You can apply for past dates only within the current month. Please contact HR for earlier dates.";
+
+                return RedirectToAction(nameof(Apply));
+            }
+
+            if (employee.ExitDate.HasValue &&
+                toDate > employee.ExitDate.Value.Date)
+            {
+                TempData["Error"] =
+                    "Leave cannot extend beyond your exit date.";
+
+                return RedirectToAction(nameof(Apply));
+            }
+
             // --------------------------------------------------------
             // Calculate working leave days
             // --------------------------------------------------------
 
-            var totalDays = CalculateLeaveDays(
-                fromDate,
-                toDate,
-                halfDay);
+            var holidays = await WorkCalendar.LoadHolidaysAsync(_db, CurrentCompanyId, fromDate, toDate);
+            var totalDays = CalculateLeaveDays(fromDate, toDate, halfDay, holidays);
 
             if (totalDays <= 0)
             {
@@ -357,6 +263,17 @@ namespace ExpenseManagement.Controllers
 
                 return RedirectToAction(nameof(Apply));
             }
+
+            // --------------------------------------------------------
+            // Serialise concurrent applications for the same employee, so
+            // the overlap check below cannot be bypassed by a double-click
+            // or two simultaneous requests.
+            // --------------------------------------------------------
+
+            await using var tx = await _db.Database.BeginTransactionAsync();
+
+            await _db.Database.ExecuteSqlInterpolatedAsync(
+                $"SELECT pg_advisory_xact_lock(7001, {employee.Id})");
 
             // --------------------------------------------------------
             // Check overlapping leave
@@ -379,52 +296,23 @@ namespace ExpenseManagement.Controllers
             }
 
             // --------------------------------------------------------
-            // Calculate current annual balance
+            // Paid-leave balance (informational).
+            // Applying beyond the balance is allowed: the excess days
+            // are unpaid and are deducted in payroll.
             // --------------------------------------------------------
 
-            // --------------------------------------------------------
-            // Calculate current annual balance
-            // --------------------------------------------------------
+            var leaveYear = fromDate.Year;
+            var rule = policy.GetRule(leaveType);
 
-            var currentYear = DateTime.UtcNow
-                .AddHours(5)
-                .AddMinutes(30)
-                .Year;
+            var poolUsed = await GetPoolUsedAsync(
+                employee.Id,
+                leaveYear,
+                policy,
+                includePending: true,
+                excludeLeaveId: null);
 
-            var approvedUsed = await _db.Leaves
-                .Where(l =>
-                    l.EmployeeId == employee.Id &&
-                    l.Status == "Approved" &&
-                    l.FromDate.Year == currentYear)
-                .SumAsync(l => l.TotalDays ?? 0m);
-
-            var annualEntitlement =
-                GetAnnualLeaveEntitlement(
-                    employee,
-                    policy,
-                    DateTime.UtcNow
-                        .AddHours(5)
-                        .AddMinutes(30)
-                        .Date);
-
-            var availableBalance =
-                annualEntitlement - approvedUsed;
-
-            // --------------------------------------------------------
-            // Leave balance validation
-            // --------------------------------------------------------
-
-            if (totalDays > availableBalance)
-            {
-                TempData["Error"] =
-                    $"Insufficient leave balance. Available balance: {availableBalance:0.##} days.";
-
-                return RedirectToAction(nameof(Apply));
-            }
-
-
-
-
+            var entitlement = EntitlementForYear(employee, policy, leaveYear);
+            var balance = CalculateBalance(totalDays, entitlement, poolUsed, rule);
 
             // --------------------------------------------------------
             // Create leave application
@@ -438,9 +326,8 @@ namespace ExpenseManagement.Controllers
                 ToDate = toDate,
                 TotalDays = totalDays,
                 Reason = reason?.Trim(),
-                LeaveBalanceBefore = Math.Max(0m, availableBalance),
-                LeaveBalanceAfter =
-                Math.Max(0m, availableBalance - totalDays),
+                LeaveBalanceBefore = balance.Before,
+                LeaveBalanceAfter = balance.After,
                 Status = "Pending",
                 AppliedOn = DateTime.UtcNow,
                 CreatedAt = DateTime.UtcNow,
@@ -449,10 +336,26 @@ namespace ExpenseManagement.Controllers
 
             _db.Leaves.Add(leave);
 
-            await _db.SaveChangesAsync();
+            try
+            {
+                await _db.SaveChangesAsync();
 
-            TempData["Success"] =
-                "Leave application submitted successfully.";
+                WriteAudit("Apply", leave.Id, $"Applied for {leave.LeaveType} leave {leave.FromDate:dd-MMM-yyyy} to {leave.ToDate:dd-MMM-yyyy} ({leave.TotalDays:0.##} day(s)) for employee {leave.EmployeeId}.");
+                await _db.SaveChangesAsync();
+
+                await tx.CommitAsync();
+            }
+            catch (DbUpdateException)
+            {
+                TempData["Error"] =
+                    "You already have a pending or approved leave covering one or more selected dates.";
+
+                return RedirectToAction(nameof(Apply));
+            }
+
+            TempData["Success"] = balance.UnpaidDays > 0
+                ? $"Leave application submitted. {balance.UnpaidDays:0.##} day(s) exceed your paid leave balance and will be unpaid (salary deducted)."
+                : "Leave application submitted successfully.";
 
             return RedirectToAction(nameof(MyLeave));
         }
@@ -492,6 +395,17 @@ namespace ExpenseManagement.Controllers
             {
                 TempData["Error"] =
                     "This leave cannot be cancelled.";
+
+                return RedirectToAction(nameof(MyLeave));
+            }
+
+            // An employee can cancel only before, or on, the first leave day.
+            var cancelToday = DateTime.UtcNow.AddHours(5).AddMinutes(30).Date;
+
+            if (leave.FromDate.Date < cancelToday)
+            {
+                TempData["Error"] =
+                    "This leave has already started, so it can no longer be cancelled. Please contact HR.";
 
                 return RedirectToAction(nameof(MyLeave));
             }
@@ -536,6 +450,8 @@ namespace ExpenseManagement.Controllers
                     attendance.UpdatedAt = DateTime.UtcNow;
                 }
             }
+
+            WriteAudit("Cancel", leave.Id, $"Cancelled {leave.LeaveType} leave {leave.FromDate:dd-MMM-yyyy} to {leave.ToDate:dd-MMM-yyyy} ({leave.TotalDays:0.##} day(s)) for employee {leave.EmployeeId}.");
 
             await _db.SaveChangesAsync();
 
@@ -638,35 +554,44 @@ namespace ExpenseManagement.Controllers
                 return RedirectToAction(nameof(Index));
             }
 
-            var year = leave.FromDate.Year;
-
-            var approvedUsed = await _db.Leaves
-                .Where(l =>
-                    l.EmployeeId == leave.EmployeeId &&
-                    l.Status == "Approved" &&
-                    l.Id != leave.Id &&
-                    l.FromDate.Year == year)
-                .SumAsync(l => l.TotalDays ?? 0m);
-
             var policy = await GetLeavePolicyAsync();
+            var leaveYear = leave.FromDate.Year;
+            var rule = policy.GetRule(leave.LeaveType);
 
-            var annualEntitlement =
-                GetAnnualLeaveEntitlement(
-                    leave.Employee!,
-                    policy,
-                    DateTime.UtcNow.AddHours(5).AddMinutes(30).Date);
+            // Re-check overlap against leave that has meanwhile been approved.
+            var leaveFrom = leave.FromDate.Date;
+            var leaveTo = leave.ToDate.Date;
 
-            var availableBalance =
-                annualEntitlement - approvedUsed;
+            var approvedOverlap = await _db.Leaves
+                .AnyAsync(l =>
+                    l.EmployeeId == leave.EmployeeId &&
+                    l.Id != leave.Id &&
+                    l.Status == "Approved" &&
+                    l.FromDate.Date <= leaveTo &&
+                    l.ToDate.Date >= leaveFrom);
 
+            if (approvedOverlap)
+            {
+                TempData["Error"] =
+                    "Cannot approve. The employee already has approved leave covering one or more of these dates.";
 
-            leave.LeaveBalanceBefore =
-     Math.Max(0m, availableBalance);
+                return RedirectToAction(nameof(Index));
+            }
 
-            leave.LeaveBalanceAfter =
-                Math.Max(
-                    0m,
-                    availableBalance - (leave.TotalDays ?? 0m));
+            // Balance as of now (approved leave only). Days beyond the paid
+            // balance are still approved but will be unpaid in payroll.
+            var poolUsed = await GetPoolUsedAsync(
+                leave.EmployeeId,
+                leaveYear,
+                policy,
+                includePending: false,
+                excludeLeaveId: leave.Id);
+
+            var entitlement = EntitlementForYear(leave.Employee!, policy, leaveYear);
+            var balance = CalculateBalance(leave.TotalDays ?? 0m, entitlement, poolUsed, rule);
+
+            leave.LeaveBalanceBefore = balance.Before;
+            leave.LeaveBalanceAfter = balance.After;
 
             leave.Status = "Approved";
             leave.ReviewedBy = CurrentUserId;
@@ -674,10 +599,13 @@ namespace ExpenseManagement.Controllers
             leave.HRRemarks = hrRemarks?.Trim();
             leave.UpdatedAt = DateTime.UtcNow;
 
+            WriteAudit("Approve", leave.Id, $"Approved {leave.LeaveType} leave {leave.FromDate:dd-MMM-yyyy} to {leave.ToDate:dd-MMM-yyyy} ({leave.TotalDays:0.##} day(s)) for employee {leave.EmployeeId}.");
+
             await _db.SaveChangesAsync();
 
-            TempData["Success"] =
-                "Leave approved successfully.";
+            TempData["Success"] = balance.UnpaidDays > 0
+                ? $"Leave approved. {balance.UnpaidDays:0.##} day(s) exceed the paid leave balance and will be unpaid (salary deducted)."
+                : "Leave approved successfully.";
 
             return RedirectToAction(nameof(Index));
         }
@@ -717,6 +645,8 @@ namespace ExpenseManagement.Controllers
             leave.ReviewedOn = DateTime.UtcNow;
             leave.HRRemarks = hrRemarks?.Trim();
             leave.UpdatedAt = DateTime.UtcNow;
+
+            WriteAudit("Reject", leave.Id, $"Rejected {leave.LeaveType} leave {leave.FromDate:dd-MMM-yyyy} to {leave.ToDate:dd-MMM-yyyy} ({leave.TotalDays:0.##} day(s)) for employee {leave.EmployeeId}.");
 
             await _db.SaveChangesAsync();
 
@@ -824,53 +754,97 @@ namespace ExpenseManagement.Controllers
         }
 
 
+        private void WriteAudit(string action, int? entityId, string description)
+        {
+            _db.AuditLogs.Add(new AuditLog
+            {
+                CompanyId = CurrentCompanyId,
+                UserId = CurrentUserId,
+                Action = action,
+                EntityName = "Leave",
+                EntityId = entityId,
+                Description = description,
+                CreatedAt = DateTime.UtcNow
+            });
+        }
+
+        // ============================================================
+        // LEAVE ALLOWANCE HELPERS
+        // ============================================================
+
+        private decimal EntitlementForYear(
+            Employee employee,
+            LeavePolicySettings policy,
+            int leaveYear)
+        {
+            var today = DateTime.UtcNow.AddHours(5).AddMinutes(30).Date;
+
+            var asOf = leaveYear > today.Year
+                ? new DateTime(leaveYear, 1, 1)
+                : today;
+
+            return GetAnnualLeaveEntitlement(employee, policy, asOf);
+        }
+
+        private async Task<decimal> GetPoolUsedAsync(
+            int employeeId,
+            int year,
+            LeavePolicySettings policy,
+            bool includePending,
+            int? excludeLeaveId)
+        {
+            var statuses = includePending
+                ? new[] { "Approved", "Pending" }
+                : new[] { "Approved" };
+
+            var leaves = await _db.Leaves
+                .AsNoTracking()
+                .Where(l =>
+                    l.EmployeeId == employeeId &&
+                    statuses.Contains(l.Status) &&
+                    l.FromDate.Year == year &&
+                    (excludeLeaveId == null || l.Id != excludeLeaveId))
+                .Select(l => new { l.LeaveType, l.TotalDays })
+                .ToListAsync();
+
+            return leaves
+                .Where(l => policy.GetRule(l.LeaveType).UsesAnnualBalance)
+                .Sum(l => l.TotalDays ?? 0m);
+        }
+
+        private sealed record LeaveBalanceInfo(decimal Before, decimal After, decimal UnpaidDays);
+
+        private static LeaveBalanceInfo CalculateBalance(
+            decimal days,
+            decimal entitlement,
+            decimal poolUsed,
+            LeaveTypeRule rule)
+        {
+            // Leave type outside the paid scope: every day is unpaid.
+            if (!rule.IsPaid)
+                return new LeaveBalanceInfo(0m, 0m, days);
+
+            // Paid leave type that does not use the annual pool.
+            if (!rule.UsesAnnualBalance)
+                return new LeaveBalanceInfo(0m, 0m, 0m);
+
+            var before = Math.Max(0m, entitlement - poolUsed);
+            var after = Math.Max(0m, before - days);
+            var unpaid = Math.Max(0m, days - before);
+
+            return new LeaveBalanceInfo(before, after, unpaid);
+        }
+
         private static decimal CalculateLeaveDays(
-            DateTime fromDate,
-            DateTime toDate,
-            bool halfDay)
+    DateTime fromDate, DateTime toDate, bool halfDay, ISet<DateTime> holidays)
         {
             decimal workingDays = 0m;
+            for (var date = fromDate.Date; date <= toDate.Date; date = date.AddDays(1))
+                if (!WorkCalendar.IsNonWorkingDay(date, holidays)) workingDays += 1m;
 
-            for (var date = fromDate.Date;
-                 date <= toDate.Date;
-                 date = date.AddDays(1))
-            {
-                if (!IsWorkingDay(date))
-                    continue;
-
-                workingDays += 1m;
-            }
-
-            if (halfDay)
-            {
-                // Half-day is supported as 0.5 day.
-                // It applies to a single working day only.
-                if (workingDays != 1m)
-                    return 0m;
-
-                return 0.5m;
-            }
-
+            if (halfDay) return workingDays == 1m ? 0.5m : 0m;
             return workingDays;
         }
 
-
-        private static bool IsWorkingDay(DateTime date)
-        {
-            if (date.DayOfWeek == DayOfWeek.Sunday)
-                return false;
-
-            if (date.DayOfWeek == DayOfWeek.Saturday)
-            {
-                var occurrence =
-                    ((date.Day - 1) / 7) + 1;
-
-                // 2nd and 4th Saturdays are holidays.
-                if (occurrence == 2 || occurrence == 4)
-                    return false;
-            }
-
-            return true;
-        }
     }
 }

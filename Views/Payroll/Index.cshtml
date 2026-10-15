@@ -343,7 +343,7 @@
                                                         Not Available
                                                     </button>
                                                 }
-                                               else if (isCurrentMonth && isLastThreeDays)
+                                                else if (isCurrentMonth)
 {
     <a asp-controller="Payroll"
        asp-action="Process"
@@ -491,6 +491,18 @@ else if (isCurrentMonth)
                 Finalized
 
             </button>
+
+            <form asp-controller="Payroll" asp-action="Reopen" method="post" class="d-inline"
+      onsubmit="var r = prompt('Reason for reopening this finalized payroll:'); if (!r || r.trim().length < 5) { return false; } this.reason.value = r; return true;">
+    @Html.AntiForgeryToken()
+    <input type="hidden" name="employeeId" value="@employee.Id" />
+    <input type="hidden" name="month" value="@month" />
+    <input type="hidden" name="year" value="@year" />
+    <input type="hidden" name="reason" value="" />
+    <button type="submit" class="btn btn-sm btn-outline-warning">
+        <i class="fas fa-unlock me-1"></i>Reopen
+    </button>
+</form>
 
             
         }

@@ -713,7 +713,7 @@ namespace ExpenseManagement.Controllers
                     status = payroll.Status,
 
                     workingDays = payroll.WorkingDays,
-                    payDays = payroll.PayDays,
+                    payDays = payroll.PaidDays,
                     paidDays = payroll.PaidDays,
                     lop = payroll.LOP,
 

@@ -3,6 +3,8 @@ using ExpenseManagement.Models;
 using ExpenseManagement.Services;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.EntityFrameworkCore;
+using System.Security.Claims;
+using Microsoft.AspNetCore.Authentication;
 
 var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddControllersWithViews();
@@ -13,6 +15,7 @@ builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseNpgsql(connectionString);
 });
 builder.Services.AddScoped<S3Service>();
+builder.Services.AddScoped<LeavePolicyService>();
 builder.Services.AddSingleton<AttendanceProcessingService>();
 
 builder.Services.AddHostedService(sp =>
@@ -25,6 +28,34 @@ builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationSc
         options.LogoutPath = "/Account/Logout";
         options.AccessDeniedPath = "/Account/Login";
         options.ExpireTimeSpan = TimeSpan.FromHours(12);
+        options.Events.OnValidatePrincipal = async context =>
+        {
+            var principal = context.Principal;
+            if (principal == null || !principal.IsInRole("Employee")) return;
+
+            if (!int.TryParse(principal.FindFirst(ClaimTypes.NameIdentifier)?.Value, out var userId))
+                return;
+
+            var db = context.HttpContext.RequestServices.GetRequiredService<AppDbContext>();
+
+            var emp = await db.Employees
+                .AsNoTracking()
+                .Where(e => e.UserId == userId)
+                .Select(e => new { e.EmploymentStatus, e.ExitDate })
+                .FirstOrDefaultAsync();
+
+            var todayIst = DateTime.UtcNow.AddHours(5).AddMinutes(30).Date;
+
+            var blocked = emp != null && (
+                string.Equals(emp.EmploymentStatus, "Inactive", StringComparison.OrdinalIgnoreCase) ||
+                (emp.ExitDate.HasValue && emp.ExitDate.Value.Date < todayIst));
+
+            if (blocked)
+            {
+                context.RejectPrincipal();
+                await context.HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
+            }
+        };
     });
 builder.Services.AddAuthorization();
 builder.Services.AddSession(options =>
